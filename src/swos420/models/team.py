@@ -6,11 +6,34 @@ from pydantic import BaseModel, Field
 
 
 class TeamFinances(BaseModel):
-    """Club financial state — drives wage bill pressure and transfer budget."""
+    """Club financial state — drives wage bill pressure and transfer budget.
+
+    Chairman Yield is the economic soul: NFT performance → $SENSI to Chairman wallet.
+    Hoardings are the 60/30/10 funnel (60% to Chairman/club finances).
+    """
     balance: int = Field(default=10_000_000, description="Current bank balance in £/$SENSI")
     weekly_wage_bill: int = Field(default=0, description="Sum of all player wages")
     transfer_budget: int = Field(default=5_000_000, description="Available for signings")
     season_revenue: int = Field(default=0, description="Accumulated season income")
+    hoarding_revenue: int = Field(default=0, description="60% share of hoarding rent → Chairman")
+    prize_money: int = Field(default=0, description="End-of-season prize pool payout")
+    chairman_yield_accumulated: int = Field(default=0, description="Total $SENSI yield paid to Chairman")
+
+    def calculate_chairman_yield(
+        self,
+        total_squad_value: int,
+        league_multiplier: float = 1.0,
+        hoarding_week_revenue: int = 0,
+    ) -> int:
+        """Calculate weekly Chairman Yield — THE economic soul formula.
+
+        weekly_yield = current_value * 0.0018 * league_multiplier + hoarding_revenue * 0.60
+        """
+        wage_yield = int(total_squad_value * 0.0018 * league_multiplier)
+        hoarding_yield = int(hoarding_week_revenue * 0.60)
+        weekly = wage_yield + hoarding_yield
+        self.chairman_yield_accumulated += weekly
+        return weekly
 
 
 class Team(BaseModel):

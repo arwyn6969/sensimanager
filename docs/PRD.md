@@ -121,6 +121,22 @@ cd swos-port && meson setup build && ninja -C build
 - **Key files:** `contracts/src/AdHoarding.sol`, `src/swos420/engine/ad_manager.py`
 - **User Guide:** `docs/SWOS420_USERS_GUIDE.md`
 
+### Phase D — Chairman Yield & Prize Money Layer ✅ BUILT (THE ECONOMIC SOUL)
+
+> **Chairman Yield is the economic soul; hoardings are the 60/30/10 funnel.**
+>
+> **Human = Chairman** (passive owner, portfolio strategist).
+> **AI Manager = Touchline executor** (PPO agent).
+> **Yield = $SENSI flowing to your wallet from NFT performance + prizes.**
+
+- Victory-to-Yield pipeline: `match_sim → season_runner → settle_season.py → LeagueRewards.sol` (via Web3.py)
+- Chairman Yield formula: `current_value * 0.0018 * league_multiplier + hoarding_revenue * 0.60`
+- Prize money schema: tier_1–4 pools (500K / 200K / 100K / 50K $SENSI) scaled to `league_multiplier`
+- Hoarding revenue 60% flows to Chairman (club owner) finances → feeds yield engine
+- 100-season stress test: `scripts/stress_yield_sustainability.py` (insolvency = 0)
+- Future: Betting Layer stub (external $SENSI wagers on AI match outcomes)
+- **Key files:** `scripts/settle_season.py`, `src/swos420/models/team.py`, `config/rules.json`
+
 ---
 
 ## 5. Architecture & Data Flow

@@ -412,7 +412,13 @@ class AdManager:
     # ── Revenue Reporting ────────────────────────────────────────────────
 
     def get_revenue_report(self) -> dict[str, Any]:
-        """Generate a revenue report across all clubs."""
+        """Generate a revenue report across all clubs.
+
+        Includes the 60/30/10 Chairman Yield split:
+          - 60% → Chairman (club owner via NFTs) — feeds TeamFinances
+          - 30% → Treasury (protocol operations)
+          - 10% → Creator (Arwyn / platform maintainer)
+        """
         report: dict[str, Any] = {
             "total_clubs": len(self.clubs),
             "total_active_slots": 0,
@@ -420,16 +426,35 @@ class AdManager:
             "global_occupancy_rate": 0.0,
             "demand_factor": self.demand_factor,
             "viewer_count": self.viewer_count,
+            "total_revenue_wei": 0,
+            "chairman_yield_split": {
+                "chairman_club_share": 0.60,
+                "treasury_share": 0.30,
+                "creator_share": 0.10,
+            },
+            "total_chairman_share_wei": 0,
+            "total_treasury_share_wei": 0,
+            "total_creator_share_wei": 0,
             "clubs": [],
         }
 
         total_active = 0
         total_possible = 0
+        total_revenue = 0
 
         for club in self.clubs.values():
             active_count = len(club.active_slots)
             total_active += active_count
             total_possible += club.max_slots
+
+            # Calculate revenue from this club's hoarding slots
+            club_revenue = sum(s.paid_amount_wei for s in club.active_slots)
+            total_revenue += club_revenue
+
+            # 60/30/10 split
+            chairman_share = int(club_revenue * 0.60)
+            treasury_share = int(club_revenue * 0.30)
+            creator_share = int(club_revenue * 0.10)
 
             report["clubs"].append({
                 "club_id": club.club_id,
@@ -440,10 +465,18 @@ class AdManager:
                 "occupancy_rate": f"{club.occupancy_rate:.1%}",
                 "available_positions": club.available_positions,
                 "sponsors": self.get_all_sponsor_names(club.club_id),
+                "total_revenue_wei": club_revenue,
+                "chairman_yield_wei": chairman_share,
+                "treasury_wei": treasury_share,
+                "creator_wei": creator_share,
             })
 
         report["total_active_slots"] = total_active
         report["total_available_slots"] = total_possible - total_active
+        report["total_revenue_wei"] = total_revenue
+        report["total_chairman_share_wei"] = int(total_revenue * 0.60)
+        report["total_treasury_share_wei"] = int(total_revenue * 0.30)
+        report["total_creator_share_wei"] = int(total_revenue * 0.10)
         if total_possible > 0:
             report["global_occupancy_rate"] = f"{total_active / total_possible:.1%}"
 

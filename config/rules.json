@@ -46,6 +46,21 @@
       "default": 1.0
     }
   },
+  "chairman_yield": {
+    "_comment": "Chairman Yield = the economic soul. NFT performance → $SENSI to Chairman wallet.",
+    "tier_1_prize_pool": 500000,
+    "tier_2_prize_pool": 200000,
+    "tier_3_prize_pool": 100000,
+    "tier_4_prize_pool": 50000,
+    "hoarding_base_revenue": 10000,
+    "hoarding_split": {
+      "chairman_club_share": 0.60,
+      "treasury_share": 0.30,
+      "creator_share": 0.10
+    },
+    "yield_formula": "current_value * 0.0018 * league_multiplier + hoarding_revenue * 0.60",
+    "betting_layer_enabled": false
+  },
   "form": {
     "win_bonus": 3.0,
     "draw_bonus": 0.5,
