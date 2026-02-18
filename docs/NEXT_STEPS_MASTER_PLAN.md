@@ -17,11 +17,11 @@
 | **Transfer Market** | ✅ Complete | 340-line sealed-bid auction system |
 | **Scouting** | ✅ Complete | 162-line tiered skill reveal |
 | **AI Managers** | ✅ Complete | PettingZoo ParallelEnv + Gym wrapper + PPO training + baselines |
-| **Tests** | ✅ Outstanding | 411 passing across 22 files, 96% coverage |
+| **Tests** | ✅ Outstanding | 457 passing across 24 files, 96% coverage |
 | **CI** | ✅ Hardened | GitHub Actions: ruff + pytest --cov + Python 3.12/3.13 matrix |
 | **Docker** | ✅ Ready | Dockerfile + docker-compose.yml with GPU support |
 | **Lint** | ✅ Clean | `ruff check .` passes with zero errors |
-| **SWOS Port** | 🔲 Stub | `Dockerfile.swos-port` + `ArcadeMatchSimulator` placeholder |
+| **SWOS Port** | ✅ Complete | EDT binary I/O + DOSBox-X runner + `ArcadeMatchSimulator` wired |
 | **NFTs** | 🟡 Skeleton | `PlayerNFT.sol` + `to_nft_metadata()` on player model |
 | **Streaming** | ✅ MVP | HTML overlay + local server + stream runner + LLM commentary |
 
@@ -34,17 +34,17 @@ src/swos420/
 ├── models/           player.py · team.py · league.py
 ├── engine/           match_sim.py · season_runner.py · commentary.py · transfer_market.py · scouting.py
 ├── ai/               env.py · actions.py · obs.py · rewards.py · baseline_agents.py
-├── importers/        sofifa.py · swos_edt.py · transfermarkt.py · hybrid.py
+├── importers/        sofifa.py · swos_edt.py · swos_edt_binary.py · transfermarkt.py · hybrid.py
 ├── mapping/          engine.py
 ├── normalization/    engine.py
 ├── db/               models.py · session.py · repository.py
 └── utils/
 
-scripts/              smoke_pipeline · run_full_season · run_match · train_managers · update_db · export
-config/               rules.json · league_structure.json
+scripts/              smoke_pipeline · run_full_season · run_match · train_managers · update_db · export · export_edt
+config/               rules.json · league_structure.json · dosbox.conf
 contracts/            PlayerNFT.sol
 streaming/            obs_pipeline.sh
-tests/                22 files, 411 tests
+tests/                24 files, 457 tests
 ```
 
 ---
@@ -57,11 +57,12 @@ tests/                22 files, 411 tests
 - [ ] Docker + Nvidia NVENC for 24/7 league stream
 - [x] Live scoreboard overlay
 
-### Priority 2 — SWOS Arcade Integration (Weeks 2–3)
-- [ ] Build Docker image from `Dockerfile.swos-port`
-- [ ] Implement pybind11 wrapper for zlatkok/swos-port
-- [ ] Wire `ArcadeMatchSimulator` to native engine
-- [ ] Headless arcade match from Python
+### Priority 2 — SWOS Arcade Integration ✅ COMPLETE
+- [x] Binary EDT reader/writer (`swos_edt_binary.py` — nibble-packed skills)
+- [x] EDT export CLI (`export_edt.py` — demo + league modes)
+- [x] DOSBox-X headless runner (`dosbox_runner.py` + `dosbox.conf`)
+- [x] `ArcadeMatchSimulator` wired to DOSBox runner with fallback
+- [ ] DOSBox-X end-to-end test (requires SWOS game files)
 
 ### Priority 3 — On-Chain Ownership (Month 1)
 - [ ] Deploy `PlayerNFT.sol` to Base testnet
