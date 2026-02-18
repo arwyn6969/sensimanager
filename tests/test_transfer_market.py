@@ -19,7 +19,7 @@ from swos420.models.player import Position, Skills, SWOSPlayer, generate_base_id
 def _make_player(
     name: str = "TEST PLAYER",
     club_code: str = "TST",
-    skill_level: int = 8,
+    skill_level: int = 4,  # SWOS 0-7 stored range
     age: int = 25,
     value: int = 5_000_000,
 ) -> SWOSPlayer:
@@ -217,12 +217,12 @@ class TestFreeAgents:
             assert agent.club_code == "FA"
 
     def test_skills_in_range(self):
-        agents = generate_free_agents(n=10, skill_range=(3, 10))
+        agents = generate_free_agents(n=10, skill_range=(0, 5))
         for agent in agents:
             for s in ["passing", "velocity", "heading", "tackling",
                       "control", "speed", "finishing"]:
-                # Youth might get +1-3 bonus, so upper bound is 13
-                assert 0 <= getattr(agent.skills, s) <= 15
+                # Youth might get +1-2 bonus, so upper bound is 7
+                assert 0 <= getattr(agent.skills, s) <= 7
 
     def test_ages_in_range(self):
         agents = generate_free_agents(n=20, age_range=(20, 30))

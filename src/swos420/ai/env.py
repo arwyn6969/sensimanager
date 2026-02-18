@@ -37,21 +37,27 @@ from swos420.ai.rewards import (
 from swos420.engine.season_runner import SeasonRunner, TeamSeasonState
 from swos420.engine.transfer_market import TransferMarket, generate_free_agents
 from swos420.engine.scouting import ScoutingSystem
-from swos420.models.player import Position, Skills, SWOSPlayer, generate_base_id, SKILL_NAMES
+from swos420.models.player import (
+    Position, Skills, SWOSPlayer, generate_base_id, SKILL_NAMES,
+    SWOS_SQUAD_SIZE, hex_tier_value,
+)
 from swos420.models.team import Team, TeamFinances
 
 
 # Transfer windows occur at these matchdays (configurable)
 DEFAULT_TRANSFER_MATCHDAYS = {0, 19}  # Summer + winter windows
 MAX_MARKET_TARGETS = 15
-MAX_SQUAD_DISPLAY = 22
+MAX_SQUAD_DISPLAY = 16  # Authentic SWOS squad size
 MAX_BENCH = 5
 
 
 def _make_test_players(
-    code: str, n: int = 18, skill_range: tuple[int, int] = (5, 12),
+    code: str, n: int = SWOS_SQUAD_SIZE, skill_range: tuple[int, int] = (1, 6),
 ) -> list[SWOSPlayer]:
-    """Generate a squad of test players for environment initialization."""
+    """Generate a squad of test players for environment initialization.
+
+    Skills use authentic SWOS 0-7 stored range (effective 8-15 at runtime).
+    """
     positions = [
         Position.GK, Position.RB, Position.CB, Position.CB, Position.LB,
         Position.RM, Position.CM, Position.CM, Position.LM,
@@ -74,7 +80,7 @@ def _make_test_players(
             age=age,
             club_name=f"Club {code}",
             club_code=code,
-            base_value=skill_lvl * 500_000,
+            base_value=hex_tier_value(skill_lvl * 7),  # Stepped hex-tier economy
         ))
     return players
 
@@ -95,7 +101,7 @@ class SWOSManagerEnv(ParallelEnv):
     def __init__(
         self,
         num_teams: int = 4,
-        skill_range: tuple[int, int] = (5, 12),
+        skill_range: tuple[int, int] = (1, 6),  # SWOS 0-7 stored range
         transfer_matchdays: set[int] | None = None,
         reward_weights: dict[str, float] | None = None,
         seed: int | None = None,
@@ -183,7 +189,7 @@ class SWOSManagerEnv(ParallelEnv):
         self._team_states = []
         codes = [f"T{i:02d}" for i in range(self.num_teams)]
         for code in codes:
-            players = _make_test_players(code, n=18, skill_range=self._skill_range)
+            players = _make_test_players(code, n=SWOS_SQUAD_SIZE, skill_range=self._skill_range)
             team = Team(
                 name=f"Club {code}",
                 code=code,

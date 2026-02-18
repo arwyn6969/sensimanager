@@ -11,12 +11,15 @@ import logging
 import random
 from dataclasses import dataclass, field
 
-from swos420.models.player import SWOSPlayer, Skills, Position, generate_base_id, SKILL_NAMES
+from swos420.models.player import (
+    SWOSPlayer, Skills, Position, generate_base_id, SKILL_NAMES,
+    SWOS_SQUAD_SIZE, hex_tier_value,
+)
 
 logger = logging.getLogger(__name__)
 
 # Squad constraints
-MIN_SQUAD_SIZE = 16
+MIN_SQUAD_SIZE = SWOS_SQUAD_SIZE  # Authentic SWOS 16-player squads
 MAX_SQUAD_SIZE = 30
 
 
@@ -292,15 +295,17 @@ def generate_free_agents(
     n: int = 10,
     season: str = "25/26",
     age_range: tuple[int, int] = (18, 33),
-    skill_range: tuple[int, int] = (3, 10),
+    skill_range: tuple[int, int] = (0, 5),  # SWOS 0-7 stored range (free agents are weaker)
 ) -> list[SWOSPlayer]:
     """Generate unemployed free agent players for the market.
+
+    Skills use authentic SWOS 0-7 stored range.
 
     Args:
         n: Number of free agents to generate.
         season: Season string for base_id generation.
         age_range: (min_age, max_age) inclusive.
-        skill_range: (min_skill, max_skill) for random skill values.
+        skill_range: (min_skill, max_skill) for random skill values (0-7).
 
     Returns:
         List of SWOSPlayer with club_name="Free Agent".
@@ -318,9 +323,12 @@ def generate_free_agents(
         # Youth players get a slight bias toward higher potential
         if age <= 21:
             best_skill = max(skill_vals, key=skill_vals.get)  # type: ignore
-            skill_vals[best_skill] = min(15, skill_vals[best_skill] + random.randint(1, 3))
+            skill_vals[best_skill] = min(7, skill_vals[best_skill] + random.randint(1, 2))
 
-        base_value = sum(skill_vals.values()) * 50_000 * max(0.5, 1.0 - (age - 25) * 0.03)
+        # Use hex-tier value table for authentic stepped economy
+        skill_total = sum(skill_vals.values())
+        age_mod = max(0.5, 1.0 - (age - 25) * 0.03)
+        base_value = int(hex_tier_value(skill_total) * age_mod)
 
         player = SWOSPlayer(
             base_id=generate_base_id(f"fa_{i}_{random.randint(1, 999999)}", season),

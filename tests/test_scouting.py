@@ -11,14 +11,14 @@ from swos420.models.player import Position, Skills, SWOSPlayer
 
 def _make_player(
     name: str = "SCOUT TARGET",
-    skill_level: int = 10,
+    skill_level: int = 5,
     age: int = 22,
 ) -> SWOSPlayer:
     skills = {s: skill_level for s in
               ["passing", "velocity", "heading", "tackling", "control", "speed", "finishing"]}
     # Give one standout skill for testing top-skill reveal
-    skills["speed"] = min(15, skill_level + 3)
-    skills["finishing"] = min(15, skill_level + 2)
+    skills["speed"] = min(7, skill_level + 2)
+    skills["finishing"] = min(7, skill_level + 1)
     return SWOSPlayer(
         base_id=f"scout_test_{name.lower().replace(' ', '_')}",
         full_name=name.title(),
@@ -63,7 +63,7 @@ class TestTier1:
 
     def test_tier1_reveals_top_2(self):
         scout = ScoutingSystem(seed=42)
-        player = _make_player(skill_level=10)
+        player = _make_player(skill_level=5)
         report = scout.scout_player(player, tier=1)
 
         assert len(report.revealed_skills) == 2
@@ -73,7 +73,7 @@ class TestTier1:
 
     def test_tier1_has_correct_values(self):
         scout = ScoutingSystem(seed=42)
-        player = _make_player(skill_level=8)
+        player = _make_player(skill_level=4)
         report = scout.scout_player(player, tier=1)
 
         for skill_name, value in report.revealed_skills.items():
@@ -98,7 +98,7 @@ class TestTier2:
 
     def test_tier2_noise_within_bounds(self):
         scout = ScoutingSystem(seed=42)
-        player = _make_player(skill_level=10)
+        player = _make_player(skill_level=5)
         report = scout.scout_player(player, tier=2)
 
         for skill_name, noisy_val in report.all_skills_noisy.items():
@@ -106,7 +106,7 @@ class TestTier2:
             # Noise is ±1
             assert abs(noisy_val - true_val) <= 1
             # Clamped to 0-15
-            assert 0 <= noisy_val <= 15
+            assert 0 <= noisy_val <= 7
 
     def test_tier2_also_has_top_skills(self):
         """Tier 2 should include tier 1 info as well."""
@@ -121,7 +121,7 @@ class TestTier3:
 
     def test_tier3_reveals_exact_skills(self):
         scout = ScoutingSystem(seed=42)
-        player = _make_player(skill_level=10)
+        player = _make_player(skill_level=5)
         report = scout.scout_player(player, tier=3)
 
         assert len(report.exact_skills) == 7
@@ -138,8 +138,8 @@ class TestTier3:
 
     def test_tier3_young_player_high_potential(self):
         scout = ScoutingSystem(seed=42)
-        young = _make_player(skill_level=12, age=18)
-        old = _make_player(skill_level=12, age=33)
+        young = _make_player(skill_level=6, age=18)
+        old = _make_player(skill_level=6, age=33)
 
         young_report = scout.scout_player(young, tier=3)
         old_report = scout.scout_player(old, tier=3)

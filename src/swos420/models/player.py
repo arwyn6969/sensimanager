@@ -1,11 +1,18 @@
-"""SWOS420 Player Model — Deep v2.2 with all canonical SWOS mechanics.
+"""SWOS420 Player Model — v3.0 with authentic SWOS 96/97 mechanics.
 
-Every player has 7 core skills (0-15), dynamic form/morale/fatigue,
-and economy fields (wage, value) that drive the NFT ownership layer.
+Every player has 7 core skills stored as 0-7 (database values) that map
+to effective 8-15 at runtime (+8 offset). This creates only 8 discrete
+skill levels with a compressed 2× gap between worst and best, matching
+the original Sensible World of Soccer engine.
+
+GK performance is driven by value tier (Hex Price Byte), not skills.
+Player values use a stepped hex-tier economy, not linear scaling.
+Positional fitness ('Green Tick') modifies ICP contributions.
 """
 
 from __future__ import annotations
 
+import bisect
 import hashlib
 from enum import Enum
 from typing import Optional
@@ -40,21 +47,135 @@ SKILL_NAMES = ("passing", "velocity", "heading", "tackling", "control", "speed",
 SKILL_ABBREVS = {"passing": "PA", "velocity": "VE", "heading": "HE", "tackling": "TA",
                  "control": "CO", "speed": "SP", "finishing": "FI"}
 
+# ── Authentic SWOS Constants ──────────────────────────────────────────
+SWOS_SKILL_BASE = 8       # Engine adds +8 to stored value at runtime
+SWOS_STORED_MAX = 7       # Max stored value in database (0-7)
+SWOS_EFFECTIVE_MAX = 15   # Max effective value (7 + 8)
+SWOS_EFFECTIVE_MIN = 8    # Min effective value (0 + 8)
+SWOS_SQUAD_SIZE = 16      # Authentic SWOS squad size
+
+# Stepped hex-tier value table — values jump at thresholds, not linear.
+# Indexed by tier (0-15), mapping skill-total ranges to value tiers.
+HEX_VALUE_TABLE: list[tuple[int, int]] = [
+    # (skill_total_threshold, value_in_pounds)
+    (0,   25_000),
+    (5,   50_000),
+    (10,  75_000),
+    (14,  100_000),
+    (17,  250_000),
+    (20,  500_000),
+    (23,  750_000),
+    (26,  1_000_000),
+    (29,  1_500_000),
+    (32,  2_500_000),
+    (35,  5_000_000),
+    (38,  7_500_000),
+    (41,  10_000_000),
+    (44,  12_500_000),
+    (47,  15_000_000),
+]
+HEX_THRESHOLDS = [t for t, _ in HEX_VALUE_TABLE]
+HEX_VALUES = [v for _, v in HEX_VALUE_TABLE]
+
+# Positional fitness — maps Position → set of natural positions (Green Tick).
+# If player.position is in GREEN_TICK_POSITIONS[assigned_role], they
+# get the 1.2× ICP multiplier. Otherwise they get 1.0× (neutral) or
+# 0.7× (red cross) if completely wrong.
+GREEN_TICK_POSITIONS: dict[str, set[str]] = {
+    "GK": {"GK"},
+    "RB": {"RB", "RWB"},
+    "CB": {"CB", "SW"},
+    "LB": {"LB", "LWB"},
+    "RWB": {"RB", "RWB"},
+    "LWB": {"LB", "LWB"},
+    "CDM": {"CDM", "CM"},
+    "RM": {"RM", "RW"},
+    "CM": {"CM", "CDM", "CAM"},
+    "LM": {"LM", "LW"},
+    "CAM": {"CAM", "AM", "CM"},
+    "RW": {"RW", "RM"},
+    "LW": {"LW", "LM"},
+    "AM": {"AM", "CAM", "SS"},
+    "CF": {"CF", "ST", "SS"},
+    "ST": {"ST", "CF"},
+    "SS": {"SS", "CF", "AM"},
+    "SW": {"SW", "CB"},
+}
+
+# Cross-category penalties: playing a defender as attacker (or vice versa)
+# gets the Red Cross 0.7× penalty.
+_DEFENSIVE = {"GK", "RB", "CB", "LB", "RWB", "LWB", "SW"}
+_MIDFIELD = {"CDM", "RM", "CM", "LM", "CAM", "AM"}
+_ATTACKING = {"RW", "LW", "CF", "ST", "SS"}
+
+
+def positional_fitness(player_pos: str, assigned_role: str) -> float:
+    """Return ICP multiplier for positional fitness.
+
+    Returns:
+        1.2 — Green Tick (natural position)
+        1.0 — Neutral (same zone, different role)
+        0.7 — Red Cross (wrong zone entirely)
+    """
+    if player_pos == assigned_role:
+        return 1.2
+    green_set = GREEN_TICK_POSITIONS.get(assigned_role, set())
+    if player_pos in green_set:
+        return 1.2
+    # Same zone = neutral
+    player_zone = _DEFENSIVE if player_pos in _DEFENSIVE else (
+        _MIDFIELD if player_pos in _MIDFIELD else _ATTACKING
+    )
+    assigned_zone = _DEFENSIVE if assigned_role in _DEFENSIVE else (
+        _MIDFIELD if assigned_role in _MIDFIELD else _ATTACKING
+    )
+    if player_zone == assigned_zone:
+        return 1.0
+    return 0.7
+
+
+def hex_tier_value(skill_total: int) -> int:
+    """Look up stepped hex-tier value from skill total.
+
+    Values jump at thresholds (e.g., £5M → £10M) rather than scaling
+    linearly. This matches the original SWOS hex-code economy.
+    """
+    idx = bisect.bisect_right(HEX_THRESHOLDS, skill_total) - 1
+    return HEX_VALUES[max(0, idx)]
+
 
 class Skills(BaseModel):
-    """The 7 canonical SWOS skills, each 0-15."""
-    passing: int = Field(default=5, ge=0, le=15, description="Pass accuracy, range, through-balls")
-    velocity: int = Field(default=5, ge=0, le=15, description="Long-range shot power & swerve")
-    heading: int = Field(default=5, ge=0, le=15, description="Aerial duels, corners, crosses")
-    tackling: int = Field(default=5, ge=0, le=15, description="Slide tackles, challenges, foul risk")
-    control: int = Field(default=5, ge=0, le=15, description="First touch, dribbling, turning")
-    speed: int = Field(default=5, ge=0, le=15, description="Top speed, acceleration")
-    finishing: int = Field(default=5, ge=0, le=15, description="Close-range shot accuracy & power")
+    """The 7 canonical SWOS skills, stored as 0-7 (database values).
+
+    At runtime, the engine adds +8 to get effective values (8-15).
+    This creates only 8 discrete skill levels with a compressed 2×
+    gap between the worst and best players.
+    """
+    passing: int = Field(default=3, ge=0, le=7, description="Pass speed/snap, receiver lock accuracy")
+    velocity: int = Field(default=3, ge=0, le=7, description="Shot power OUTSIDE penalty area")
+    heading: int = Field(default=3, ge=0, le=7, description="Aerial leap height, header accuracy")
+    tackling: int = Field(default=3, ge=0, le=7, description="Tackle hitbox radius, clean dispossession prob")
+    control: int = Field(default=3, ge=0, le=7, description="Ball friction coefficient, turn retention")
+    speed: int = Field(default=3, ge=0, le=7, description="Pixels-per-frame displacement rate")
+    finishing: int = Field(default=3, ge=0, le=7, description="Shot power/accuracy INSIDE penalty area")
 
     @property
     def total(self) -> int:
-        """Sum of all 7 skills."""
+        """Sum of all 7 stored skills (0-49 range)."""
         return sum(getattr(self, s) for s in SKILL_NAMES)
+
+    @property
+    def effective_total(self) -> int:
+        """Sum of all 7 effective skills (56-105 range)."""
+        return sum(self.effective(s) for s in SKILL_NAMES)
+
+    def effective(self, skill_name: str) -> int:
+        """Return the effective skill value (stored + 8).
+
+        Stored 0 → effective 8 (53% of max).
+        Stored 7 → effective 15 (100% of max).
+        """
+        return getattr(self, skill_name) + SWOS_SKILL_BASE
 
     @property
     def top3(self) -> list[str]:
@@ -63,7 +184,12 @@ class Skills(BaseModel):
         return [SKILL_ABBREVS[s] for s in ranked[:3]]
 
     def as_dict(self) -> dict[str, int]:
+        """Return stored skill values."""
         return {s: getattr(self, s) for s in SKILL_NAMES}
+
+    def effective_dict(self) -> dict[str, int]:
+        """Return effective skill values (stored + 8)."""
+        return {s: self.effective(s) for s in SKILL_NAMES}
 
 
 def generate_base_id(sofifa_id: int | str, season: str) -> str:
@@ -110,7 +236,7 @@ class SWOSPlayer(BaseModel):
     # ── Dynamic / Runtime ──────────────────────────────────────────────
     age: int = Field(default=25, ge=16, le=40)
     contract_years: int = Field(default=3, ge=0, le=5)
-    base_value: int = Field(default=1_000_000, ge=0, description="Base transfer value in £")
+    base_value: int = Field(default=500_000, ge=0, description="Base transfer value in £ (hex-tier)")
     wage_weekly: int = Field(default=10_000, ge=0, description="Weekly wage in £/$CM")
 
     morale: float = Field(default=100.0, ge=0.0, le=100.0)
@@ -135,17 +261,43 @@ class SWOSPlayer(BaseModel):
 
     # ── Economy Methods ────────────────────────────────────────────────
     def effective_skill(self, skill_name: str) -> float:
-        """Apply form modifier to a base skill.
+        """Return effective skill with form modifier applied.
 
-        effective_skill = base_skill * (1.0 + form / 200.0)
-        Form +50 = +25% boost, Form -50 = -25% penalty.
+        Base effective = stored_skill + 8 (SWOS offset).
+        Form modifies effective: effective * (1.0 + form / 200.0).
         """
-        base = getattr(self.skills, skill_name)
-        return base * (1.0 + self.form / 200.0)
+        base_effective = self.skills.effective(skill_name)
+        return base_effective * (1.0 + self.form / 200.0)
 
     def effective_skills(self) -> dict[str, float]:
-        """All 7 effective skills (form-modified)."""
+        """All 7 effective skills (offset + form-modified)."""
         return {s: self.effective_skill(s) for s in SKILL_NAMES}
+
+    @property
+    def is_goalkeeper(self) -> bool:
+        """True if player is a goalkeeper."""
+        return self.position == Position.GK
+
+    @property
+    def gk_save_ability(self) -> float:
+        """GK performance rating derived from value tier, not skills.
+
+        In authentic SWOS, GK skills are all 0 — their save probability
+        is driven entirely by their Hex Price Byte (market value = stat).
+        Returns a 0.0-1.0 rating based on value tier.
+        """
+        if not self.is_goalkeeper:
+            return 0.0
+        value = self.calculate_current_value()
+        # Map value to 0.0-1.0 save ability (£25K=0.3, £15M=0.95)
+        if value <= 25_000:
+            return 0.30
+        elif value >= 15_000_000:
+            return 0.95
+        else:
+            # Log scale — big GK value gains diminish returns
+            import math
+            return 0.30 + 0.65 * (math.log(value / 25_000) / math.log(15_000_000 / 25_000))
 
     @property
     def age_factor(self) -> float:
@@ -160,12 +312,18 @@ class SWOSPlayer(BaseModel):
             return max(0.3, 0.76 - (self.age - 32) * 0.1)  # drops to 0.3 floor
 
     def calculate_current_value(self) -> int:
-        """Dynamic market value based on base_value, form, goals, and age.
+        """Dynamic market value using stepped hex-tier economy.
 
-        current_value = base_value * (0.6 + form/100 + goals*0.01) * age_factor
+        Base value comes from hex_tier_value(skill_total), then
+        modified by form, goals, and age factor.
         """
-        form_factor = 0.6 + self.form / 100.0 + self.goals_scored_season * 0.01
-        return max(25_000, int(self.base_value * form_factor * self.age_factor))
+        # Hex-tier base from skill total
+        tier_base = hex_tier_value(self.skills.total)
+        # Dynamic modifiers (form + goals + age)
+        form_mod = 1.0 + self.form / 100.0
+        goal_bonus = 1.0 + self.goals_scored_season * 0.02
+        raw = tier_base * form_mod * goal_bonus * self.age_factor
+        return max(25_000, int(raw))
 
     def calculate_wage(self, league_multiplier: float = 1.0) -> int:
         """Weekly wage derived from current market value.
@@ -201,10 +359,11 @@ class SWOSPlayer(BaseModel):
             # Actual randomness handled by engine — this applies deterministic minimum
             pass  # Engine will call develop_youth() with RNG
         elif self.age >= 30:
+            # Decay: older players lose skill points (clamped to 0-7 range)
             decay_rate = 0.1 if self.age < 34 else 0.25
             for skill_name in SKILL_NAMES:
                 current = getattr(self.skills, skill_name)
-                new_val = max(0, int(current - decay_rate))
+                new_val = max(0, int(current - decay_rate))  # Stays in 0-7
                 setattr(self.skills, skill_name, new_val)
 
     def reset_season_stats(self) -> None:
@@ -216,8 +375,8 @@ class SWOSPlayer(BaseModel):
 
     @property
     def should_retire(self) -> bool:
-        """Retirement check: age > 36 or total skills < 45."""
-        return self.age > 36 or self.skills.total < 45
+        """Retirement check: age > 36 or total stored skills < 7 (all at 1)."""
+        return self.age > 36 or self.skills.total < 7
 
     @property
     def injury_risk_lambda(self) -> float:

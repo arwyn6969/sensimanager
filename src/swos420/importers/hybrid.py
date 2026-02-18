@@ -5,7 +5,7 @@ Orchestrates data from multiple sources into a single standardized output:
 2. Overlay real names + rich attributes from Sofifa (fuzzy match by name + club)
 3. Optionally enrich wages/values from Transfermarkt
 4. Run normalization pipeline on all players
-5. Apply attribute mapping (Sofifa → SWOS 0-15)
+5. Apply attribute mapping (Sofifa → SWOS 0-7)
 6. Output: list[SWOSPlayer] ready for DB insertion
 
 Fallback chain: Sofifa → SWOS native → defaults
@@ -288,10 +288,10 @@ class HybridImporter:
         if sofifa_attrs:
             skills = self.mapper.map_and_override(full_name, sofifa_attrs)
         elif native_skills:
-            skills = Skills(**{k: min(15, max(0, v)) for k, v in native_skills.items()
+            skills = Skills(**{k: min(7, max(0, v)) for k, v in native_skills.items()
                               if k in SKILL_NAMES})
         else:
-            skills = Skills()  # defaults (all 5)
+            skills = Skills()  # defaults
 
         # Position
         position_str = record.get("position", "CM")

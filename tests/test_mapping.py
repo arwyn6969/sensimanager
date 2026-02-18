@@ -1,4 +1,4 @@
-"""Tests for attribute mapping engine — Sofifa → SWOS 0-15 scale."""
+"""Tests for attribute mapping engine — Sofifa → SWOS 0-7 scale."""
 
 import pytest
 from pathlib import Path
@@ -55,60 +55,60 @@ class TestAttributeMapper:
     def test_map_missing_attrs_uses_default(self, mapper):
         """Missing attributes should produce mid-range defaults."""
         skills = mapper.map_sofifa_to_swos({})
-        assert skills.passing == 5
+        assert skills.passing == 3  # default mid-range for 0-7
 
     def test_map_values_clamped(self, mapper):
         """Even extreme inputs should be clamped to 0-15."""
         sofifa = {"finishing": 200}  # impossible but shouldn't crash
         skills = mapper.map_sofifa_to_swos(sofifa)
-        assert skills.finishing <= 15
+        assert skills.finishing <= 7
 
     # ── Star Player Override Tests (PRD requirements) ──────────────────
 
     def test_override_haaland(self, mapper):
-        """PRD: Haaland finishing must be 15."""
-        skills = Skills(finishing=10)
+        """PRD: Haaland finishing must be 7 (max SWOS stored)."""
+        skills = Skills(finishing=5)
         result = mapper.apply_overrides("Erling Braut Haaland", skills)
-        assert result.finishing == 15
+        assert result.finishing == 7
 
     def test_override_haaland_heading(self, mapper):
-        """PRD: Haaland heading override = 13."""
+        """PRD: Haaland heading override = 6."""
         skills = Skills()
         result = mapper.apply_overrides("Erling Braut Haaland", skills)
-        assert result.heading == 13
+        assert result.heading == 6
 
     def test_override_yamal_pace(self, mapper):
-        """PRD: Yamal speed must be 14."""
+        """PRD: Yamal speed must be 7."""
         skills = Skills()
         result = mapper.apply_overrides("Lamine Yamal Nasraoui Ebana", skills)
-        assert result.speed == 14
+        assert result.speed == 7
 
     def test_override_mbappe(self, mapper):
-        """PRD: Mbappé speed=15, finishing=14."""
+        """PRD: Mbappé speed=7, finishing=7."""
         skills = Skills()
         result = mapper.apply_overrides("Kylian Mbappé Lottin", skills)
-        assert result.speed == 15
-        assert result.finishing == 14
+        assert result.speed == 7
+        assert result.finishing == 7
 
     def test_override_kane(self, mapper):
-        """PRD: Kane finishing=15."""
+        """PRD: Kane finishing=7."""
         skills = Skills()
         result = mapper.apply_overrides("Harry Edward Kane", skills)
-        assert result.finishing == 15
+        assert result.finishing == 7
 
     def test_override_rodri(self, mapper):
-        """PRD: Rodri passing=14, tackling=14."""
+        """PRD: Rodri passing=7, tackling=7."""
         skills = Skills()
         result = mapper.apply_overrides("Rodrigo Hernández Cascante", skills)
-        assert result.passing == 14
-        assert result.tackling == 14
+        assert result.passing == 7
+        assert result.tackling == 7
 
     def test_no_override_random_player(self, mapper):
         """Unknown player should not be modified."""
-        skills = Skills(passing=8, finishing=7)
+        skills = Skills(passing=4, finishing=3)
         result = mapper.apply_overrides("Random Unknown Player", skills)
-        assert result.passing == 8
-        assert result.finishing == 7
+        assert result.passing == 4
+        assert result.finishing == 3
 
     def test_map_and_override(self, mapper):
         """Full pipeline: map then override."""
@@ -120,16 +120,16 @@ class TestAttributeMapper:
             "finishing": 97,
         }
         skills = mapper.map_and_override("Erling Braut Haaland", sofifa)
-        assert skills.finishing == 15  # override wins
-        assert skills.heading == 13   # override wins
+        assert skills.finishing == 7  # override wins
+        assert skills.heading == 6   # override wins
 
     def test_calculate_base_value(self, mapper):
-        skills = Skills(passing=10, velocity=12, heading=8,
-                        tackling=6, control=14, speed=15, finishing=15)
+        skills = Skills(passing=5, velocity=6, heading=4,
+                        tackling=3, control=7, speed=7, finishing=7)
         value = mapper.calculate_base_value(skills, "ST")
         assert value > 0
-        # ST weight = 1.2, total = 80
-        expected = int(80 * 1.2 * 50_000)
+        # ST weight = 1.2, total = 39
+        expected = int(39 * 1.2 * 50_000)
         assert value == expected
 
     def test_league_multiplier(self, mapper):

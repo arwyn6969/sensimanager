@@ -1,14 +1,16 @@
-"""SWOS420 Fast Match Simulator — The Heart of the Game.
+"""SWOS420 Match Simulator — Authentic ICP-Based Engine v3.0.
 
-Poisson-based match engine with:
-- Position-weighted team ratings from effective skills (form-modified)
+Based on reverse-engineered Sensible World of Soccer 96/97 mechanics:
+- Invisible Computer Points (ICP) system for match outcome prediction
+- Positional fitness ('Green Tick') multipliers (1.2×/1.0×/0.7×)
+- GK save ability from value tier (Hex Price Byte), not skills
+- Random form factor for realistic upsets
+- Velocity (long-range) vs Finishing (close-range) split
 - 10×10 tactics interaction matrix
 - Weather & referee modifiers
 - Per-player match ratings (4.0–10.0)
 - Live injury rolls during match
-- Goal/assist attribution weighted by finishing/passing
-- Post-match form updates via existing SWOSPlayer.apply_form_change()
-- Stats accumulation (goals, assists, appearances, clean sheets)
+- Post-match form updates + stats accumulation
 
 All tuning constants are hot-reloadable from rules.json.
 """
@@ -28,7 +30,11 @@ from swos420.engine.match_result import (
     MatchResult,
     PlayerMatchStats,
 )
-from swos420.models.player import SWOSPlayer
+from swos420.models.player import (
+    SWOSPlayer,
+    positional_fitness,
+    SWOS_EFFECTIVE_MAX,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -105,9 +111,10 @@ GOALKEEPER_POSITIONS = {"GK"}
 
 
 class MatchSimulator:
-    """Fast management match simulator — Poisson goals + rich per-player stats.
+    """SWOS-authentic ICP-based match simulator.
 
-    Returns everything needed for DB updates, AI rewards, and NFT metadata.
+    Uses Invisible Computer Points with positional fitness, random form
+    factor, and GK value-tier save ability for authentic SWOS outcomes.
     """
 
     def __init__(self, rules_path: str | Path | None = None):
@@ -118,11 +125,13 @@ class MatchSimulator:
         """
         self.tactics_matrix = dict(DEFAULT_TACTICS_MATRIX)
         self.weather_mult = dict(DEFAULT_WEATHER_MULT)
-        self.home_advantage = 0.25  # xG bonus for home team
+        self.home_advantage = 0.25  # ICP bonus for home team
         self.xg_base = 2.85  # Poisson scaling constant
-        self.xg_defense_offset = 8.0  # Denominator offset to prevent extreme λ
+        self.xg_defense_offset = 16.5  # Calibrated for SWOS effective skill range (8-15)
         self.injury_match_base_rate = 0.035  # Per-player per-match injury chance
         self.card_base_rate = 0.12  # Yellow card chance per player per match
+        self.random_form_range = 0.35  # Max ± random form noise per team per match
+        self.gk_defense_weight = 12.0  # How much GK value-tier contributes to defense
 
         if rules_path is not None:
             self._load_rules(rules_path)
@@ -198,9 +207,9 @@ class MatchSimulator:
         away_xi = away_squad[:11]
         events: list[MatchEvent] = []
 
-        # 1. Calculate team ratings
-        home_attack, home_defense = self._calculate_team_ratings(home_xi)
-        away_attack, away_defense = self._calculate_team_ratings(away_xi)
+        # 1. Calculate ICP-based team ratings (with positional fitness)
+        home_attack, home_defense = self._calculate_icp_ratings(home_xi)
+        away_attack, away_defense = self._calculate_icp_ratings(away_xi)
 
         # 2. Apply tactics modifier
         tac_mod = self._get_tactics_modifier(home_formation, away_formation)
@@ -217,18 +226,25 @@ class MatchSimulator:
         home_defense *= (1.0 + w_mult) / 2
         away_defense *= (1.0 + w_mult) / 2
 
-        # 4. Home advantage
+        # 4. Home advantage (ICP flat bonus)
         home_attack += self.home_advantage
 
-        # 5. Poisson λ for goals
+        # 5. Random form factor — the SWOS "upset" mechanism
+        # Each team gets a per-match noise modifier to create variability
+        home_form_noise = random.uniform(-self.random_form_range, self.random_form_range)
+        away_form_noise = random.uniform(-self.random_form_range, self.random_form_range)
+        home_attack *= (1.0 + home_form_noise)
+        away_attack *= (1.0 + away_form_noise)
+
+        # 6. Poisson λ for goals (from ICP differential)
         home_lambda = max(0.3, home_attack / (away_defense + self.xg_defense_offset) * self.xg_base)
         away_lambda = max(0.3, away_attack / (home_defense + self.xg_defense_offset) * self.xg_base)
 
-        # 6. Generate goals
+        # 7. Generate goals
         home_goals = int(np.random.poisson(home_lambda))
         away_goals = int(np.random.poisson(away_lambda))
 
-        # 7. Per-player ratings + live events
+        # 8. Per-player ratings + live events
         home_stats = self._generate_player_stats(
             home_xi, home_goals, "home", events, referee_strictness, home_team_name
         )
@@ -236,14 +252,14 @@ class MatchSimulator:
             away_xi, away_goals, "away", events, referee_strictness, away_team_name
         )
 
-        # 8. Attribute goals and assists
+        # 9. Attribute goals and assists (VE/FI split)
         self._attribute_goals(home_xi, home_goals, "home", events, home_team_name, home_stats)
         self._attribute_goals(away_xi, away_goals, "away", events, away_team_name, away_stats)
 
-        # 9. Sort events chronologically
+        # 10. Sort events chronologically
         events.sort(key=lambda e: e.minute)
 
-        # 10. Post-match updates: form, fatigue, appearances, clean sheets
+        # 11. Post-match updates: form, fatigue, appearances, clean sheets
         home_result_bonus = self._result_bonus(home_goals, away_goals)
         away_result_bonus = self._result_bonus(away_goals, home_goals)
 
@@ -285,15 +301,20 @@ class MatchSimulator:
         )
         return result
 
-    # ── Team Rating Calculation ──────────────────────────────────────────
+    # ── ICP Team Rating Calculation ──────────────────────────────────────
 
-    def _calculate_team_ratings(
+    def _calculate_icp_ratings(
         self, squad: list[SWOSPlayer]
     ) -> tuple[float, float]:
-        """Calculate weighted attack and defense ratings from player effective skills.
+        """Calculate ICP-based attack and defense ratings.
 
-        Attackers weight finishing/speed more, defenders weight tackling/heading more.
-        Returns (attack_rating, defense_rating).
+        Authentic SWOS mechanics:
+        - Each player's skill contribution is multiplied by their
+          positional fitness (Green Tick 1.2×, Neutral 1.0×, Red Cross 0.7×)
+        - GK defense uses value-tier save ability, not skills
+        - Velocity (long-range) and Finishing (close-range) are split
+
+        Returns (attack_icp, defense_icp).
         """
         if not squad:
             return 1.0, 1.0
@@ -303,46 +324,47 @@ class MatchSimulator:
 
         for player in squad:
             pos = player.position.value
+            # Positional fitness multiplier (Green Tick system)
+            fit = positional_fitness(player.position.value, pos)
 
             if pos in ATTACKING_POSITIONS:
-                attack_total += (
+                # FI = close-range, VE = long-range (authentic split)
+                attack_total += fit * (
                     player.effective_skill("finishing") * 1.4
                     + player.effective_skill("speed") * 0.8
                     + player.effective_skill("control") * 0.6
-                    + player.effective_skill("velocity") * 0.4
+                    + player.effective_skill("velocity") * 0.3
                 )
-                defense_total += player.effective_skill("tackling") * 0.2
+                defense_total += fit * player.effective_skill("tackling") * 0.2
 
             elif pos in MIDFIELD_POSITIONS:
-                attack_total += (
+                # Midfielders use VE for long-range threat
+                attack_total += fit * (
                     player.effective_skill("passing") * 1.0
                     + player.effective_skill("control") * 0.6
-                    + player.effective_skill("finishing") * 0.4
+                    + player.effective_skill("velocity") * 0.5  # long-range shots
+                    + player.effective_skill("finishing") * 0.3
                 )
-                defense_total += (
+                defense_total += fit * (
                     player.effective_skill("tackling") * 0.8
                     + player.effective_skill("heading") * 0.4
                     + player.effective_skill("passing") * 0.3
                 )
 
             elif pos in DEFENSIVE_POSITIONS:
-                attack_total += (
+                attack_total += fit * (
                     player.effective_skill("heading") * 0.3
                     + player.effective_skill("passing") * 0.2
                 )
-                defense_total += (
+                defense_total += fit * (
                     player.effective_skill("tackling") * 1.3
                     + player.effective_skill("heading") * 0.9
                     + player.effective_skill("speed") * 0.4
                 )
 
             elif pos in GOALKEEPER_POSITIONS:
-                # GK contributes mainly to defense via control/heading as proxy
-                defense_total += (
-                    player.effective_skill("control") * 1.2
-                    + player.effective_skill("velocity") * 0.8
-                    + player.effective_skill("heading") * 0.5
-                )
+                # GK defense from value-tier, not skills (authentic SWOS)
+                defense_total += player.gk_save_ability * self.gk_defense_weight
 
         # Normalize by squad size
         n = len(squad)
@@ -458,19 +480,23 @@ class MatchSimulator:
         if num_goals == 0 or not squad:
             return
 
-        # Build weights: attackers/midfielders more likely to score
+        # Build weights: VE/FI split — FI for attackers, VE for midfield long-range
         weights = []
         for player in squad:
             pos = player.position.value
-            finishing = player.effective_skill("finishing")
+            finishing = player.effective_skill("finishing")   # close-range
+            velocity = player.effective_skill("velocity")     # long-range
             speed = player.effective_skill("speed")
 
             if pos in ATTACKING_POSITIONS:
-                w = finishing * 3.0 + speed * 0.5
+                # Attackers score via FI (inside box) primarily
+                w = finishing * 3.0 + speed * 0.5 + velocity * 0.2
             elif pos in MIDFIELD_POSITIONS:
-                w = finishing * 1.5 + player.effective_skill("velocity") * 0.5
+                # Midfielders score via VE (long-range) or FI (runs into box)
+                w = velocity * 1.8 + finishing * 1.0 + speed * 0.3
             elif pos in DEFENSIVE_POSITIONS:
-                w = finishing * 0.3 + player.effective_skill("heading") * 0.8
+                # Defenders score via HE (set pieces) or rare VE thunderbolts
+                w = player.effective_skill("heading") * 0.8 + velocity * 0.4
             else:
                 w = 0.1  # GK
 

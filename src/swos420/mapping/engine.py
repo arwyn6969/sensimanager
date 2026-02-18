@@ -1,8 +1,8 @@
-"""Attribute mapping engine — Sofifa → SWOS 0-15 scale.
+"""Attribute mapping engine — Sofifa → SWOS 0-7 stored scale.
 
 Loads mapping rules from config/rules.json, applies formulas with
 configurable multipliers and offsets, supports star-player overrides,
-and clamps all values to the 0-15 SWOS skill range.
+and clamps all values to the 0-7 SWOS stored skill range.
 """
 
 from __future__ import annotations
@@ -56,25 +56,25 @@ class AttributeMapper:
         return self._rules.get("form", {})
 
     def map_sofifa_to_swos(self, sofifa_attrs: dict[str, float | int]) -> Skills:
-        """Apply mapping formulas to convert Sofifa 0-100 attributes to SWOS 0-15.
+        """Apply mapping formulas to convert Sofifa 0-100 attributes to SWOS 0-7.
 
         Each SWOS skill is derived from one or more Sofifa attributes using:
             aggregate(sources) * multiplier + offset
-        Then clamped to [0, 15].
+        Then clamped to [0, 7] (stored range).
 
         Args:
             sofifa_attrs: Dict of Sofifa attribute names → values (0-100 scale).
                           Keys should be lowercase without 'sofifa_' prefix.
 
         Returns:
-            Skills object with mapped 0-15 values.
+            Skills object with mapped 0-7 stored values.
         """
         mapped = {}
 
         for swos_skill in SKILL_NAMES:
             rule = self.mapping_rules.get(swos_skill)
             if rule is None:
-                mapped[swos_skill] = 5  # default mid-range
+                mapped[swos_skill] = 3  # default mid-range (0-7)
                 continue
 
             sources = rule.get("sources", [])
@@ -90,7 +90,7 @@ class AttributeMapper:
                     values.append(float(val))
 
             if not values:
-                mapped[swos_skill] = 5  # fallback
+                mapped[swos_skill] = 3  # default mid-range (0-7)
                 continue
 
             # Aggregate
@@ -106,8 +106,8 @@ class AttributeMapper:
             # Apply formula: raw * multiplier + offset
             result = raw * multiplier + offset
 
-            # Clamp to 0-15
-            mapped[swos_skill] = _clamp(int(round(result)), 0, 15)
+            # Clamp to 0-7 (SWOS stored range)
+            mapped[swos_skill] = _clamp(int(round(result)), 0, 7)
 
         return Skills(**mapped)
 
@@ -124,7 +124,7 @@ class AttributeMapper:
         data = skills.as_dict()
         for skill_name, value in overrides.items():
             if skill_name in SKILL_NAMES:
-                data[skill_name] = _clamp(value, 0, 15)
+                data[skill_name] = _clamp(value, 0, 7)
 
         return Skills(**data)
 

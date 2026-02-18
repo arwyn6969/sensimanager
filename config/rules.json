@@ -1,33 +1,33 @@
 {
   "mapping": {
-    "passing": "sofifa_passing * 0.15",
-    "velocity": "sofifa_shot_power * 0.15",
-    "heading": "sofifa_heading_accuracy * 0.15",
-    "tackling": "(sofifa_standing_tackle + sofifa_sliding_tackle) / 2 * 0.15",
-    "control": "(sofifa_ball_control + sofifa_dribbling) / 2 * 0.15",
-    "speed": "(sofifa_sprint_speed + sofifa_acceleration) / 2 * 0.15",
-    "finishing": "sofifa_finishing * 0.15"
+    "passing": "sofifa_passing * 0.07",
+    "velocity": "sofifa_shot_power * 0.07",
+    "heading": "sofifa_heading_accuracy * 0.07",
+    "tackling": "(sofifa_standing_tackle + sofifa_sliding_tackle) / 2 * 0.07",
+    "control": "(sofifa_ball_control + sofifa_dribbling) / 2 * 0.07",
+    "speed": "(sofifa_sprint_speed + sofifa_acceleration) / 2 * 0.07",
+    "finishing": "sofifa_finishing * 0.07"
   },
   "mapping_simple": {
-    "passing": {"sources": ["passing"], "multiplier": 0.15, "offset": 0},
-    "velocity": {"sources": ["shot_power"], "multiplier": 0.15, "offset": 0},
-    "heading": {"sources": ["heading_accuracy"], "multiplier": 0.15, "offset": 0},
-    "tackling": {"sources": ["standing_tackle", "sliding_tackle"], "multiplier": 0.15, "offset": 0, "aggregate": "mean"},
-    "control": {"sources": ["ball_control", "dribbling"], "multiplier": 0.15, "offset": 0, "aggregate": "mean"},
-    "speed": {"sources": ["sprint_speed", "acceleration"], "multiplier": 0.15, "offset": 0, "aggregate": "mean"},
-    "finishing": {"sources": ["finishing"], "multiplier": 0.15, "offset": 0}
+    "passing": {"sources": ["passing"], "multiplier": 0.07, "offset": 0},
+    "velocity": {"sources": ["shot_power"], "multiplier": 0.07, "offset": 0},
+    "heading": {"sources": ["heading_accuracy"], "multiplier": 0.07, "offset": 0},
+    "tackling": {"sources": ["standing_tackle", "sliding_tackle"], "multiplier": 0.07, "offset": 0, "aggregate": "mean"},
+    "control": {"sources": ["ball_control", "dribbling"], "multiplier": 0.07, "offset": 0, "aggregate": "mean"},
+    "speed": {"sources": ["sprint_speed", "acceleration"], "multiplier": 0.07, "offset": 0, "aggregate": "mean"},
+    "finishing": {"sources": ["finishing"], "multiplier": 0.07, "offset": 0}
   },
   "overrides": {
-    "Erling Haaland": {"finishing": 15, "heading": 13, "speed": 12},
-    "Lamine Yamal": {"speed": 14, "control": 13, "passing": 12},
-    "Kylian Mbappé": {"speed": 15, "finishing": 14, "control": 12},
-    "Jude Bellingham": {"passing": 13, "control": 13, "finishing": 12},
-    "Vinícius Júnior": {"speed": 14, "control": 14, "finishing": 12},
-    "Ousmane Dembélé": {"speed": 14, "control": 12, "passing": 11},
-    "Harry Kane": {"finishing": 15, "passing": 12, "heading": 13},
-    "Rodrigo Hernández": {"passing": 14, "tackling": 14, "control": 13},
-    "Florian Wirtz": {"control": 14, "passing": 13, "finishing": 12},
-    "Bukayo Saka": {"speed": 13, "control": 13, "passing": 12}
+    "Erling Haaland": {"finishing": 7, "heading": 6, "speed": 6},
+    "Lamine Yamal": {"speed": 7, "control": 6, "passing": 6},
+    "Kylian Mbappé": {"speed": 7, "finishing": 7, "control": 6},
+    "Jude Bellingham": {"passing": 6, "control": 6, "finishing": 6},
+    "Vinícius Júnior": {"speed": 7, "control": 7, "finishing": 6},
+    "Ousmane Dembélé": {"speed": 7, "control": 6, "passing": 5},
+    "Harry Kane": {"finishing": 7, "passing": 6, "heading": 6},
+    "Rodrigo Hernández": {"passing": 7, "tackling": 7, "control": 6},
+    "Florian Wirtz": {"control": 7, "passing": 6, "finishing": 6},
+    "Bukayo Saka": {"speed": 6, "control": 6, "passing": 6}
   },
   "economy": {
     "wage_multiplier_base": 0.0018,
@@ -72,7 +72,7 @@
     "decline_start": 30,
     "rapid_decline_start": 34,
     "retirement_age": 37,
-    "retirement_min_skills": 45,
+    "retirement_min_skills": 7,
     "dev_skill_gain_min": 0.05,
     "dev_skill_gain_max": 0.25,
     "decline_rate_early": 0.1,
@@ -87,7 +87,7 @@
   },
   "match": {
     "base_goal_lambda": 2.85,
-    "xg_defense_offset": 8.0,
+    "xg_defense_offset": 16.5,
     "home_advantage_bonus": 0.25,
     "injury_during_match_base_rate": 0.035,
     "card_base_rate": 0.12,

@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from swos420.models.player import SWOSPlayer, SKILL_NAMES
+from swos420.models.player import SWOSPlayer, SKILL_NAMES, SWOS_EFFECTIVE_MAX
 from swos420.models.team import Team
 
 
@@ -63,9 +63,9 @@ def build_squad_obs(
     available = sorted(players, key=lambda p: p.skills.total, reverse=True)
 
     for i, player in enumerate(available[:max_players]):
-        # 7 skills normalized to 0-15 → 0-1
+        # 7 skills: use effective values (stored + 8) normalized to 0-1
         for j, skill_name in enumerate(SKILL_NAMES):
-            obs[i, j] = getattr(player.skills, skill_name) / 15.0
+            obs[i, j] = player.skills.effective(skill_name) / SWOS_EFFECTIVE_MAX
 
         obs[i, 7] = (player.age - 16) / 24.0       # Age normalized (16-40 → 0-1)
         obs[i, 8] = (player.form + 50) / 100.0      # Form (-50 to +50 → 0-1)

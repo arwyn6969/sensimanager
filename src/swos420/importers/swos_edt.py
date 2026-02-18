@@ -69,7 +69,7 @@ class SWOSEdtCSVAdapter(BaseImporter):
 
         Args:
             skill_scale: Max value in the source CSV skills (7 if internal, 15 if display).
-                         Skills will be normalized to 0-15.
+                         Skills will be stored as 0-7 (SWOS stored range).
         """
         self.skill_scale = skill_scale
 
@@ -149,13 +149,14 @@ class SWOSEdtCSVAdapter(BaseImporter):
             col = column_map.get(skill_name)
             if col and pd.notna(row.get(col)):
                 raw_val = int(float(row.get(col, 0)))
-                # Normalize to 0-15 if source uses 0-7
+                # Store as 0-7 (SWOS stored range)
                 if self.skill_scale == 7:
-                    skills[skill_name] = min(15, raw_val * 2 + 1)
+                    skills[skill_name] = min(7, max(0, raw_val))
                 else:
-                    skills[skill_name] = min(15, max(0, raw_val))
+                    # Normalize from 0-15 display to 0-7 stored
+                    skills[skill_name] = min(7, max(0, raw_val // 2))
             else:
-                skills[skill_name] = 5  # default
+                skills[skill_name] = 3  # default mid-range (0-7)
 
         club_col = column_map.get("club_name")
         club = str(row.get(club_col, "Free Agent")).strip() if club_col else "Free Agent"

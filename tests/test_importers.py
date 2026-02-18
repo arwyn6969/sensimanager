@@ -67,11 +67,11 @@ class TestSWOSEdtAdapter:
         assert len(records) == 10
 
     def test_skills_normalized(self, adapter):
-        """Skills should be normalized from 0-7 to 0-15 scale."""
+        """Skills should be stored as 0-7 (SWOS stored range)."""
         records = adapter.load(str(SWOS_CSV))
         haaland = [r for r in records if "Haaland" in r["full_name"]][0]
         finishing = haaland["skills_native"]["finishing"]
-        assert finishing == 15  # 7 * 2 + 1 = 15
+        assert finishing == 7  # Passed through directly from 0-7 source
 
     def test_club_extracted(self, adapter):
         records = adapter.load(str(SWOS_CSV))
@@ -118,11 +118,11 @@ class TestHybridImporter:
             assert len(p.display_name) <= 15, f"{p.display_name} > 15 chars"
 
     def test_haaland_has_override(self, importer):
-        """PRD: Haaland finishing must be 15 after full pipeline."""
+        """PRD: Haaland finishing must be 7 (max SWOS stored) after full pipeline."""
         players, _, _ = importer.import_all(sofifa_path=str(SOFIFA_CSV))
         haaland = [p for p in players if "Haaland" in p.full_name]
         assert len(haaland) == 1
-        assert haaland[0].skills.finishing == 15
+        assert haaland[0].skills.finishing == 7
 
     def test_correct_clubs(self, importer):
         """All players should have correct 2025/26 clubs."""

@@ -42,8 +42,8 @@ def _make_player(
     age: int = 25,
 ) -> SWOSPlayer:
     """Create a test player with optional overrides."""
-    base_skills = {"passing": 8, "velocity": 7, "heading": 7, "tackling": 7,
-                   "control": 8, "speed": 8, "finishing": 8}
+    base_skills = {"passing": 4, "velocity": 4, "heading": 3, "tackling": 3,
+                   "control": 4, "speed": 4, "finishing": 4}
     if skills:
         base_skills.update(skills)
 
@@ -61,10 +61,10 @@ def _make_player(
 
 def _make_squad(
     prefix: str = "PLAYER",
-    skill_level: int = 8,
+    skill_level: int = 4,
     form: float = 0.0,
 ) -> list[SWOSPlayer]:
-    """Create a full 11-player squad."""
+    """Create a full 11-player squad with 0-7 SWOS stored skills."""
     positions = [
         Position.GK, Position.RB, Position.CB, Position.CB, Position.LB,
         Position.RM, Position.CM, Position.CM, Position.LM,
@@ -85,21 +85,21 @@ def _make_squad(
 
 
 def _make_strong_squad() -> list[SWOSPlayer]:
-    return _make_squad("STRONG", skill_level=13, form=30.0)
+    return _make_squad("STRONG", skill_level=7, form=30.0)
 
 
 def _make_weak_squad() -> list[SWOSPlayer]:
-    return _make_squad("WEAK", skill_level=4, form=-20.0)
+    return _make_squad("WEAK", skill_level=1, form=-20.0)
 
 
 def _make_haaland_squad() -> list[SWOSPlayer]:
-    """Squad with Haaland-like striker (finishing=15, high form)."""
-    squad = _make_squad("MCI", skill_level=10)
+    """Squad with Haaland-like striker (finishing=7/7, high form)."""
+    squad = _make_squad("MCI", skill_level=5)
     # Make the first ST a Haaland analog
     haaland = squad[9]
-    haaland.skills.finishing = 15
-    haaland.skills.speed = 12
-    haaland.skills.heading = 13
+    haaland.skills.finishing = 7
+    haaland.skills.speed = 6
+    haaland.skills.heading = 6
     haaland.form = 40.0
     haaland.full_name = "Erling Haaland"
     haaland.display_name = "HAALAND"
@@ -210,8 +210,8 @@ class TestMatchSimulator:
         """A match should produce at least some events."""
         np.random.seed(42)
         random.seed(42)
-        home = _make_squad("HOME", skill_level=10)
-        away = _make_squad("AWAY", skill_level=10)
+        home = _make_squad("HOME", skill_level=5)
+        away = _make_squad("AWAY", skill_level=5)
         # Run a few matches to ensure at least one has events
         events_found = False
         for _ in range(10):
@@ -342,12 +342,12 @@ class TestMatchBalance:
         )
 
     def test_haaland_goal_rate(self, sim):
-        """Haaland analog (finishing=15, form=40) should score ~0.5-1.2 goals/game average."""
+        """Haaland analog (finishing=7, form=40) should score ~0.3-1.5 goals/game average."""
         haaland_goals = 0
         n = 200
         for _ in range(n):
             home = _make_haaland_squad()
-            away = _make_squad("OPP", skill_level=7)
+            away = _make_squad("OPP", skill_level=3)
             sim.simulate_match(home, away)
             haaland_goals += home[9].goals_scored_season
             # Reset for next iteration
@@ -640,7 +640,7 @@ class TestEdgeCases:
         """A squad of all goalkeepers should still produce a valid match."""
         sim = MatchSimulator()
         gk_squad = [
-            _make_player(f"GK {i}", Position.GK, skills={"control": 10, "velocity": 8})
+            _make_player(f"GK {i}", Position.GK, skills={"control": 5, "velocity": 4})
             for i in range(11)
         ]
         normal_squad = _make_squad("NORMAL")
@@ -659,7 +659,7 @@ class TestEdgeCases:
     def test_max_skill_squad(self):
         """Maximum skill players should produce a valid match."""
         sim = MatchSimulator()
-        strong = _make_squad("MAX", skill_level=15, form=50.0)
+        strong = _make_squad("MAX", skill_level=7, form=50.0)
         normal = _make_squad("NRM")
         result = sim.simulate_match(strong, normal)
         assert isinstance(result, MatchResult)

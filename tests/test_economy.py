@@ -2,19 +2,19 @@
 
 import pytest
 
-from swos420.models.player import Skills, SWOSPlayer, Position
+from swos420.models.player import Skills, SWOSPlayer, Position, SWOS_SKILL_BASE
 
 
 @pytest.fixture
 def star_player():
-    """A £15M player at neutral form."""
+    """A high-tier player at neutral form (0-7 stored skills)."""
     return SWOSPlayer(
         base_id="star123456789abc",
         full_name="Star Player",
         display_name="STAR",
         position=Position.ST,
-        skills=Skills(passing=10, velocity=12, heading=10,
-                      tackling=6, control=12, speed=13, finishing=14),
+        skills=Skills(passing=5, velocity=6, heading=5,
+                      tackling=3, control=6, speed=6, finishing=7),
         age=27,
         base_value=15_000_000,
         form=0.0,
@@ -133,18 +133,18 @@ class TestFormMechanics:
         assert star_player.form < 20.0
 
     def test_effective_skill_range(self, star_player):
-        """Effective skill with max positive form should be ≤ 1.25 * base."""
+        """Effective skill with max positive form should be (stored+8) * 1.25."""
         star_player.form = 50.0
         eff = star_player.effective_skill("finishing")
-        base = star_player.skills.finishing
-        assert eff == base * 1.25
+        base_effective = star_player.skills.finishing + SWOS_SKILL_BASE
+        assert eff == base_effective * 1.25
 
     def test_effective_skill_negative(self, star_player):
-        """Effective skill with max negative form should be ≥ 0.75 * base."""
+        """Effective skill with max negative form should be (stored+8) * 0.75."""
         star_player.form = -50.0
         eff = star_player.effective_skill("finishing")
-        base = star_player.skills.finishing
-        assert eff == base * 0.75
+        base_effective = star_player.skills.finishing + SWOS_SKILL_BASE
+        assert eff == base_effective * 0.75
 
 
 class TestInjuryRisk:

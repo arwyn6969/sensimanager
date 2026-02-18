@@ -35,7 +35,7 @@ def sample_player():
         nationality="England",
         club_name="Test FC",
         club_code="TFC",
-        skills=Skills(passing=10, finishing=12),
+        skills=Skills(passing=5, finishing=6),
         age=25,
         base_value=5_000_000,
         wage_weekly=9_000,
@@ -59,7 +59,7 @@ class TestPlayerRepository:
         result = repo.get("test1234567890ab")
         assert result is not None
         assert result.full_name == "Test Player"
-        assert result.skills.finishing == 12
+        assert result.skills.finishing == 6
 
     def test_get_nonexistent(self, db_session):
         repo = PlayerRepository(db_session)

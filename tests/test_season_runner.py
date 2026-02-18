@@ -18,7 +18,7 @@ from swos420.models.team import Team
 
 
 def _make_player(
-    name: str, position: Position = Position.CM, skill_level: int = 8, age: int = 25,
+    name: str, position: Position = Position.CM, skill_level: int = 4, age: int = 25,
 ) -> SWOSPlayer:
     skills = {s: skill_level for s in
               ["passing", "velocity", "heading", "tackling", "control", "speed", "finishing"]}
@@ -33,7 +33,7 @@ def _make_player(
 
 
 def _make_team_state(
-    name: str, code: str, skill_level: int = 8, formation: str = "4-4-2",
+    name: str, code: str, skill_level: int = 4, formation: str = "4-4-2",
 ) -> TeamSeasonState:
     """Create a team with 16 players (11 + 5 subs)."""
     positions = [
@@ -65,10 +65,10 @@ class TestSeasonRunner:
     def four_team_season(self) -> SeasonRunner:
         """Create a small 4-team season for fast testing."""
         teams = [
-            _make_team_state("Arsenal", "ARS", skill_level=10),
-            _make_team_state("Chelsea", "CHE", skill_level=9),
-            _make_team_state("Spurs", "TOT", skill_level=8),
-            _make_team_state("West Ham", "WHU", skill_level=7),
+            _make_team_state("Arsenal", "ARS", skill_level=6),
+            _make_team_state("Chelsea", "CHE", skill_level=5),
+            _make_team_state("Spurs", "TOT", skill_level=4),
+            _make_team_state("West Ham", "WHU", skill_level=3),
         ]
         return SeasonRunner(teams=teams, season_id="25/26")
 
@@ -117,10 +117,10 @@ class TestSeasonRunner:
 
         for _ in range(n):
             teams = [
-                _make_team_state("Best FC", "BEST", skill_level=13),
-                _make_team_state("Good FC", "GOOD", skill_level=10),
-                _make_team_state("Avg FC", "AVG", skill_level=7),
-                _make_team_state("Weak FC", "WEAK", skill_level=4),
+                _make_team_state("Best FC", "BEST", skill_level=7),
+                _make_team_state("Good FC", "GOOD", skill_level=5),
+                _make_team_state("Avg FC", "AVG", skill_level=3),
+                _make_team_state("Weak FC", "WEAK", skill_level=1),
             ]
             runner = SeasonRunner(teams=teams)
             runner.play_full_season()
@@ -151,7 +151,7 @@ class TestSeasonPerformance:
     def test_sixteen_team_season_under_45_seconds(self):
         """A 16-team, 30-match season should complete in <45 seconds."""
         teams = [
-            _make_team_state(f"Team {i}", f"T{i:02d}", skill_level=random.randint(5, 12))
+            _make_team_state(f"Team {i}", f"T{i:02d}", skill_level=random.randint(2, 6))
             for i in range(16)
         ]
         runner = SeasonRunner(teams=teams)
@@ -166,7 +166,7 @@ class TestSeasonPerformance:
     def test_avg_goals_realistic_over_season(self):
         """Average goals per match across a full season should be realistic."""
         teams = [
-            _make_team_state(f"Team {i}", f"T{i:02d}", skill_level=8)
+            _make_team_state(f"Team {i}", f"T{i:02d}", skill_level=4)
             for i in range(8)
         ]
         runner = SeasonRunner(teams=teams)

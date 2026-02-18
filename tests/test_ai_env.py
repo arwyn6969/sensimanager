@@ -25,7 +25,7 @@ class TestEnvInit:
 
         for agent in env.agents:
             assert obs[agent]["league_table"].shape == (4, 6)
-            assert obs[agent]["own_squad"].shape == (22, 12)
+            assert obs[agent]["own_squad"].shape == (16, 12)  # SWOS_SQUAD_SIZE
             assert obs[agent]["finances"].shape == (4,)
             assert obs[agent]["meta"].shape == (4,)
 

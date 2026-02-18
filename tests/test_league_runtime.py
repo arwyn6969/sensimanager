@@ -21,13 +21,13 @@ def _make_player(name: str, team_name: str, team_code: str, position: Position) 
         club_name=team_name,
         club_code=team_code,
         skills=Skills(
-            passing=8,
-            velocity=8,
-            heading=8,
-            tackling=8,
-            control=8,
-            speed=8,
-            finishing=8,
+            passing=4,
+            velocity=4,
+            heading=4,
+            tackling=4,
+            control=4,
+            speed=4,
+            finishing=4,
         ),
     )
 

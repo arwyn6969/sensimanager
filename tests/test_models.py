@@ -1,13 +1,15 @@
-"""Tests for SWOSPlayer model — v2.2 deep mechanics."""
+"""Tests for SWOSPlayer model — v3.0 authentic SWOS mechanics."""
 
 import pytest
 
 from swos420.models.player import (
     SKILL_NAMES,
+    SWOS_SKILL_BASE,
     Position,
     Skills,
     SWOSPlayer,
     generate_base_id,
+    hex_tier_value,
 )
 
 
@@ -17,7 +19,7 @@ from swos420.models.player import (
 class TestSkills:
     def test_default_skills(self):
         skills = Skills()
-        assert all(getattr(skills, s) == 5 for s in SKILL_NAMES)
+        assert all(getattr(skills, s) == 3 for s in SKILL_NAMES)
 
     def test_skill_clamping_lower(self):
         with pytest.raises(ValueError):
@@ -25,26 +27,40 @@ class TestSkills:
 
     def test_skill_clamping_upper(self):
         with pytest.raises(ValueError):
-            Skills(finishing=16)
+            Skills(finishing=8)  # Max is 7
 
     def test_total(self):
-        skills = Skills(passing=10, velocity=12, heading=8,
-                        tackling=6, control=14, speed=15, finishing=15)
-        assert skills.total == 80
+        skills = Skills(passing=5, velocity=6, heading=4,
+                        tackling=3, control=7, speed=7, finishing=7)
+        assert skills.total == 39  # Stored total
+
+    def test_effective_total(self):
+        skills = Skills(passing=5, velocity=6, heading=4,
+                        tackling=3, control=7, speed=7, finishing=7)
+        assert skills.effective_total == 39 + 7 * SWOS_SKILL_BASE  # 39 + 56 = 95
+
+    def test_effective(self):
+        skills = Skills(passing=5)
+        assert skills.effective("passing") == 5 + SWOS_SKILL_BASE  # 13
 
     def test_top3(self):
-        skills = Skills(passing=5, velocity=5, heading=5,
-                        tackling=5, control=10, speed=15, finishing=14)
+        skills = Skills(passing=2, velocity=2, heading=2,
+                        tackling=2, control=5, speed=7, finishing=6)
         top = skills.top3
         assert top[0] == "SP"
         assert top[1] == "FI"
         assert top[2] == "CO"
 
     def test_as_dict(self):
-        skills = Skills(passing=10)
+        skills = Skills(passing=5)
         d = skills.as_dict()
-        assert d["passing"] == 10
+        assert d["passing"] == 5  # Stored value
         assert len(d) == 7
+
+    def test_effective_dict(self):
+        skills = Skills(passing=5)
+        d = skills.effective_dict()
+        assert d["passing"] == 13  # 5 + 8
 
 
 # ── Base ID Generation ────────────────────────────────────────────────
@@ -82,11 +98,11 @@ class TestSWOSPlayer:
             club_name="Manchester City",
             club_code="MCI",
             skills=Skills(
-                passing=5, velocity=14, heading=13,
-                tackling=3, control=12, speed=12, finishing=15,
+                passing=2, velocity=6, heading=5,
+                tackling=1, control=5, speed=6, finishing=7,
             ),
             age=25,
-            base_value=180_000_000,
+            base_value=15_000_000,
             form=0.0,
         )
 
@@ -107,25 +123,28 @@ class TestSWOSPlayer:
             )
 
     def test_effective_skill_neutral_form(self, haaland):
-        """Form 0 = no modifier."""
+        """Form 0 → effective = stored + 8 (no form modifier)."""
+        # finishing stored=7, effective = 7+8 = 15
         assert haaland.effective_skill("finishing") == 15.0
 
     def test_effective_skill_positive_form(self, haaland):
-        """Form +50 = +25% boost."""
+        """Form +50 = +25% boost on effective value."""
         haaland.form = 50.0
         eff = haaland.effective_skill("finishing")
+        # effective = (7+8) * (1 + 50/200) = 15 * 1.25 = 18.75
         assert eff == 15 * 1.25  # 18.75
 
     def test_effective_skill_negative_form(self, haaland):
-        """Form -50 = -25% penalty."""
+        """Form -50 = -25% penalty on effective value."""
         haaland.form = -50.0
         eff = haaland.effective_skill("finishing")
+        # effective = (7+8) * (1 - 50/200) = 15 * 0.75 = 11.25
         assert eff == 15 * 0.75  # 11.25
 
     def test_effective_skills_all(self, haaland):
         effs = haaland.effective_skills()
         assert len(effs) == 7
-        assert effs["finishing"] == 15.0  # form=0
+        assert effs["finishing"] == 15.0  # (7+8) * 1.0
 
     def test_age_factor_youth(self, haaland):
         haaland.age = 18
@@ -143,17 +162,20 @@ class TestSWOSPlayer:
         haaland.age = 40
         assert haaland.age_factor >= 0.3
 
-    def test_calculate_value_neutral(self, haaland):
-        """Neutral form: value = base * 0.6 * age_factor."""
+    def test_calculate_value_hex_tier(self, haaland):
+        """Value comes from hex-tier lookup, not linear base_value."""
         val = haaland.calculate_current_value()
-        expected = int(180_000_000 * 0.6 * 1.0)
-        assert val == expected
+        # skill_total = 2+6+5+1+5+6+7 = 32 → hex_tier=2,500,000
+        tier_base = hex_tier_value(haaland.skills.total)
+        # form=0 → form_mod=1.0, goals=0 → goal_bonus=1.0, age=25 → age_factor=1.0
+        assert val == tier_base
 
     def test_calculate_value_high_form(self, haaland):
         """High form increases value."""
         haaland.form = 50.0
         val = haaland.calculate_current_value()
-        assert val > 180_000_000 * 0.6
+        tier_base = hex_tier_value(haaland.skills.total)
+        assert val > tier_base
 
     def test_calculate_wage(self, haaland):
         """Wage = current_value * 0.0018."""
@@ -183,11 +205,11 @@ class TestSWOSPlayer:
         assert haaland.should_retire
 
     def test_should_retire_by_skills(self, haaland):
-        """Total skills < 45 → should retire regardless of age."""
+        """Total stored skills < 7 → should retire."""
         haaland.age = 30
-        haaland.skills = Skills(passing=5, velocity=5, heading=5,
-                                tackling=5, control=5, speed=5, finishing=5)
-        # 7 * 5 = 35 total, which is < 45 threshold
+        haaland.skills = Skills(passing=0, velocity=0, heading=0,
+                                tackling=0, control=0, speed=1, finishing=0)
+        # 0+0+0+0+0+1+0 = 1 < 7 threshold
         assert haaland.should_retire
 
     def test_injury_risk_base(self, haaland):
@@ -203,7 +225,7 @@ class TestSWOSPlayer:
     def test_nft_metadata(self, haaland):
         meta = haaland.to_nft_metadata()
         assert meta["name"] == "Erling Braut Haaland"
-        assert any(a["trait_type"] == "FI" and a["value"] == 15 for a in meta["attributes"])
+        assert any(a["trait_type"] == "FI" and a["value"] == 7 for a in meta["attributes"])  # stored value
         assert any(a["trait_type"] == "Position" and a["value"] == "ST" for a in meta["attributes"])
 
     def test_morale_range(self):
