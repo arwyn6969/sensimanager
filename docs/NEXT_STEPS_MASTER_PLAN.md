@@ -17,13 +17,13 @@
 | **Transfer Market** | ✅ Complete | 340-line sealed-bid auction system |
 | **Scouting** | ✅ Complete | 162-line tiered skill reveal |
 | **AI Managers** | ✅ Complete | PettingZoo ParallelEnv + Gym wrapper + PPO training + baselines |
-| **Tests** | ✅ Outstanding | 338 passing across 20 files |
+| **Tests** | ✅ Outstanding | 411 passing across 22 files, 96% coverage |
 | **CI** | ✅ Hardened | GitHub Actions: ruff + pytest --cov + Python 3.12/3.13 matrix |
 | **Docker** | ✅ Ready | Dockerfile + docker-compose.yml with GPU support |
 | **Lint** | ✅ Clean | `ruff check .` passes with zero errors |
 | **SWOS Port** | 🔲 Stub | `Dockerfile.swos-port` + `ArcadeMatchSimulator` placeholder |
 | **NFTs** | 🟡 Skeleton | `PlayerNFT.sol` + `to_nft_metadata()` on player model |
-| **Streaming** | 🟡 Skeleton | `obs_pipeline.sh` + `format_for_stream()` in commentary |
+| **Streaming** | ✅ MVP | HTML overlay + local server + stream runner + LLM commentary |
 
 ---
 
@@ -44,7 +44,7 @@ scripts/              smoke_pipeline · run_full_season · run_match · train_ma
 config/               rules.json · league_structure.json
 contracts/            PlayerNFT.sol
 streaming/            obs_pipeline.sh
-tests/                20 files, 338 tests
+tests/                22 files, 411 tests
 ```
 
 ---
@@ -52,10 +52,10 @@ tests/                20 files, 338 tests
 ## 🎯 Remaining Work (Priority Order)
 
 ### Priority 1 — Visual Soul & Streaming (Week 1)
-- [ ] Wire commentary engine + LLM flavour (`LLMCommentaryGenerator` class)
-- [ ] Build OBS scene compositor (full scene JSON)
+- [x] Wire commentary engine + LLM flavour (`LLMCommentaryGenerator` class)
+- [x] Build OBS scene compositor (HTML overlay + browser source)
 - [ ] Docker + Nvidia NVENC for 24/7 league stream
-- [ ] Live scoreboard overlay
+- [x] Live scoreboard overlay
 
 ### Priority 2 — SWOS Arcade Integration (Weeks 2–3)
 - [ ] Build Docker image from `Dockerfile.swos-port`
@@ -82,9 +82,9 @@ tests/                20 files, 338 tests
 
 | Metric | Target | Current |
 |--------|--------|---------|
-| Tests passing | 500+ | 338 |
+| Tests passing | 500+ | 411 |
 | Lint errors | 0 | 0 ✅ |
-| 20-season headless run | < 45s | ~2.5s per test run |
+| Code coverage | 95%+ | 96% ✅ |
 | 24/7 stream live | > 100 viewers week 1 | Not started |
 | Player NFTs minted | 8 on Base testnet | Not started |
 | CI pipeline | Green on every push | ✅ |
@@ -118,7 +118,7 @@ docker run --rm swos420
 | Days | Focus | Deliverable |
 |------|-------|-------------|
 | 1–3 | ✅ Done | Infra polish: CI, Docker, lint, docs |
-| 4–10 | Streaming MVP | Rich AI commentary + OBS scene + live stream |
+| 4–10 | ✅ Done | Streaming MVP: HTML overlay + server + commentary |
 | 11–20 | SWOS Port | Live arcade matches from Python |
 | 21–30 | NFT Economy | Base testnet + first owned-player season |
 
