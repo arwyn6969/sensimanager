@@ -110,20 +110,33 @@ cd swos-port && meson setup build && ninja -C build
 - OBS + ffmpeg + Nvidia NVENC pipeline (stub: `streaming/obs_pipeline.sh`)
 - Web dashboard (Vercel)
 
+### Phase C — Stadium Hoarding Advertising ✅ BUILT
+
+- `AdHoarding.sol`: ERC-721 NFTs with time-based expiring leases
+- Dynamic pricing: `base × days × tier × duration_premium × demand_factor`
+- Revenue split: 60% club owner / 30% treasury / 10% creator
+- `ad_manager.py`: Python engine integration for OBS overlay rendering
+- LLM commentary sponsor mention hooks (organic brand drops on goals)
+- Per-stadium slot layout: 12-20 positions (touchline + behind goals)
+- **Key files:** `contracts/src/AdHoarding.sol`, `src/swos420/engine/ad_manager.py`
+- **User Guide:** `docs/SWOS420_USERS_GUIDE.md`
+
 ---
 
 ## 5. Architecture & Data Flow
 
 ```
-Sofifa/AG_SWSEdt CSV → importers → mapping → normalization → SQLAlchemy DB
-↓
+Sofija/AG_SWSEdt CSV → importers → mapping → normalization → SQLAlchemy DB
+                                                                ↓
 LeagueRuntime → SeasonRunner → MatchSimulator (ICP fast or SWOS port) → MatchResult
-↓
+                    ↓                                              ↓
+              AdManager → hoardings.json → OBS HTML overlay → 24/7 stream
+                                                                ↓
 SWOSManagerEnv (PettingZoo) → PPO/MAPPO (Nvidia CUDA via SB3) → Trained Agents
-↓
-NFT Mint (Base) + $SENSI ERC-20 → Owner wallets claim wages
-↓
-OBS + ffmpeg (Nvidia NVENC) → 24/7 Twitch
+                                                                ↓
+NFT Mint (Base) + $SENSI ERC-20 + AdHoarding.sol → Owner wallets claim wages
+                                                                ↓
+OBS + ffmpeg (Nvidia NVENC) → 24/7 Twitch (with hoarding visuals)
 ```
 
 ### Tech Stack
@@ -133,8 +146,8 @@ OBS + ffmpeg (Nvidia NVENC) → 24/7 Twitch
 | Core | Python 3.12, Pydantic ≥2.0, SQLAlchemy ≥2.0, pandas, numpy |
 | AI | PettingZoo ≥1.24, Gymnasium ≥1.0, Stable-Baselines3 ≥2.0, SuperSuit ≥3.9 |
 | Engine | Custom ICP match sim + zlatkok/swos-port (Docker) |
-| Blockchain | Base L2 (ERC-721A + ERC-20), OpenZeppelin |
-| Streaming | OBS + ffmpeg + Nvidia NVENC |
+| Blockchain | Base L2 (ERC-721A + ERC-20 + AdHoarding), OpenZeppelin |
+| Streaming | OBS + ffmpeg + Nvidia NVENC + hoarding overlay |
 | Testing | pytest ≥8.0, pytest-cov ≥5.0, ruff |
 
 ---
