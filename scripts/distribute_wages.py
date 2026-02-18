@@ -62,7 +62,7 @@ def calculate_wages(players: list, economy: dict) -> list[dict]:
     """
     nft_share = economy.get("nft_owner_share", 0.90)
     burn_share = economy.get("burn_share", 0.05)
-    treasury_share = economy.get("treasury_share", 0.05)
+    treasury_share = economy.get("treasury_share", 0.05)  # noqa: F841
 
     # Get league multipliers
     league_multipliers = economy.get("league_multipliers", {})
@@ -107,7 +107,7 @@ def distribute_on_chain(records: list[dict], dry_run: bool = True) -> None:
 
     if dry_run:
         print(f"\n{'='*70}")
-        print(f"  WAGE DISTRIBUTION — DRY RUN")
+        print("  WAGE DISTRIBUTION — DRY RUN")
         print(f"{'='*70}\n")
         print(f"  Players:        {len(records)}")
         print(f"  Total wages:    {total_wages / 10**18:,.0f} $SENSI")
@@ -118,7 +118,7 @@ def distribute_on_chain(records: list[dict], dry_run: bool = True) -> None:
 
         # Top 10 earners
         top_earners = sorted(records, key=lambda r: r["wage_total"], reverse=True)[:10]
-        print(f"  Top 10 Earners:")
+        print("  Top 10 Earners:")
         for i, r in enumerate(top_earners):
             print(f"    [{i+1:2d}] {r['name']:30s} | {r['club']:20s} | {r['wage_display']}/wk")
         print()

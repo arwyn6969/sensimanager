@@ -7,6 +7,7 @@ import "@openzeppelin/contracts/access/Ownable2Step.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/Pausable.sol";
+import "@openzeppelin/contracts/utils/Strings.sol";
 
 /**
  * @title SWOSPlayerNFT
@@ -37,8 +38,12 @@ contract SWOSPlayerNFT is ERC721, ERC721Enumerable, Ownable2Step, ReentrancyGuar
 
     // ── State ────────────────────────────────────────────────────────────
 
+    using Strings for uint256;
+
     mapping(uint256 => Player) private _players;
     address public oracle;
+    string private _baseTokenURI;
+    mapping(uint256 => string) private _tokenURIs;
 
     // ── Events ───────────────────────────────────────────────────────────
 
@@ -46,6 +51,8 @@ contract SWOSPlayerNFT is ERC721, ERC721Enumerable, Ownable2Step, ReentrancyGuar
     event FormUpdated(uint256 indexed tokenId, int8 newForm, uint256 newValue);
     event OracleUpdated(address indexed oldOracle, address indexed newOracle);
     event SeasonReset(uint256 indexed tokenId);
+    event TokenURIUpdated(uint256 indexed tokenId, string uri);
+    event BaseURIUpdated(string newBaseURI);
 
     // ── Errors ───────────────────────────────────────────────────────────
 
@@ -77,6 +84,33 @@ contract SWOSPlayerNFT is ERC721, ERC721Enumerable, Ownable2Step, ReentrancyGuar
 
     function pause() external onlyOwner { _pause(); }
     function unpause() external onlyOwner { _unpause(); }
+
+    // ── Metadata URIs ───────────────────────────────────────────────────
+
+    /// @notice Set the base URI used as fallback for tokens without individual URIs.
+    function setBaseURI(string calldata baseURI_) external onlyOwner {
+        _baseTokenURI = baseURI_;
+        emit BaseURIUpdated(baseURI_);
+    }
+
+    /// @notice Set the metadata URI for a single token (e.g. ar://<txId>).
+    function setTokenURI(uint256 tokenId, string calldata uri) external onlyOwner playerExists(tokenId) {
+        _tokenURIs[tokenId] = uri;
+        emit TokenURIUpdated(tokenId, uri);
+    }
+
+    /// @notice Batch-set metadata URIs for multiple tokens.
+    function setTokenURIBatch(
+        uint256[] calldata tokenIds,
+        string[] calldata uris
+    ) external onlyOwner {
+        require(tokenIds.length == uris.length, "Array length mismatch");
+        for (uint256 i = 0; i < tokenIds.length; i++) {
+            if (_ownerOf(tokenIds[i]) == address(0)) revert PlayerDoesNotExist(tokenIds[i]);
+            _tokenURIs[tokenIds[i]] = uris[i];
+            emit TokenURIUpdated(tokenIds[i], uris[i]);
+        }
+    }
 
     // ── Minting ──────────────────────────────────────────────────────────
 
@@ -220,6 +254,22 @@ contract SWOSPlayerNFT is ERC721, ERC721Enumerable, Ownable2Step, ReentrancyGuar
             eff[i] = uint8(uint256(calc));
         }
         return eff;
+    }
+
+    /// @notice Returns the metadata URI for a token.
+    /// @dev Per-token URI takes priority over baseURI + tokenId + ".json".
+    function tokenURI(uint256 tokenId) public view override playerExists(tokenId) returns (string memory) {
+        // Per-token URI (set via setTokenURI / setTokenURIBatch)
+        string memory _uri = _tokenURIs[tokenId];
+        if (bytes(_uri).length > 0) return _uri;
+
+        // Fallback: baseURI + tokenId + ".json"
+        string memory base = _baseTokenURI;
+        if (bytes(base).length > 0) {
+            return string.concat(base, tokenId.toString(), ".json");
+        }
+
+        return "";
     }
 
     // ── ERC721 Overrides (Enumerable compatibility) ──────────────────────

@@ -22,7 +22,6 @@ import json
 import logging
 import os
 import sys
-from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -120,17 +119,17 @@ def main():
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(message)s")
 
     if args.dry_run:
-        print(f"\n🏆 Season Settlement Plan")
+        print("\n🏆 Season Settlement Plan")
         print(f"{'─'*40}")
         print(f"  Winner:     {args.winner}")
         print(f"  Top Scorer: Token #{args.top_scorer}")
-        print(f"\n  Bonuses:")
-        print(f"    League Winner:  100,000 $SENSI")
-        print(f"    Top Scorer:      10,000 $SENSI")
-        print(f"\n  Actions:")
-        print(f"    ✓ Reset all season goals")
-        print(f"    ✓ Age all players +1 year")
-        print(f"    ✓ Advance to next season")
+        print("\n  Bonuses:")
+        print("    League Winner:  100,000 $SENSI")
+        print("    Top Scorer:      10,000 $SENSI")
+        print("\n  Actions:")
+        print("    ✓ Reset all season goals")
+        print("    ✓ Age all players +1 year")
+        print("    ✓ Advance to next season")
         return
 
     rpc_url = os.environ.get("RPC_URL", "")

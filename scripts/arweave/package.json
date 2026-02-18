@@ -1,0 +1,21 @@
+{
+  "name": "swos420-arweave-uploader",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Upload SWOS420 NFT metadata & images to Arweave permanent storage",
+  "scripts": {
+    "upload": "tsx upload_metadata.ts",
+    "upload:dry-run": "tsx upload_metadata.ts --dry-run"
+  },
+  "dependencies": {
+    "@ardrive/turbo-sdk": "^1.19.0",
+    "arweave": "^1.15.5",
+    "dotenv": "^16.4.7"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.0",
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.0"
+  }
+}
