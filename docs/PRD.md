@@ -17,7 +17,7 @@
 
 1. **Headless Python sim** (fast training on Nvidia GPU) → agents learn manager tactics/transfers + hierarchical on-pitch play.
 2. **Real SWOS arcade visuals** (via zlatkok/swos-port) for 24/7 streaming spectacle.
-3. **Ownership layer**: Every player has a Base-ID ERC-721 NFT. Owners earn $CM wages/bonuses.
+3. **Ownership layer**: Every player has a Base-ID ERC-721 NFT. Owners earn $SENSI wages/bonuses.
 
 **Tagline:** *"The first league where the AI managers and players literally learn to play Sensible Soccer — and you can own the stars."*
 
@@ -32,7 +32,7 @@
 1. Autonomous 20-season league runs in <60 seconds (headless) on MacBook + Nvidia.
 2. AI shows emergent strategy (wonderkid hoarding, formation counters, on-pitch tiki-taka).
 3. 24/7 Twitch stream with live pitch + commentary + league table.
-4. Phase 3 MVP: 8 users own managers/players, claim $CM wages on Base L2.
+4. Phase 3 MVP: 8 users own managers/players, claim $SENSI wages on Base L2.
 
 ### Success Metrics (v1.0)
 
@@ -50,7 +50,7 @@
 | **You (Founder/Streamer)** | Run league 24/7, watch AI improve | Tweak `rules.json`, review results |
 | **Codex (AI Engineer)** | Train MARL agents | Drop PPO logic into `ai/env.py` |
 | **Antigravity (Engine/Port)** | Integrate SWOS port + render | Wire `MatchSimulator` into port |
-| **End User (2027)** | Chatbot control or own NFT manager | Earn $CM tokens |
+| **End User (2027)** | Chatbot control or own NFT manager | Earn $SENSI tokens |
 
 ---
 
@@ -97,7 +97,7 @@ git clone https://github.com/zlatkok/swos-port
 cd swos-port && meson setup build && ninja -C build
 ```
 
-### Phase 3.0 — NFTs & $CM Economy 📋 STUB
+### Phase 3.0 — NFTs & $SENSI Economy 📋 STUB
 
 - ERC-721 on Base L2 (contract stub: `contracts/PlayerNFT.sol`)
 - Player NFT metadata already supported: `SWOSPlayer.to_nft_metadata()` in `player.py`
@@ -121,7 +121,7 @@ LeagueRuntime → SeasonRunner → MatchSimulator (ICP fast or SWOS port) → Ma
 ↓
 SWOSManagerEnv (PettingZoo) → PPO/MAPPO (Nvidia CUDA via SB3) → Trained Agents
 ↓
-NFT Mint (Base) + $CM ERC-20 → Owner wallets claim wages
+NFT Mint (Base) + $SENSI ERC-20 → Owner wallets claim wages
 ↓
 OBS + ffmpeg (Nvidia NVENC) → 24/7 Twitch
 ```
@@ -207,7 +207,7 @@ chmod +x streaming/obs_pipeline.sh
 |------|-----------|
 | **Week 1 (now)** | Phase 2.0 AI complete, merge branches, 20-season autonomous demo |
 | **Week 2** | Phase 2.5 port integration (Docker + pybind11) |
-| **Month 2** | NFTs + $CM testnet on Base |
+| **Month 2** | NFTs + $SENSI testnet on Base |
 | **Month 3** | 24/7 live stream + public beta |
 | **2027** | Full production: chatbot, dashboard, NFT marketplace |
 

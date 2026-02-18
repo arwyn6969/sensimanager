@@ -237,7 +237,7 @@ class SWOSPlayer(BaseModel):
     age: int = Field(default=25, ge=16, le=40)
     contract_years: int = Field(default=3, ge=0, le=5)
     base_value: int = Field(default=500_000, ge=0, description="Base transfer value in £ (hex-tier)")
-    wage_weekly: int = Field(default=10_000, ge=0, description="Weekly wage in £/$CM")
+    wage_weekly: int = Field(default=10_000, ge=0, description="Weekly wage in £/$SENSI")
 
     morale: float = Field(default=100.0, ge=0.0, le=100.0)
     form: float = Field(default=0.0, ge=-50.0, le=50.0, description="The secret sauce: -50 to +50")

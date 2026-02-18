@@ -153,7 +153,7 @@ class TransferMarket:
         Args:
             buyer_code: Team code of the buying club.
             player_id: Base ID of the target player.
-            amount: Bid amount in £/$CM.
+            amount: Bid amount in £/$SENSI.
 
         Returns:
             True if bid accepted for consideration.

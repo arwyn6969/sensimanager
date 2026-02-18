@@ -13,7 +13,7 @@ from typing import Optional
 
 from swos420.models.player import SWOSPlayer
 
-# Scouting costs per tier (in £/$CM)
+# Scouting costs per tier (in £/$SENSI)
 SCOUTING_COSTS = {
     0: 0,        # No scouting — only public info
     1: 50_000,   # Basic — position, age, 2 highest skills

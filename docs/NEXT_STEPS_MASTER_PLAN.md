@@ -67,8 +67,8 @@ tests/                24 files, 457 tests
 ### Priority 3 — On-Chain Ownership (Month 1)
 - [ ] Deploy `PlayerNFT.sol` to Base testnet
 - [ ] Build Python web3 claim/mint script
-- [ ] Implement `CMToken.sol` (ERC-20 economy token)
-- [ ] Wire player wages to on-chain $CM token
+- [ ] Implement `SENSIToken.sol` (ERC-20 economy token)
+- [ ] Wire player wages to on-chain $SENSI token
 - [ ] Ownership transfer on player trades
 
 ### Priority 4 — Documentation & Community

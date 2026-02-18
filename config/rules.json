@@ -34,9 +34,9 @@
     "nft_owner_share": 0.90,
     "burn_share": 0.05,
     "treasury_share": 0.05,
-    "top_scorer_bonus_cm": 10000,
-    "league_winner_bonus_cm": 100000,
-    "clean_sheet_bonus_cm": 500,
+    "top_scorer_bonus_sensi": 10000,
+    "league_winner_bonus_sensi": 100000,
+    "clean_sheet_bonus_sensi": 500,
     "league_multipliers": {
       "Premier League": 1.8,
       "La Liga": 1.5,

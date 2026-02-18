@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 
 class TeamFinances(BaseModel):
     """Club financial state — drives wage bill pressure and transfer budget."""
-    balance: int = Field(default=10_000_000, description="Current bank balance in £/$CM")
+    balance: int = Field(default=10_000_000, description="Current bank balance in £/$SENSI")
     weekly_wage_bill: int = Field(default=0, description="Sum of all player wages")
     transfer_budget: int = Field(default=5_000_000, description="Available for signings")
     season_revenue: int = Field(default=0, description="Accumulated season income")

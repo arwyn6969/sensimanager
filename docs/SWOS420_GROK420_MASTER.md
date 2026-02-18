@@ -63,7 +63,7 @@
 | **Day 3** | Antigravity builds SWOS port Docker + pybind11 | Antigravity |
 | **Day 4-5** | CUDA training on Nvidia + reward weight tuning | Codex |
 | **Day 6** | 24/7 stream pipeline live | You |
-| **Day 7** | NFT mint stubs + $CM wage claims demo | You |
+| **Day 7** | NFT mint stubs + $SENSI wage claims demo | You |
 
 ---
 
@@ -131,7 +131,7 @@ Match engine is fully connected. Your next steps:
 
 ## 6. Future-Proof Hooks
 
-### NFT / $CM Economy
+### NFT / $SENSI Economy
 
 Already built into `SWOSPlayer`:
 

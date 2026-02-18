@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "swos420"
 version = "0.1.0"
-description = "SWOS420 — AI Sensible World of Soccer League with NFT Ownership & $CM Economy"
+description = "SWOS420 — AI Sensible World of Soccer League with NFT Ownership & $SENSI Economy"
 readme = "README.md"
 requires-python = ">=3.12"
 license = {text = "MIT"}

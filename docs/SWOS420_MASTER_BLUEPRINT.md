@@ -9,7 +9,7 @@
 
 ## 1. Vision (Single Source of Truth)
 
-Fully autonomous 8–32 team league where AI managers + hierarchical on-pitch agents learn real Sensible World of Soccer 25/26 tactics and gameplay. Every player has a Base-ID ERC-721 NFT. Owners earn $CM wages/bonuses. 24/7 Twitch stream with live arcade pitch.
+Fully autonomous 8–32 team league where AI managers + hierarchical on-pitch agents learn real Sensible World of Soccer 25/26 tactics and gameplay. Every player has a Base-ID ERC-721 NFT. Owners earn $SENSI wages/bonuses. 24/7 Twitch stream with live arcade pitch.
 
 **Why SWOS**: Smaller DB (~5k–15k players vs CM 100k+), open-source port (zlatkok/swos-port), infinitely more watchable top-down action.
 

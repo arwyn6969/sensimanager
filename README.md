@@ -4,7 +4,7 @@
 [![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-blue.svg)](https://python.org)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-**AI Sensible World of Soccer League with NFT Ownership & $CM Economy**
+**AI Sensible World of Soccer League with NFT Ownership & $SENSI Economy**
 
 The most authentic SWOS player simulation ever built — real names, real stats, real form dynamics, powered by AI managers and on-chain ownership.
 
@@ -125,7 +125,7 @@ current_value = base_value * (0.6 + form/100 + goals*0.01) * age_factor
 | P1 — Match Engine | ✅ Complete | ICP match sim, season runner, commentary |
 | P2 — AI Managers | ✅ Complete | PettingZoo env, PPO training, transfers, scouting |
 | P2.5 — SWOS Port | 🔲 Planned | Docker build of zlatkok/swos-port + pybind11 |
-| P3 — NFTs + $CM | 🟡 Skeleton | PlayerNFT.sol + model metadata hooks |
+| P3 — NFTs + $SENSI | 🟡 Skeleton | PlayerNFT.sol + model metadata hooks |
 | P4 — Streaming | ✅ Complete | OBS pipeline, stream_league runner, JSON overlays |
 
 See [NEXT_STEPS_MASTER_PLAN.md](docs/NEXT_STEPS_MASTER_PLAN.md) for the living roadmap.
