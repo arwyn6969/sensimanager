@@ -1,0 +1,65 @@
+# SWOS420 — Docker build for zlatkok/swos-port
+#
+# Builds the SWOS port from source with meson + ninja on Ubuntu 24.04.
+# Includes pybind11-dev for future Python bindings.
+#
+# Usage:
+#   docker build -f Dockerfile.swos-port -t swos420-port .
+#   docker run --rm -v $(pwd):/app swos420-port
+#
+# The compiled binary will be available at /opt/swos-port/build/
+
+FROM ubuntu:24.04 AS builder
+
+LABEL maintainer="arwyn6969 <arwyn6969@github>"
+LABEL description="SWOS port build environment for SWOS420"
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    git \
+    meson \
+    ninja-build \
+    libsdl2-dev \
+    libsdl2-mixer-dev \
+    libsdl2-ttf-dev \
+    pybind11-dev \
+    python3-dev \
+    python3-pybind11 \
+    pkg-config \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /opt
+RUN git clone --depth 1 https://github.com/zlatkok/swos-port.git
+
+WORKDIR /opt/swos-port
+
+# NOTE: The SWOS port's meson build is marked "under development"
+# for non-Windows/Android platforms. This may need adjustment
+# as the upstream project evolves.
+RUN meson setup build --buildtype=release || \
+    echo "Warning: Meson setup failed — port may not support this platform yet"
+
+RUN ninja -C build || \
+    echo "Warning: Ninja build failed — see above for details"
+
+# ── Runtime stage ────────────────────────────────────────────────────
+FROM ubuntu:24.04 AS runtime
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libsdl2-2.0-0 \
+    libsdl2-mixer-2.0-0 \
+    libsdl2-ttf-2.0-0 \
+    python3 \
+    python3-pip \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /opt/swos-port/build /opt/swos-port/build
+
+WORKDIR /app
+VOLUME ["/app"]
+ENTRYPOINT ["/bin/bash"]

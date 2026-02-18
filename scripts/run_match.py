@@ -34,6 +34,7 @@ def main() -> int:
     parser.add_argument("--referee", type=float, default=1.0, help="Referee strictness (0.6-1.4)")
     parser.add_argument("--db-path", default="data/leagues.db")
     parser.add_argument("--rules", default="config/rules.json")
+    parser.add_argument("--commentary", action="store_true", help="Print text commentary")
     args = parser.parse_args()
 
     try:
@@ -129,6 +130,22 @@ def main() -> int:
             print(f"    {stat.rating:4.1f}  {stat.display_name} ({stat.position}){markers}")
 
         print()
+
+        # Commentary
+        if args.commentary:
+            from swos420.engine.commentary import generate_commentary
+
+            print("=" * 60)
+            print("  📝 MATCH COMMENTARY")
+            print("=" * 60)
+            for line in generate_commentary(result):
+                if line:
+                    print(f"  {line}")
+                else:
+                    print()
+            print("=" * 60)
+            print()
+
         return 0
     finally:
         session.close()
