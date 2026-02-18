@@ -145,25 +145,26 @@ def run_single_match(game_dir: Path | None, mode: str) -> None:
             "ST", "ST",
         ]
         squad = []
+        sb = min(skill_base, 7)  # Clamp to SWOS max
         for i, pos in enumerate(positions):
             squad.append(SWOSPlayer(
                 base_id=f"{team_name.lower()[:3]}_{i:02d}",
-                display_name=f"{team_name} P{i+1}".upper(),
-                short_name=f"{team_name[:3].upper()} P{i+1}",
+                display_name=f"{team_name[:10]} P{i+1}",
+                short_name=f"{team_name[:3].upper()}{i+1}",
                 full_name=f"{team_name} Player {i+1}",
                 position=Position(pos),
                 nationality="ENG",
                 shirt_number=i + 1,
                 skills=Skills(
-                    passing=skill_base + (1 if pos in ("CM", "CAM") else 0),
-                    velocity=skill_base,
-                    speed=skill_base + 1,
-                    finishing=skill_base + (2 if pos in ("ST", "CF") else 0),
-                    heading=skill_base,
-                    tackling=skill_base + (1 if pos in ("CB", "CDM") else 0),
-                    control=skill_base,
+                    passing=min(7, sb + (1 if pos in ("CM", "CAM") else 0)),
+                    velocity=sb,
+                    speed=min(7, sb + 1),
+                    finishing=min(7, sb + (2 if pos in ("ST", "CF") else 0)),
+                    heading=sb,
+                    tackling=min(7, sb + (1 if pos in ("CB", "CDM") else 0)),
+                    control=sb,
                 ),
-                current_value=500_000 * (skill_base + 1),
+                current_value=500_000 * (sb + 1),
                 age=25,
             ))
         return squad
@@ -213,11 +214,9 @@ def run_career_season(game_dir: Path | None, mode: str) -> None:
     for t_idx, name in enumerate(team_names):
         code = name[:3].upper()
         team = Team(
-            team_id=t_idx + 1,
             name=name,
-            short_name=code,
-            league="Premier League",
-            tier=4,
+            code=code,
+            league_name="Premier League",
         )
 
         positions = [
@@ -269,8 +268,7 @@ def run_career_season(game_dir: Path | None, mode: str) -> None:
     print(f"   {'Team':<25} {'P':>3} {'W':>3} {'D':>3} {'L':>3} {'GF':>4} {'GA':>4} {'GD':>4} {'Pts':>4}")
     print("   " + "-" * 60)
 
-    for state in season.get_league_table():
-        t = state.team
+    for t in season.get_league_table():
         gd = t.goals_for - t.goals_against
         print(
             f"   {t.name:<25} {t.matches_played:>3} {t.wins:>3} "
@@ -284,8 +282,8 @@ def run_career_season(game_dir: Path | None, mode: str) -> None:
     top_scorers = season.get_top_scorers(5)
     if top_scorers:
         print("   ⚽ Top Scorers:")
-        for player in top_scorers:
-            print(f"      {player.display_name}: {player.goals_scored_season} goals")
+        for player, goals in top_scorers:
+            print(f"      {player.display_name}: {goals} goals")
     print()
 
 
