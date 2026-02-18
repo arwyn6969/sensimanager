@@ -33,7 +33,6 @@ from swos420.engine.match_result import (
 from swos420.models.player import (
     SWOSPlayer,
     positional_fitness,
-    SWOS_EFFECTIVE_MAX,
 )
 
 logger = logging.getLogger(__name__)

@@ -58,7 +58,7 @@ class TestAttributeMapper:
         assert skills.passing == 3  # default mid-range for 0-7
 
     def test_map_values_clamped(self, mapper):
-        """Even extreme inputs should be clamped to 0-15."""
+        """Even extreme inputs should be clamped to 0-7."""
         sofifa = {"finishing": 200}  # impossible but shouldn't crash
         skills = mapper.map_sofifa_to_swos(sofifa)
         assert skills.finishing <= 7

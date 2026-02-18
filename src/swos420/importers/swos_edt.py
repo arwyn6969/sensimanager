@@ -57,7 +57,7 @@ class SWOSEdtCSVAdapter(BaseImporter):
 
     The SWOS editor exports provide:
     - League/team structure perfect for our hierarchy
-    - 7 native SWOS skills already on 0-7 or 0-15 scale
+    - 7 native SWOS skills on 0-7 scale (stored range)
     - Formations and squad ordering
     - Confirmed real names in 2025/26 version
     """

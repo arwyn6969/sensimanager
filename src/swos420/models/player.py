@@ -55,7 +55,7 @@ SWOS_EFFECTIVE_MIN = 8    # Min effective value (0 + 8)
 SWOS_SQUAD_SIZE = 16      # Authentic SWOS squad size
 
 # Stepped hex-tier value table — values jump at thresholds, not linear.
-# Indexed by tier (0-15), mapping skill-total ranges to value tiers.
+# Indexed by effective skill tier (8-15), mapping skill-total ranges to value tiers.
 HEX_VALUE_TABLE: list[tuple[int, int]] = [
     # (skill_total_threshold, value_in_pounds)
     (0,   25_000),

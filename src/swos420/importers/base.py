@@ -35,7 +35,7 @@ class RawPlayerRecord(TypedDict, total=False):
     league_name: str
 
     # Skills (source-native scale)
-    skills_native: dict[str, int]   # e.g. SWOS 0-15 or Sofifa 0-100
+    skills_native: dict[str, int]   # e.g. SWOS 0-7 or Sofifa 0-100
 
     # Sofifa-specific detailed attributes (0-100 scale)
     sofifa_attrs: dict[str, int]

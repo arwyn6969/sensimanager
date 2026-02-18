@@ -26,7 +26,7 @@ Fully autonomous 8–32 team league where AI managers + hierarchical on-pitch ag
 
 ### 2.1 Player Model — `src/swos420/models/player.py` (253 lines)
 
-Full `SWOSPlayer` with 7 canonical skills (0-15), dynamic form/morale/fatigue, aging, injury risk, economy fields (wage/value), and NFT metadata generation.
+Full `SWOSPlayer` with 7 canonical skills (0-7 stored, 8-15 effective), dynamic form/morale/fatigue, aging, injury risk, economy fields (wage/value), and NFT metadata generation.
 
 ```python
 # Key API
@@ -47,7 +47,7 @@ player.to_nft_metadata()            # ERC-721 tokenURI compatible
 
 ### 2.4 Match Engine — `src/swos420/engine/match_sim.py` (602 lines)
 
-`MatchSimulator` — Poisson-based with position-weighted team ratings, 10×10 tactics matrix, weather/referee modifiers, per-player injuries/cards, goal attribution weighted by finishing, xG calculation.
+`MatchSimulator` — ICP-based (Invisible Computer Points) with position-weighted team ratings, GK value-tier defense, positional fitness, form dynamics, per-player injuries/cards, goal attribution weighted by finishing, xG calculation.
 
 **Formations supported:** 4-4-2, 4-3-3, 4-2-3-1, 3-5-2, 3-4-3, 5-3-2, 5-4-1, 4-1-4-1, 4-3-2-1, 3-4-2-1
 

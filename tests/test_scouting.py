@@ -105,7 +105,7 @@ class TestTier2:
             true_val = getattr(player.skills, skill_name)
             # Noise is ±1
             assert abs(noisy_val - true_val) <= 1
-            # Clamped to 0-15
+            # Clamped to 0-7
             assert 0 <= noisy_val <= 7
 
     def test_tier2_also_has_top_skills(self):

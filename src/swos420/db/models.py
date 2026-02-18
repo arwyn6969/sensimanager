@@ -42,7 +42,7 @@ class PlayerDB(Base):
     club_name = Column(String(100), default="Free Agent", index=True)
     club_code = Column(String(5), default="FA")
 
-    # 7 Core Skills (0-15)
+    # 7 Core Skills (0-7 stored, 8-15 effective)
     passing = Column(Integer, default=5)
     velocity = Column(Integer, default=5)
     heading = Column(Integer, default=5)

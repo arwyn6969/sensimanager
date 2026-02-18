@@ -11,13 +11,13 @@
 | Area | Status | Evidence |
 |------|--------|----------|
 | **Data Layer** | ✅ Complete | Importers (Sofifa/SWOS/TM/Hybrid), mapping, normalization, SQLAlchemy DB |
-| **Match Engine** | ✅ Complete | 602-line Poisson engine, 10×10 tactics matrix, weather, referee, injuries |
+| **Match Engine** | ✅ Complete | ICP-based engine with GK tiers, positional fitness, form dynamics |
 | **Season Runner** | ✅ Complete | 270-line full-season orchestrator with aging, retirement, value recalc |
 | **Commentary** | ✅ Complete | 343-line template engine with stream formatter |
 | **Transfer Market** | ✅ Complete | 340-line sealed-bid auction system |
 | **Scouting** | ✅ Complete | 162-line tiered skill reveal |
 | **AI Managers** | ✅ Complete | PettingZoo ParallelEnv + Gym wrapper + PPO training + baselines |
-| **Tests** | ✅ Outstanding | 297 passing across 17 files |
+| **Tests** | ✅ Outstanding | 338 passing across 20 files |
 | **CI** | ✅ Hardened | GitHub Actions: ruff + pytest --cov + Python 3.12/3.13 matrix |
 | **Docker** | ✅ Ready | Dockerfile + docker-compose.yml with GPU support |
 | **Lint** | ✅ Clean | `ruff check .` passes with zero errors |
@@ -44,7 +44,7 @@ scripts/              smoke_pipeline · run_full_season · run_match · train_ma
 config/               rules.json · league_structure.json
 contracts/            PlayerNFT.sol
 streaming/            obs_pipeline.sh
-tests/                17 files, 297 tests
+tests/                20 files, 338 tests
 ```
 
 ---
@@ -82,7 +82,7 @@ tests/                17 files, 297 tests
 
 | Metric | Target | Current |
 |--------|--------|---------|
-| Tests passing | 500+ | 297 |
+| Tests passing | 500+ | 338 |
 | Lint errors | 0 | 0 ✅ |
 | 20-season headless run | < 45s | ~2.5s per test run |
 | 24/7 stream live | > 100 viewers week 1 | Not started |

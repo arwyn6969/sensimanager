@@ -64,7 +64,7 @@
 
 ### Phase 1 — Match Engine & League ✅ COMPLETE
 
-- Poisson-based match engine with position-weighted team ratings
+- ICP-based match engine (Invisible Computer Points) with position-weighted team ratings
 - 10×10 tactics interaction matrix (rock-paper-scissors balancing)
 - Weather & referee modifiers, per-player injuries/cards
 - Full season runner with fixture generation, standings, end-of-season processing
@@ -117,7 +117,7 @@ cd swos-port && meson setup build && ninja -C build
 ```
 Sofifa/AG_SWSEdt CSV → importers → mapping → normalization → SQLAlchemy DB
 ↓
-LeagueRuntime → SeasonRunner → MatchSimulator (Poisson fast or SWOS port) → MatchResult
+LeagueRuntime → SeasonRunner → MatchSimulator (ICP fast or SWOS port) → MatchResult
 ↓
 SWOSManagerEnv (PettingZoo) → PPO/MAPPO (Nvidia CUDA via SB3) → Trained Agents
 ↓
@@ -132,7 +132,7 @@ OBS + ffmpeg (Nvidia NVENC) → 24/7 Twitch
 |-------|-----------|
 | Core | Python 3.12, Pydantic ≥2.0, SQLAlchemy ≥2.0, pandas, numpy |
 | AI | PettingZoo ≥1.24, Gymnasium ≥1.0, Stable-Baselines3 ≥2.0, SuperSuit ≥3.9 |
-| Engine | Custom Poisson match sim + zlatkok/swos-port (Docker) |
+| Engine | Custom ICP match sim + zlatkok/swos-port (Docker) |
 | Blockchain | Base L2 (ERC-721A + ERC-20), OpenZeppelin |
 | Streaming | OBS + ffmpeg + Nvidia NVENC |
 | Testing | pytest ≥8.0, pytest-cov ≥5.0, ruff |

@@ -30,7 +30,7 @@ python3.12 -m venv .venv
 # Start AI manager training
 ./.venv/bin/python scripts/train_managers.py --timesteps 50000 --num-teams 4
 
-# Run all 297 tests
+# Run all 338 tests
 ./.venv/bin/python -m pytest -q
 ```
 
@@ -53,7 +53,7 @@ src/swos420/
 │   ├── team.py          # Team, TeamFinances, League, PromotionRelegation
 │   └── league.py        # LeagueRuntime facade for AI/scripts
 ├── engine/              # Match simulation & season orchestration
-│   ├── match_sim.py     # Poisson match engine (10×10 tactics, weather, referee)
+│   ├── match_sim.py     # ICP match engine (Invisible Computer Points, GK tiers, form)
 │   ├── season_runner.py # Full season with fixtures, decay, aging, retirement
 │   ├── fixture_generator.py
 │   ├── match_result.py  # MatchResult + MatchEvent + PlayerMatchStats
@@ -67,7 +67,7 @@ src/swos420/
 │   ├── rewards.py       # Reward functions
 │   └── baseline_agents.py  # Heuristic baselines
 ├── importers/           # BaseImporter + adapters (Sofifa, SWOS, TM, Hybrid)
-├── mapping/             # Sofifa → SWOS 0-15 scale attribute mapping
+├── mapping/             # Sofifa → SWOS 0-7 scale attribute mapping
 ├── normalization/       # UTF-8 name normalization + transliteration
 ├── db/                  # SQLAlchemy models + repository layer
 └── utils/               # Helpers
@@ -86,7 +86,7 @@ config/
 
 contracts/PlayerNFT.sol  # ERC-721 NFT contract
 streaming/obs_pipeline.sh # OBS overlay pipeline
-tests/                   # 297 passing tests across 17 files
+tests/                   # 338 passing tests across 20 files
 ```
 
 ## Player Model (7 Skills — Canonical SWOS)
@@ -101,12 +101,12 @@ tests/                   # 297 passing tests across 17 files
 | SP | Speed | Top speed, acceleration |
 | FI | Finishing | Close-range shot accuracy & power |
 
-Scale: 0 (terrible) → 15 (world-class)
+Scale: **0-7 stored** (database) → **8-15 effective** (runtime, add +8 offset)
 
 ## Key Formulas
 
 ```python
-effective_skill = base_skill * (1.0 + form / 200.0)
+effective_skill = stored_skill + 8  # range 8-15
 weekly_wage = current_value * 0.0018 * league_multiplier
 current_value = base_value * (0.6 + form/100 + goals*0.01) * age_factor
 ```
@@ -122,11 +122,11 @@ current_value = base_value * (0.6 + form/100 + goals*0.01) * age_factor
 | Phase | Status | Description |
 |-------|--------|-------------|
 | P0 — Data Layer | ✅ Complete | Importers, mapping, normalization, DB |
-| P1 — Match Engine | ✅ Complete | Poisson sim, season runner, commentary |
+| P1 — Match Engine | ✅ Complete | ICP match sim, season runner, commentary |
 | P2 — AI Managers | ✅ Complete | PettingZoo env, PPO training, transfers, scouting |
 | P2.5 — SWOS Port | 🔲 Planned | Docker build of zlatkok/swos-port + pybind11 |
 | P3 — NFTs + $CM | 🟡 Skeleton | PlayerNFT.sol + model metadata hooks |
-| P4 — Streaming | 🟡 Skeleton | OBS pipeline + commentary formatter |
+| P4 — Streaming | ✅ Complete | OBS pipeline, stream_league runner, JSON overlays |
 
 See [NEXT_STEPS_MASTER_PLAN.md](docs/NEXT_STEPS_MASTER_PLAN.md) for the living roadmap.
 

@@ -26,7 +26,7 @@
 | Player Model (7 skills, form, aging, NFT) | `src/swos420/models/player.py` | 253 | ✅ |
 | Team Model (finances, standings) | `src/swos420/models/team.py` | 112 | ✅ |
 | League Runtime (facade over SeasonRunner) | `src/swos420/models/league.py` | 149 | ✅ |
-| Match Simulator (Poisson, 10×10 tactics) | `src/swos420/engine/match_sim.py` | 602 | ✅ |
+| Match Simulator (ICP engine, GK tiers, form) | `src/swos420/engine/match_sim.py` | 602 | ✅ |
 | Season Runner (full lifecycle) | `src/swos420/engine/season_runner.py` | 270 | ✅ |
 | Match Results (events, stats, serialization) | `src/swos420/engine/match_result.py` | 119 | ✅ |
 | Fixture Generator | `src/swos420/engine/fixture_generator.py` | ~70 | ✅ |
