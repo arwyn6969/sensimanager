@@ -1,8 +1,8 @@
 # SWOS420 — NEXT STEPS MASTER PLAN v2.0 (Living Document)
 
-**Date:** 2026-02-18
+**Date:** 2026-02-18 (updated)
 **Authors:** Arwyn + Grok420 + Antigravity
-**Status:** Phases 0–2.0 COMPLETE — entering Acceleration
+**Status:** Phases 0–3.0 COMPLETE — entering Frontend & Deployment
 
 ---
 
@@ -22,7 +22,7 @@
 | **Docker** | ✅ Ready | Dockerfile + docker-compose.yml with GPU support |
 | **Lint** | ✅ Clean | `ruff check .` passes with zero errors |
 | **SWOS Port** | ✅ Complete | EDT binary I/O + DOSBox-X runner + `ArcadeMatchSimulator` wired |
-| **NFTs** | 🟡 Skeleton | `PlayerNFT.sol` + `to_nft_metadata()` on player model |
+| **NFTs** | ✅ Complete | 6 Solidity contracts, 75 Forge tests, `Deploy.s.sol`, Python web3 scripts |
 | **Streaming** | ✅ MVP | HTML overlay + local server + stream runner + LLM commentary |
 
 ---
@@ -40,11 +40,11 @@ src/swos420/
 ├── db/               models.py · session.py · repository.py
 └── utils/
 
-scripts/              smoke_pipeline · run_full_season · run_match · train_managers · update_db · export · export_edt
+contracts/            SWOSPlayerNFT · SENSIToken · TransferMarket · LeagueManager + alternates
+scripts/              smoke_pipeline · run_full_season · run_match · train_managers · update_db · export · export_edt · mint_from_db · update_form_batch · settle_season · distribute_wages
 config/               rules.json · league_structure.json · dosbox.conf
-contracts/            PlayerNFT.sol
 streaming/            obs_pipeline.sh
-tests/                24 files, 457 tests
+tests/                24+ files, 473 Python + 75 Forge = 548 tests
 ```
 
 ---
@@ -64,18 +64,28 @@ tests/                24 files, 457 tests
 - [x] `ArcadeMatchSimulator` wired to DOSBox runner with fallback
 - [ ] DOSBox-X end-to-end test (requires SWOS game files)
 
-### Priority 3 — On-Chain Ownership (Month 1)
-- [ ] Deploy `PlayerNFT.sol` to Base testnet
-- [ ] Build Python web3 claim/mint script
-- [ ] Implement `SENSIToken.sol` (ERC-20 economy token)
-- [ ] Wire player wages to on-chain $SENSI token
-- [ ] Ownership transfer on player trades
+### Priority 3 — On-Chain Ownership ✅ COMPLETE
+- [x] Deploy `SWOSPlayerNFT.sol` (ERC-721, 7-skill struct, batch ops, effective skills)
+- [x] Deploy `SENSIToken.sol` (ERC-20 with wages, bonuses, burn)
+- [x] Deploy `TransferMarket.sol` (sealed-bid + release clauses + loans)
+- [x] Deploy `LeagueManager.sol` (season lifecycle, matchday settlement, wage distribution)
+- [x] Deploy `PlayerNFT.sol` + `LeagueRewards.sol` (alternate lighter pattern)
+- [x] Build Python web3 mint/settle/wage scripts
+- [x] 75 Forge tests passing
+- [ ] Deploy to Base Sepolia testnet (requires wallet keys)
 
 ### Priority 4 — Documentation & Community
-- [ ] Create `docs/AI_TRAINING_STRATEGY_AND_DIFFICULTY.md`
+- [x] Create `docs/AI_TRAINING_STRATEGY_AND_DIFFICULTY.md`
 - [ ] Create `CONTRIBUTING.md`
 - [ ] Create `CHANGELOG.md`
 - [ ] Add engine `__init__.py` public exports
+
+### Priority 5 — Frontend Dashboard (NEW)
+- [ ] Next.js + wagmi + RainbowKit scaffold
+- [ ] NFT Gallery page (player cards with stats/form/value)
+- [ ] Transfer Market UI (listings, bids, release clauses)
+- [ ] League Table page (standings, matchday results, commentary)
+- [ ] Season Dashboard (wages, bonuses, top scorers)
 
 ---
 
@@ -83,11 +93,12 @@ tests/                24 files, 457 tests
 
 | Metric | Target | Current |
 |--------|--------|---------|
-| Tests passing | 500+ | 457 |
+| Tests passing | 500+ | **548** ✅ |
 | Lint errors | 0 | 0 ✅ |
 | Code coverage | 95%+ | 96% ✅ |
+| Forge tests | 50+ | **75** ✅ |
 | 24/7 stream live | > 100 viewers week 1 | Not started |
-| Player NFTs minted | 8 on Base testnet | Not started |
+| Player NFTs minted | 8 on Base testnet | Ready to deploy |
 | CI pipeline | Green on every push | ✅ |
 
 ---
@@ -120,8 +131,9 @@ docker run --rm swos420
 |------|-------|-------------|
 | 1–3 | ✅ Done | Infra polish: CI, Docker, lint, docs |
 | 4–10 | ✅ Done | Streaming MVP: HTML overlay + server + commentary |
-| 11–20 | SWOS Port | Live arcade matches from Python |
-| 21–30 | NFT Economy | Base testnet + first owned-player season |
+| 11–17 | ✅ Done | SWOS Port + On-Chain Economy (6 contracts, 75 tests) |
+| 18–24 | **NOW** | Base Sepolia deploy + Frontend dashboard |
+| 25–30 | Next | Marketing, community, Base mainnet |
 
 **Every sprint ends with a GitHub Release + announcement.**
 

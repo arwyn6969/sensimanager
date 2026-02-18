@@ -30,8 +30,9 @@ python3.12 -m venv .venv
 # Start AI manager training
 ./.venv/bin/python scripts/train_managers.py --timesteps 50000 --num-teams 4
 
-# Run all 338 tests
+# Run all tests (473 Python + 75 Forge = 548 total)
 ./.venv/bin/python -m pytest -q
+cd contracts && forge test -vvv && cd ..
 ```
 
 For production-like runs on full datasets, use the default `--min-squad-size 11`.
@@ -78,15 +79,26 @@ scripts/                 # CLI tools
 ├── run_match.py         # Single match simulation CLI
 ├── train_managers.py    # PPO training with Gym wrapper + curriculum
 ├── update_db.py         # Import players from Sofifa CSV → SQLite
+├── mint_from_db.py      # Batch-mint Player NFTs from DB → chain
+├── update_form_batch.py # Push matchday form updates on-chain
+├── settle_season.py     # Season settlement (bonuses, resets)
+├── distribute_wages.py  # $SENSI wage distribution
 └── export_to_ag_swsedt.py  # Export to AG-SWSEDT format
 
 config/
 ├── rules.json           # Match engine tuning constants
 └── league_structure.json # 4-tier league pyramid definition
 
-contracts/PlayerNFT.sol  # ERC-721 NFT contract
+contracts/src/           # On-chain economy (Foundry / Solidity 0.8.28)
+├── SWOSPlayerNFT.sol    # ERC-721 with 7-skill struct, form, batch ops
+├── SENSIToken.sol       # ERC-20 economy token (wages, bonuses, burn)
+├── TransferMarket.sol   # Sealed-bid auctions + release clauses + loans
+├── LeagueManager.sol    # Season lifecycle, matchdays, wage distribution
+├── PlayerNFT.sol        # Alternate NFT with on-chain wage claims
+└── LeagueRewards.sol    # Lightweight match/season reward settlement
+
 streaming/obs_pipeline.sh # OBS overlay pipeline
-tests/                   # 338 passing tests across 20 files
+tests/                   # 473 Python tests + 75 Forge tests = 548 total
 ```
 
 ## Player Model (7 Skills — Canonical SWOS)
@@ -124,9 +136,10 @@ current_value = base_value * (0.6 + form/100 + goals*0.01) * age_factor
 | P0 — Data Layer | ✅ Complete | Importers, mapping, normalization, DB |
 | P1 — Match Engine | ✅ Complete | ICP match sim, season runner, commentary |
 | P2 — AI Managers | ✅ Complete | PettingZoo env, PPO training, transfers, scouting |
-| P2.5 — SWOS Port | 🔲 Planned | Docker build of zlatkok/swos-port + pybind11 |
-| P3 — NFTs + $SENSI | 🟡 Skeleton | PlayerNFT.sol + model metadata hooks |
+| P2.5 — SWOS Port | ✅ Complete | EDT binary I/O + DOSBox-X runner + ArcadeMatchSimulator |
+| P3 — NFTs + $SENSI | ✅ Complete | 6 contracts, 75 Forge tests, deploy script, web3 scripts |
 | P4 — Streaming | ✅ Complete | OBS pipeline, stream_league runner, JSON overlays |
+| P5 — Frontend | 🟡 Next | Next.js + wagmi + RainbowKit dashboard |
 
 See [NEXT_STEPS_MASTER_PLAN.md](docs/NEXT_STEPS_MASTER_PLAN.md) for the living roadmap.
 
