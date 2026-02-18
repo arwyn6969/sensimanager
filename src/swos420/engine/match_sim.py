@@ -599,16 +599,43 @@ class MatchSimulator:
 
 
 class ArcadeMatchSimulator:
-    """Placeholder for zlatkok/swos-port pybind11 arcade wrapper.
+    """SWOS arcade match simulator via DOSBox-X.
 
-    When the native SWOS engine is compiled with Python bindings,
-    this class will call self.swos_engine.step() for pixel-level
-    arcade match simulation. Until then, falls back to MatchSimulator.
+    Runs real SWOS 96/97 matches in a headless DOSBox-X instance by
+    injecting EDT team data and parsing post-match results.
+
+    Falls back to the fast MatchSimulator when:
+    - DOSBox-X is not installed
+    - No SWOS game directory is configured
+    - force_fallback is True
     """
 
-    def __init__(self, rules_path: str | Path | None = None):
+    def __init__(
+        self,
+        game_dir: str | Path | None = None,
+        rules_path: str | Path | None = None,
+        force_fallback: bool = False,
+    ):
         self._fallback = MatchSimulator(rules_path=rules_path)
-        self._native_available = False
+        self._game_dir = Path(game_dir) if game_dir else None
+        self._force_fallback = force_fallback
+
+        # Lazy-import to avoid circular dependency
+        from swos420.engine.dosbox_runner import DOSBoxRunner
+
+        self._runner: DOSBoxRunner | None = None
+        if (
+            not force_fallback
+            and game_dir
+            and DOSBoxRunner.available()
+            and DOSBoxRunner.game_dir_valid(game_dir)
+        ):
+            self._runner = DOSBoxRunner(game_dir)
+
+    @property
+    def arcade_available(self) -> bool:
+        """Whether real SWOS arcade matches are available."""
+        return self._runner is not None
 
     def simulate(
         self,
@@ -616,9 +643,67 @@ class ArcadeMatchSimulator:
         away_squad: list[SWOSPlayer],
         **kwargs,
     ) -> MatchResult:
-        """Run arcade simulation (or fallback to fast match)."""
-        if self._native_available:
-            # TODO: call self.swos_engine.step(...) when pybind11 wrapper ready
-            raise NotImplementedError("Native SWOS arcade engine not yet compiled")
+        """Run arcade simulation (or fallback to fast match).
 
+        If DOSBox-X and game files are available, runs a real SWOS match.
+        Otherwise, uses the fast ICP-based MatchSimulator.
+        """
+        if self._runner:
+            return self._simulate_arcade(home_squad, away_squad, **kwargs)
         return self._fallback.simulate_match(home_squad, away_squad, **kwargs)
+
+    def _simulate_arcade(
+        self,
+        home_squad: list[SWOSPlayer],
+        away_squad: list[SWOSPlayer],
+        **kwargs,
+    ) -> MatchResult:
+        """Convert squads to EDT, run in DOSBox, parse results."""
+        from swos420.importers.swos_edt_binary import (
+            SKILL_ORDER as EDT_SKILLS,
+            EdtPlayer,
+            EdtTeam,
+        )
+
+        def _squad_to_edt(squad: list[SWOSPlayer], team_name: str) -> EdtTeam:
+            edt_players = []
+            for p in squad[:16]:
+                skills_display = {}
+                for s in EDT_SKILLS:
+                    stored = getattr(p.skills, s, 3)
+                    skills_display[s] = min(15, stored * 2)
+                edt_players.append(EdtPlayer(
+                    name=p.short_name[:22],
+                    shirt_number=p.shirt_number,
+                    position=p.position.value if hasattr(p.position, "value") else str(p.position),
+                    skills=skills_display,
+                ))
+            # Pad to 16
+            while len(edt_players) < 16:
+                edt_players.append(EdtPlayer(
+                    name=f"Sub {len(edt_players)+1}",
+                    skills={s: 4 for s in EDT_SKILLS},
+                ))
+            return EdtTeam(name=team_name, players=edt_players,
+                          player_order=list(range(16)))
+
+        home_name = kwargs.get("home_team_name", "Home")
+        away_name = kwargs.get("away_team_name", "Away")
+        home_edt = _squad_to_edt(home_squad, home_name)
+        away_edt = _squad_to_edt(away_squad, away_name)
+
+        result_dict = self._runner.run_match(home_edt, away_edt)
+
+        # Convert DOSBox result dict back to MatchResult
+        return MatchResult(
+            home_goals=result_dict.get("home_goals", 0),
+            away_goals=result_dict.get("away_goals", 0),
+            home_team=home_name,
+            away_team=away_name,
+            home_stats=[],
+            away_stats=[],
+            events=[],
+            home_xg=0.0,
+            away_xg=0.0,
+        )
+

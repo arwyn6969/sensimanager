@@ -94,14 +94,17 @@ class LLMCommentaryGenerator:
     def __post_init__(self) -> None:
         if not self.api_key:
             self.api_key = os.environ.get("OPENAI_API_KEY", "")
+        configured_api_base = os.environ.get("SWOS420_LLM_API_BASE", "")
         if not self.api_base:
-            self.api_base = os.environ.get(
-                "SWOS420_LLM_API_BASE", "https://api.openai.com/v1"
-            )
-        self.enabled = bool(self.api_key)
+            self.api_base = configured_api_base or "https://api.openai.com/v1"
+
+        is_non_default_base = self.api_base.rstrip("/") != "https://api.openai.com/v1"
+        # Local OpenAI-compatible endpoints (Ollama/vLLM) often run without an API key.
+        self.enabled = bool(self.api_key) or is_non_default_base
         if not self.enabled:
             logger.info(
-                "LLM commentary disabled (no API key). Using template engine only."
+                "LLM commentary disabled (no API key or non-default API base). "
+                "Using template engine only."
             )
 
     @property
@@ -197,10 +200,9 @@ class LLMCommentaryGenerator:
             "max_tokens": 2000,
         }
 
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {self.api_key}",
-        }
+        headers = {"Content-Type": "application/json"}
+        if self.api_key:
+            headers["Authorization"] = f"Bearer {self.api_key}"
 
         req = urllib.request.Request(
             url,

@@ -268,6 +268,13 @@ class TestAPIConfig:
         gen = LLMCommentaryGenerator(api_key="")
         assert gen.api_base == "http://custom:8080/v1"
 
+    def test_non_default_api_base_enables_llm_without_key(self, monkeypatch):
+        """Local OpenAI-compatible base should enable LLM mode without API key."""
+        monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+        monkeypatch.setenv("SWOS420_LLM_API_BASE", "http://localhost:11434/v1")
+        gen = LLMCommentaryGenerator(api_key="")
+        assert gen.enabled is True
+
 
 # ═══════════════════════════════════════════════════════════════════════
 # LLM-Enabled Path Tests (mocked API)
@@ -399,6 +406,29 @@ class TestLLMEnabledMode:
         lines = gen._call_api("test prompt")
         assert lines == ["Hello", "World"]
 
+    def test_call_api_without_key_omits_authorization_header(self, monkeypatch):
+        """No key should omit Authorization header for local endpoints."""
+        monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+        gen = LLMCommentaryGenerator(
+            api_key="",
+            api_base="http://localhost:11434/v1",
+        )
+
+        captured_headers = {}
+
+        def _capture_urlopen(req, timeout=30):
+            del timeout
+            captured_headers.update(dict(req.headers))
+            return _FakeResponse(
+                json.dumps({"choices": [{"message": {"content": "Line 1"}}]})
+            )
+
+        monkeypatch.setattr("urllib.request.urlopen", _capture_urlopen)
+        lines = gen._call_api("test prompt")
+
+        assert lines == ["Line 1"]
+        assert "Authorization" not in captured_headers
+
     def test_enhance_with_llm_no_content_lines(self, monkeypatch):
         """If all template lines are empty, should return them unchanged."""
         monkeypatch.delenv("OPENAI_API_KEY", raising=False)
@@ -408,4 +438,3 @@ class TestLLMEnabledMode:
         template_lines = ["", "   ", ""]
         output = gen._enhance_with_llm(template_lines, result)
         assert output == template_lines
-
