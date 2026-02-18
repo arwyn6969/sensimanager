@@ -266,3 +266,146 @@ class TestAPIConfig:
         monkeypatch.delenv("OPENAI_API_KEY", raising=False)
         gen = LLMCommentaryGenerator(api_key="")
         assert gen.api_base == "http://custom:8080/v1"
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# LLM-Enabled Path Tests (mocked API)
+# ═══════════════════════════════════════════════════════════════════════
+
+
+import io
+import json
+
+
+class _FakeResponse:
+    """Minimal context-manager-compatible mock for urllib.request.urlopen."""
+
+    def __init__(self, content: str):
+        self._data = content.encode("utf-8")
+
+    def read(self):
+        return self._data
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_):
+        pass
+
+
+def _mock_urlopen_factory(content_text: str):
+    """Return a urlopen replacement that returns predetermined LLM content."""
+    response_body = json.dumps(
+        {"choices": [{"message": {"content": content_text}}]}
+    )
+
+    def _mock_urlopen(req, timeout=30):
+        return _FakeResponse(response_body)
+
+    return _mock_urlopen
+
+
+class TestLLMEnabledMode:
+    """Tests that exercise the LLM-enabled code paths with mocked HTTP."""
+
+    @pytest.fixture(autouse=True)
+    def seed(self):
+        random.seed(42)
+        np.random.seed(42)
+
+    def test_generate_with_llm_enhancement(self, monkeypatch):
+        """generate() should call _enhance_with_llm when enabled."""
+        monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+        gen = LLMCommentaryGenerator(api_key="test-key-123")
+        assert gen.enabled is True
+
+        result = _make_result()
+
+        # Mock urllib.request.urlopen to return fake LLM response
+        enhanced_text = "AMAZING GOAL!\nINCREDIBLE PLAY!\nSTUNNING FINISH!"
+        monkeypatch.setattr(
+            "urllib.request.urlopen",
+            _mock_urlopen_factory(enhanced_text),
+        )
+
+        lines = gen.generate(result)
+        assert isinstance(lines, list)
+        assert any("AMAZING" in l or "INCREDIBLE" in l or "STUNNING" in l for l in lines)
+
+    def test_generate_stream_with_llm_enabled(self, monkeypatch):
+        """generate_stream() should return enhanced text when LLM is enabled."""
+        monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+        gen = LLMCommentaryGenerator(api_key="test-key-123")
+
+        result = _make_result()
+        enhanced_text = "Line one\nLine two\nLine three"
+        monkeypatch.setattr(
+            "urllib.request.urlopen",
+            _mock_urlopen_factory(enhanced_text),
+        )
+
+        output = gen.generate_stream(result)
+        assert isinstance(output, str)
+        # Should contain enhanced text (joined with newlines)
+        assert len(output) > 0
+
+    def test_api_failure_falls_back_to_template(self, monkeypatch):
+        """API errors should fall back to template commentary."""
+        monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+        gen = LLMCommentaryGenerator(api_key="test-key-123")
+
+        result = _make_result()
+
+        def _error_urlopen(req, timeout=30):
+            raise ConnectionError("Network unreachable")
+
+        monkeypatch.setattr("urllib.request.urlopen", _error_urlopen)
+
+        lines = gen.generate(result)
+        assert isinstance(lines, list)
+        assert len(lines) > 0
+        # Should still contain match content (template fallback)
+        text = "\n".join(lines)
+        assert "Man City" in text or "Arsenal" in text
+
+    def test_empty_api_response_falls_back(self, monkeypatch):
+        """Empty API response should fall back to templates."""
+        monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+        gen = LLMCommentaryGenerator(api_key="test-key-123")
+
+        result = _make_result()
+        monkeypatch.setattr(
+            "urllib.request.urlopen",
+            _mock_urlopen_factory(""),  # empty content
+        )
+
+        lines = gen.generate(result)
+        assert isinstance(lines, list)
+        assert len(lines) > 0
+
+    def test_call_api_returns_lines(self, monkeypatch):
+        """_call_api should return list of stripped non-empty lines."""
+        monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+        gen = LLMCommentaryGenerator(
+            api_key="test-key-123",
+            api_base="http://localhost:1234/v1",
+        )
+
+        monkeypatch.setattr(
+            "urllib.request.urlopen",
+            _mock_urlopen_factory("  Hello  \n\n  World  \n"),
+        )
+
+        lines = gen._call_api("test prompt")
+        assert lines == ["Hello", "World"]
+
+    def test_enhance_with_llm_no_content_lines(self, monkeypatch):
+        """If all template lines are empty, should return them unchanged."""
+        monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+        gen = LLMCommentaryGenerator(api_key="test-key-123")
+
+        result = _make_result()
+        template_lines = ["", "   ", ""]
+        output = gen._enhance_with_llm(template_lines, result)
+        assert output == template_lines
+
