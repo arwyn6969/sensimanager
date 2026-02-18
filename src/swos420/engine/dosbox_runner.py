@@ -52,6 +52,14 @@ class ArcadeMatchConfig:
     dosbox_bin: str = DEFAULT_DOSBOX_BIN
     config_path: Path = DEFAULT_CONFIG
     capture_dir: Path = DEFAULT_CAPTURE_DIR
+    windowed: bool = True               # Windowed mode (False = fullscreen)
+    window_resolution: str = "640x400"   # Pixel-perfect 1994 SWOS
+    overlay_mode: str = "pure"           # 'pure' = no overlays, '420' = OBS overlay active
+    edt_paths: list = None               # Additional EDT mod files to load
+
+    def __post_init__(self):
+        if self.edt_paths is None:
+            self.edt_paths = []
 
 
 class DOSBoxRunner:
@@ -127,6 +135,12 @@ class DOSBoxRunner:
             "-c", "SWOS.EXE",
             "-c", "exit",
         ]
+        # Window resolution override
+        if self.config.windowed:
+            cmd.extend(["-set", f"windowresolution={self.config.window_resolution}"])
+            cmd.extend(["-set", "fullscreen=false"])
+        else:
+            cmd.extend(["-set", "fullscreen=true"])
         if self.config.capture_frames:
             self.config.capture_dir.mkdir(parents=True, exist_ok=True)
         return cmd

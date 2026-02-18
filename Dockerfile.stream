@@ -1,0 +1,104 @@
+# SWOS420 — DOSBox-X + Streaming Container
+#
+# Runs real SWOS 96/97 in a headless virtual display with AI controller,
+# captures the DOSBox window, and streams via RTMP.
+#
+# Usage:
+#   docker build -f Dockerfile.stream -t swos420-stream .
+#   docker run --rm -v /path/to/swos:/game swos420-stream
+#
+# Environment Variables:
+#   SWOS_GAME_DIR=/game          Path to mounted SWOS game files
+#   SWOS420_MODE=pure            Mode: pure or 420
+#   RTMP_URL=rtmp://...          RTMP stream destination (optional)
+
+FROM ubuntu:24.04 AS base
+
+LABEL maintainer="arwyn6969 <arwyn6969@github>"
+LABEL description="SWOS420 — 24/7 AI SWOS Stream"
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV SWOS_GAME_DIR=/game
+ENV SWOS420_MODE=pure
+
+# System dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    dosbox \
+    ffmpeg \
+    xvfb \
+    x11vnc \
+    python3 \
+    python3-pip \
+    python3-venv \
+    python3-dev \
+    xdotool \
+    scrot \
+    && rm -rf /var/lib/apt/lists/*
+
+# Note: DOSBox-X may need manual install; we fall back to dosbox if unavailable
+# RUN apt-get install -y dosbox-x  # When available in standard repos
+
+WORKDIR /app
+
+# Install Python dependencies
+COPY pyproject.toml README.md ./
+COPY src/ src/
+RUN pip install --no-cache-dir --break-system-packages -e ".[dev,ai,stream]"
+
+# Install pyautogui for keyboard injection
+RUN pip install --no-cache-dir --break-system-packages pyautogui Pillow
+
+# Copy project files
+COPY config/ config/
+COPY scripts/ scripts/
+COPY streaming/ streaming/
+COPY run_swos420.py .
+
+# Game files are expected to be mounted at /game
+VOLUME ["/game"]
+
+# Streaming output
+VOLUME ["/output"]
+
+# Start script
+COPY <<'EOF' /app/start_stream.sh
+#!/bin/bash
+set -e
+
+echo "🏟️ SWOS420 Streaming Container Starting..."
+echo "   Mode: ${SWOS420_MODE}"
+echo "   Game Dir: ${SWOS_GAME_DIR}"
+
+# Start virtual framebuffer (for headless DOSBox)
+Xvfb :99 -screen 0 640x400x24 &
+export DISPLAY=:99
+sleep 1
+
+# Start VNC server (optional, for debugging)
+if [ "${VNC_ENABLED}" = "true" ]; then
+    x11vnc -display :99 -forever -nopw &
+    echo "   VNC: Enabled on port 5900"
+fi
+
+# Run SWOS420
+echo "   Starting SWOS420..."
+python3 run_swos420.py \
+    --mode "${SWOS420_MODE}" \
+    --game-dir "${SWOS_GAME_DIR}" \
+    --season
+    
+# If RTMP_URL is set, also stream via ffmpeg
+if [ -n "${RTMP_URL}" ]; then
+    echo "   Streaming to: ${RTMP_URL}"
+    ffmpeg -f x11grab -s 640x400 -i :99 \
+        -c:v libx264 -preset ultrafast -tune zerolatency \
+        -f flv "${RTMP_URL}" &
+fi
+
+wait
+EOF
+RUN chmod +x /app/start_stream.sh
+
+EXPOSE 5900
+
+CMD ["/app/start_stream.sh"]

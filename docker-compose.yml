@@ -22,6 +22,21 @@ services:
               count: all
               capabilities: [gpu]
 
+  # ── 24/7 SWOS Streaming Service ─────────────────────────────────────
+  swos-stream:
+    build:
+      context: .
+      dockerfile: Dockerfile.stream
+    volumes:
+      - ./streaming:/app/streaming
+      - ./config:/app/config
+    environment:
+      - SWOS_GAME_DIR=/game
+      - SWOS420_MODE=420
+      - VNC_ENABLED=false
+    ports:
+      - "5900:5900"  # VNC (when enabled)
+
   # ── Future services (uncomment when ready) ────────────────────────
   # postgres:
   #   image: postgres:16-alpine

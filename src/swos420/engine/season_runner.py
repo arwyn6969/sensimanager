@@ -66,6 +66,8 @@ class SeasonRunner:
         simulator: MatchSimulator | None = None,
         season_id: str = "25/26",
         ad_manager: AdManager | None = None,
+        use_dosbox: bool = False,
+        game_dir: str | None = None,
     ):
         """Initialize the season.
 
@@ -74,6 +76,8 @@ class SeasonRunner:
             simulator: MatchSimulator instance. Creates default if None.
             season_id: Season identifier string.
             ad_manager: Optional AdManager for live hoarding rendering.
+            use_dosbox: If True, run matches via DOSBox-X + AIDOSBoxController.
+            game_dir: Path to SWOS game directory (required if use_dosbox=True).
         """
         if len(teams) < 2:
             raise ValueError(f"Need at least 2 teams, got {len(teams)}")
@@ -85,15 +89,34 @@ class SeasonRunner:
         self.current_matchday = 0
         self.stats = SeasonStats()
         self.ad_manager = ad_manager
+        self.use_dosbox = use_dosbox
+        self.game_dir = game_dir
+        self._dosbox_controller = None
+
+        # Initialize DOSBox controller if requested
+        if use_dosbox and game_dir:
+            try:
+                from swos420.engine.ai_dosbox_controller import AIDOSBoxController
+                self._dosbox_controller = AIDOSBoxController(game_dir)
+                if not self._dosbox_controller.available:
+                    logger.warning(
+                        "DOSBox-X not available — falling back to ICP simulation"
+                    )
+                    self._dosbox_controller = None
+            except Exception as e:
+                logger.warning("DOSBox controller init failed: %s — using ICP", e)
+                self._dosbox_controller = None
 
         # Generate fixtures
         codes = [t.team.code for t in teams]
         self.schedule = generate_round_robin(codes, shuffle=True)
         self.total_matchdays = len(self.schedule)
 
+        engine_name = "DOSBox-X" if self._dosbox_controller else "ICP Simulation"
         logger.info(
             f"Season {season_id}: {len(teams)} teams, "
-            f"{self.total_matchdays} matchdays scheduled"
+            f"{self.total_matchdays} matchdays scheduled "
+            f"(engine: {engine_name})"
         )
 
     def play_matchday(self) -> list[MatchResult]:
