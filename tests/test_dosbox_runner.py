@@ -5,8 +5,6 @@ All subprocess calls are mocked — no actual DOSBox-X required.
 
 from __future__ import annotations
 
-import tempfile
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest

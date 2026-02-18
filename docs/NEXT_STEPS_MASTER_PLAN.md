@@ -83,7 +83,7 @@ tests/                24 files, 457 tests
 
 | Metric | Target | Current |
 |--------|--------|---------|
-| Tests passing | 500+ | 411 |
+| Tests passing | 500+ | 457 |
 | Lint errors | 0 | 0 ✅ |
 | Code coverage | 95%+ | 96% ✅ |
 | 24/7 stream live | > 100 viewers week 1 | Not started |
