@@ -43,13 +43,13 @@ class PlayerDB(Base):
     club_code = Column(String(5), default="FA")
 
     # 7 Core Skills (0-7 stored, 8-15 effective)
-    passing = Column(Integer, default=5)
-    velocity = Column(Integer, default=5)
-    heading = Column(Integer, default=5)
-    tackling = Column(Integer, default=5)
-    control = Column(Integer, default=5)
-    speed = Column(Integer, default=5)
-    finishing = Column(Integer, default=5)
+    passing = Column(Integer, default=3)
+    velocity = Column(Integer, default=3)
+    heading = Column(Integer, default=3)
+    tackling = Column(Integer, default=3)
+    control = Column(Integer, default=3)
+    speed = Column(Integer, default=3)
+    finishing = Column(Integer, default=3)
 
     # Dynamic
     age = Column(Integer, default=25)

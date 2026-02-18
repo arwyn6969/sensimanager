@@ -49,7 +49,7 @@ Result: success. PPO training completed and model saved to `/tmp/swos420_ppo_smo
 ```bash
 ./.venv/bin/pytest -q
 ```
-Result: success (`260 passed`).
+Result: success (`338 passed`).
 
 ## Lint Status
 - Targeted lint for changed files:
@@ -57,7 +57,7 @@ Result: success (`260 passed`).
   - Result: pass
 - Full repo lint:
   - `./.venv/bin/ruff check .`
-  - Result: fails due pre-existing unrelated lint debt in legacy files/tests.
+  - Result: **pass** — zero errors, fully clean.
 
 ## Deployment Interpretation
 - Local deployment validation: **complete**
