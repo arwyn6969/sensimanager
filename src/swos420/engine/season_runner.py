@@ -1,8 +1,8 @@
 """Season Runner — orchestrates a full league season.
 
 Handles fixture generation, weekly match simulation, standings updates,
-bench decay, injury recovery, and end-of-season processing (aging,
-retirement, value recalculation).
+bench decay, injury recovery, end-of-season processing (aging,
+retirement, value recalculation), and live stadium hoarding rendering.
 """
 
 from __future__ import annotations
@@ -10,12 +10,16 @@ from __future__ import annotations
 import logging
 import random
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
 from swos420.engine.fixture_generator import generate_round_robin
 from swos420.engine.match_result import MatchResult
 from swos420.engine.match_sim import MatchSimulator
 from swos420.models.player import SWOSPlayer
 from swos420.models.team import Team
+
+if TYPE_CHECKING:
+    from swos420.engine.ad_manager import AdManager
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +65,7 @@ class SeasonRunner:
         teams: list[TeamSeasonState],
         simulator: MatchSimulator | None = None,
         season_id: str = "25/26",
+        ad_manager: AdManager | None = None,
     ):
         """Initialize the season.
 
@@ -68,6 +73,7 @@ class SeasonRunner:
             teams: List of TeamSeasonState with team + players.
             simulator: MatchSimulator instance. Creates default if None.
             season_id: Season identifier string.
+            ad_manager: Optional AdManager for live hoarding rendering.
         """
         if len(teams) < 2:
             raise ValueError(f"Need at least 2 teams, got {len(teams)}")
@@ -78,6 +84,7 @@ class SeasonRunner:
         self.season_id = season_id
         self.current_matchday = 0
         self.stats = SeasonStats()
+        self.ad_manager = ad_manager
 
         # Generate fixtures
         codes = [t.team.code for t in teams]
@@ -120,6 +127,15 @@ class SeasonRunner:
                 away_team_name=away_state.team.name,
             )
 
+            # Render live stadium hoardings for OBS overlay
+            if self.ad_manager:
+                try:
+                    club_id = getattr(home_state.team, "club_id", None)
+                    if club_id and club_id in self.ad_manager.clubs:
+                        self.ad_manager.render_hoardings(club_id)
+                except Exception as exc:  # noqa: BLE001
+                    logger.debug("Hoarding render skipped: %s", exc)
+
             # Update standings
             self._update_standings(home_state.team, result, is_home=True)
             self._update_standings(away_state.team, result, is_home=False)
@@ -129,8 +145,13 @@ class SeasonRunner:
             self.stats.total_goals += result.home_goals + result.away_goals
             self.stats.total_matches += 1
 
-        # Post-matchday: bench decay + injury recovery
+        # Post-matchday: bench decay + injury recovery + demand update
         self._post_matchday_updates()
+
+        # Update hoarding demand signals after matchday
+        if self.ad_manager:
+            self.ad_manager.update_demand()
+            self.ad_manager.remove_expired()
 
         self.current_matchday += 1
         logger.info(
@@ -174,7 +195,7 @@ class SeasonRunner:
         return all_players[:limit]
 
     def apply_end_of_season(self) -> dict:
-        """End-of-season processing: aging, retirement, value recalculation."""
+        """End-of-season processing: aging, retirement, value recalculation, hoarding cache."""
         retirements = []
         for state in self.team_list:
             for player in list(state.players):
@@ -185,6 +206,11 @@ class SeasonRunner:
                     if player.base_id in state.team.player_ids:
                         state.team.player_ids.remove(player.base_id)
 
+        # Persist hoarding state for next season
+        if self.ad_manager:
+            self.ad_manager.remove_expired()
+            self.ad_manager.save_cache()
+
         summary = {
             "season": self.season_id,
             "total_matches": self.stats.total_matches,
@@ -193,6 +219,10 @@ class SeasonRunner:
             "retirements": retirements,
             "champion": self.get_league_table()[0].name if self.team_list else "N/A",
         }
+
+        # Include hoarding revenue report if available
+        if self.ad_manager:
+            summary["hoarding_report"] = self.ad_manager.get_revenue_report()
 
         logger.info(f"End of season: {summary}")
         return summary
@@ -244,6 +274,7 @@ def build_season_from_data(
     players: list[SWOSPlayer],
     rules_path: str | None = None,
     season_id: str = "25/26",
+    ad_manager: AdManager | None = None,
 ) -> SeasonRunner:
     """Convenience factory: build a SeasonRunner from model data.
 
@@ -252,6 +283,7 @@ def build_season_from_data(
         players: List of all SWOSPlayer models.
         rules_path: Path to rules.json for the match simulator.
         season_id: Season identifier.
+        ad_manager: Optional AdManager for live hoarding rendering.
 
     Returns:
         Initialized SeasonRunner ready to play.
@@ -265,4 +297,9 @@ def build_season_from_data(
             team_states.append(TeamSeasonState(team=team, players=team_players))
 
     simulator = MatchSimulator(rules_path=rules_path)
-    return SeasonRunner(teams=team_states, simulator=simulator, season_id=season_id)
+    return SeasonRunner(
+        teams=team_states,
+        simulator=simulator,
+        season_id=season_id,
+        ad_manager=ad_manager,
+    )

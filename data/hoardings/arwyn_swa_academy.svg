@@ -1,0 +1,110 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 120" width="960" height="120">
+  <defs>
+    <!-- Metallic gradient background -->
+    <linearGradient id="bgGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="50%" stop-color="#f8f9fa"/>
+      <stop offset="100%" stop-color="#e8ecf0"/>
+    </linearGradient>
+    <!-- Blue accent gradient -->
+    <linearGradient id="blueGrad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#1a4f8b"/>
+      <stop offset="100%" stop-color="#2d6fc0"/>
+    </linearGradient>
+    <!-- Glow effect -->
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <!-- Bottom blue accent bar -->
+    <linearGradient id="accentBar" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#1a4f8b"/>
+      <stop offset="50%" stop-color="#3a7fd5"/>
+      <stop offset="100%" stop-color="#1a4f8b"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Main board background -->
+  <rect x="0" y="0" width="960" height="120" rx="8" ry="8" fill="url(#bgGrad)"
+        stroke="#b0bec5" stroke-width="2"/>
+
+  <!-- Bottom accent strip -->
+  <rect x="0" y="112" width="960" height="8" rx="0" ry="0" fill="url(#accentBar)"/>
+  <rect x="0" y="0" width="960" height="4" rx="8" ry="8" fill="url(#accentBar)"/>
+
+  <!-- Welsh Dragon silhouette (simplified) -->
+  <g transform="translate(40, 15) scale(0.65)" fill="#1a4f8b" opacity="0.9">
+    <!-- Simplified dragon body -->
+    <path d="M 20 120 C 25 80, 45 60, 60 40 C 70 28, 85 20, 95 25
+             C 100 27, 105 35, 100 45 C 96 52, 88 48, 90 42
+             C 92 38, 95 35, 90 30 C 85 28, 78 32, 72 40
+             C 65 50, 55 70, 50 90 Z"
+          fill="#1a4f8b"/>
+    <!-- Wing -->
+    <path d="M 55 65 C 70 40, 100 25, 130 20 C 120 35, 105 45, 85 55
+             C 75 60, 65 62, 55 65 Z"
+          fill="#2d6fc0" opacity="0.8"/>
+    <!-- Tail -->
+    <path d="M 20 120 C 15 130, 0 135, -10 125 C -5 120, 5 115, 15 118
+             C 18 119, 19 120, 20 120 Z"
+          fill="#1a4f8b"/>
+    <!-- Head crown -->
+    <path d="M 95 25 L 100 12 L 105 22 L 110 10 L 108 25"
+          fill="#c62828" opacity="0.8"/>
+    <!-- Eye -->
+    <circle cx="93" cy="32" r="2.5" fill="#ffffff"/>
+    <circle cx="93" cy="32" r="1.2" fill="#1a4f8b"/>
+    <!-- Fire breath -->
+    <path d="M 100 45 C 115 38, 125 35, 140 30 C 130 40, 120 42, 110 45
+             C 118 43, 128 38, 135 35"
+          fill="none" stroke="#c62828" stroke-width="2" opacity="0.6"/>
+  </g>
+
+  <!-- Main text: ARWYN HUGHES -->
+  <text x="180" y="55" font-family="'Inter','Helvetica Neue',Arial,sans-serif"
+        font-size="36" font-weight="800" fill="#1a4f8b" letter-spacing="2"
+        filter="url(#glow)">
+    ARWYN HUGHES
+  </text>
+
+  <!-- Separator dash -->
+  <text x="530" y="55" font-family="'Inter','Helvetica Neue',Arial,sans-serif"
+        font-size="36" font-weight="300" fill="#90a4ae">
+    —
+  </text>
+
+  <!-- Subtitle: SUPER WHITE ARMY ACADEMY GRADUATE -->
+  <text x="570" y="50" font-family="'Inter','Helvetica Neue',Arial,sans-serif"
+        font-size="18" font-weight="700" fill="url(#blueGrad)" letter-spacing="3">
+    SUPER WHITE ARMY
+  </text>
+  <text x="570" y="72" font-family="'Inter','Helvetica Neue',Arial,sans-serif"
+        font-size="14" font-weight="600" fill="#546e7a" letter-spacing="2">
+    ACADEMY GRADUATE
+  </text>
+
+  <!-- Powered by $SENSI -->
+  <text x="180" y="95" font-family="'Inter','Helvetica Neue',Arial,sans-serif"
+        font-size="13" font-weight="500" fill="#78909c" letter-spacing="1">
+    Powered by
+  </text>
+  <text x="280" y="95" font-family="'Inter','Helvetica Neue',Arial,sans-serif"
+        font-size="14" font-weight="700" fill="#2d6fc0" letter-spacing="1">
+    $SENSI
+  </text>
+
+  <!-- SWOS420 badge -->
+  <rect x="840" y="35" width="90" height="50" rx="6" ry="6"
+        fill="#1a4f8b" opacity="0.1" stroke="#1a4f8b" stroke-width="1"/>
+  <text x="885" y="58" font-family="'Courier New',monospace" font-size="11"
+        font-weight="700" fill="#1a4f8b" text-anchor="middle" letter-spacing="1">
+    SWOS420
+  </text>
+  <text x="885" y="74" font-family="'Inter',sans-serif" font-size="9"
+        font-weight="500" fill="#78909c" text-anchor="middle">
+    ON-CHAIN
+  </text>
+</svg>

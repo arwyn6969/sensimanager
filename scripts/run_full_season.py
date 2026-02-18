@@ -37,6 +37,11 @@ def main() -> int:
         default=11,
         help="Minimum players required per team to participate (default: 11)",
     )
+    parser.add_argument(
+        "--hoardings",
+        action="store_true",
+        help="Enable live stadium hoarding rendering (writes hoardings.json)",
+    )
     parser.add_argument("--quiet", "-q", action="store_true", help="Minimal output")
     args = parser.parse_args()
 
@@ -86,12 +91,40 @@ def main() -> int:
         logger.info(f"🏆 SWOS420 Season {args.season} — {len(team_states)} teams")
         logger.info("=" * 60)
 
+        # Initialize AdManager if hoardings enabled
+        ad_manager = None
+        if args.hoardings:
+            from swos420.engine.ad_manager import AdManager, HoardingSlot
+            import time as _time
+
+            ad_manager = AdManager(streaming_dir=Path("streaming"))
+            # Register Tranmere Rovers as default club with Arwyn-branded slot
+            ad_manager.register_club(
+                club_id=1,
+                club_name="Tranmere Rovers",
+                club_code="TRN",
+                tier=2,
+                max_slots=16,
+            )
+            ad_manager.add_slot(
+                HoardingSlot(
+                    slot_id=100,
+                    club_id=1,
+                    position=0,
+                    content_uri="ar://arwyn-swa-academy-hoarding",
+                    brand_name="Super White Army Academy",
+                    expires_at=int(_time.time()) + 365 * 86400,
+                )
+            )
+            logger.info("\U0001f3df\ufe0f  Hoardings enabled \u2014 live rendering to streaming/hoardings.json")
+
         # Run season
         simulator = MatchSimulator(rules_path=args.rules)
         runner = SeasonRunner(
             teams=team_states,
             simulator=simulator,
             season_id=args.season,
+            ad_manager=ad_manager,
         )
 
         start_time = time.time()
@@ -138,6 +171,20 @@ def main() -> int:
             print(f"  👋 Retirements ({len(summary['retirements'])}):")
             for name in summary["retirements"]:
                 print(f"     {name}")
+
+        # Hoarding report
+        if args.hoardings and ad_manager:
+            report = ad_manager.get_revenue_report()
+            print()
+            print("  🏟️  Stadium Hoardings Report:")
+            for club_info in report.get("clubs", []):
+                print(
+                    f"     {club_info['club_name']}: {club_info['active_slots']}/"
+                    f"{club_info['max_slots']} slots "
+                    f"({club_info['occupancy_rate']} occupancy)"
+                )
+                for sponsor in club_info.get("sponsors", []):
+                    print(f"       • {sponsor}")
 
         # Save updated data back to DB
         for state in team_states:

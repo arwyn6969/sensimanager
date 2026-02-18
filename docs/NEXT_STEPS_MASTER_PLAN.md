@@ -1,8 +1,8 @@
-# SWOS420 — NEXT STEPS MASTER PLAN v3.2 (Living Document)
+# SWOS420 — NEXT STEPS MASTER PLAN v3.3 (Living Document)
 
-**Date:** 2026-02-18 (updated 14:31 CST)
+**Date:** 2026-02-18 (updated 14:55 CST)
 **Authors:** Arwyn + Grok420 + Antigravity
-**Status:** Phase A (Ownership Layer) on testnet — **Full Career Mode is Phase B** — **Stadium Hoardings = Phase C**
+**Status:** Phase A (Ownership Layer) on testnet — **Full Career Mode is Phase B** — **Stadium Hoardings = Phase C (WIRED ✅)**
 
 ---
 
@@ -76,10 +76,10 @@ python scripts/add_arwyn_hughes.py --show
 | **Youth Academy** | ✅ Complete | 300+ | `youth_academy.py`: prospect generation, development curves, breakthrough events, academy tiers |
 | **Cup Competitions** | ✅ Complete | 380+ | `cup_competition.py`: FA Cup, League Cup, EFL Trophy — knockouts, replays, penalties, revenue |
 | **Arwyn Hughes** | ✅ Complete | 220+ | `add_arwyn_hughes.py`: legendary Tranmere Rovers academy graduate |
-| **Tests** | ✅ Outstanding | 548+ | 473 Python + 91 Forge tests, 96% coverage |
+| **Tests** | ✅ Outstanding | 593+ | 494 Python + 99 Forge tests, 96% coverage |
 | **CI** | ✅ Hardened | — | GitHub Actions: ruff + pytest --cov + Python 3.12/3.13 matrix |
 | **Streaming** | ✅ MVP | — | HTML overlay + local server + stream runner + LLM commentary |
-| **Stadium Hoardings** | ✅ Complete | 530+ | `AdHoarding.sol` (on-chain leases) + `ad_manager.py` (engine integration + OBS rendering) |
+| **Stadium Hoardings** | ✅ Wired | 530+ | `AdHoarding.sol` + `ad_manager.py` wired into season_runner + OBS + Deploy.s.sol + 8 Forge tests |
 
 ---
 
@@ -101,10 +101,11 @@ src/swos420/
 ├── db/               models.py · session.py · repository.py
 └── utils/            runtime.py
 
-contracts/            SWOSPlayerNFT · SENSIToken · TransferMarket · LeagueManager · AdHoarding ← NEW
+contracts/            SWOSPlayerNFT · SENSIToken · TransferMarket · LeagueManager · AdHoarding ← WIRED
 scripts/              apply_club_bias.py · add_arwyn_hughes.py · arweave/ (upload, cards, URIs)
 config/               rules.json · league_structure.json · dosbox.conf
-streaming/            obs_pipeline.sh · hoardings.json ← NEW: OBS hoarding overlay data
+streaming/            obs_pipeline.sh · hoardings.json ← LIVE: OBS hoarding overlay data
+data/hoardings/       arwyn_swa_academy.svg ← First hoarding visual
 ```
 
 ---
@@ -324,10 +325,10 @@ python scripts/apply_club_bias.py --print-sql
 
 | Metric | Target | Current |
 |--------|--------|---------|
-| Tests passing | 500+ | **548+** ✅ |
+| Tests passing | 500+ | **593+** ✅ (494 Python + 99 Forge) |
 | Lint errors | 0 | 0 ✅ |
 | Code coverage | 95%+ | 96% ✅ |
-| Forge tests | 50+ | **91** ✅ |
+| Forge tests | 50+ | **99** ✅ (incl. 8 AdHoarding) |
 | English clubs in pyramid | 92 | Ready to import |
 | Career mode features built | 25/25 | **25** ✅ (100%! + hoardings) |
 | Hoarding slots rented | > 10 week 1 | Contract ready |
@@ -406,4 +407,4 @@ ruff check .
 
 *This is the best vibe-coded football game ever built. SWA. 🏟️🔥*
 
-*This is a living document. Updated 2026-02-18 14:31 CST by Antigravity. v3.2*
+*This is a living document. Updated 2026-02-18 14:55 CST by Antigravity. v3.3*
