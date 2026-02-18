@@ -56,9 +56,9 @@ def main() -> int:
     )
     from swos420.db.session import get_engine, get_session, init_db
     from swos420.engine.match_sim import MatchSimulator
-    from swos420.engine.season_runner import SeasonRunner, TeamSeasonState
     from swos420.importers.hybrid import HybridImporter
     from swos420.mapping.engine import AttributeMapper
+    from swos420.models.league import LeagueRuntime
 
     sofifa_path = Path(args.sofifa_csv)
     rules_path = Path(args.rules)
@@ -120,21 +120,37 @@ def main() -> int:
             away_team_name=away_team.name,
         )
 
-        team_states: list[TeamSeasonState] = []
-        for team, squad in squads_by_team:
-            team_states.append(TeamSeasonState(team=team, players=squad))
-            if len(team_states) == 4:
-                break
-
-        if len(team_states) < 2:
-            logger.error("Smoke pipeline failed: not enough squads for season runner")
+        league_team_candidates = [(team, squad) for team, squad in squads_by_team if len(squad) >= 11]
+        if len(league_team_candidates) < 2:
+            logger.error("Smoke pipeline failed: need at least 2 teams with 11+ players")
             return 1
 
-        season_runner = SeasonRunner(teams=team_states, simulator=simulator, season_id=args.season)
-        matchday_results = season_runner.play_matchday()
-        if not matchday_results:
+        league_teams = [team for team, _ in league_team_candidates[:6]]
+        league_players = []
+        for _, squad in league_team_candidates[:6]:
+            league_players.extend(squad)
+
+        league_runtime = LeagueRuntime.from_models(
+            teams=league_teams,
+            players=league_players,
+            season_id=args.season,
+            rules_path=rules_path,
+        )
+
+        week_one = league_runtime.simulate_week()
+        if not week_one.matches:
             logger.error("Smoke pipeline failed: matchday simulation returned no results")
             return 1
+
+        season_results = league_runtime.simulate_season()
+        table = league_runtime.standings()
+        champion = table[0].name if table else "N/A"
+
+        top_scorer = max(
+            league_players,
+            key=lambda p: p.goals_scored_season,
+            default=None,
+        )
 
         snapshot = export_snapshot(session, snapshot_path)
     finally:
@@ -145,7 +161,13 @@ def main() -> int:
         "teams": len(teams),
         "leagues": len(leagues),
         "single_match_score": f"{single_match.home_goals}-{single_match.away_goals}",
-        "matchday_matches": len(matchday_results),
+        "matchday_matches": len(week_one.matches),
+        "league_teams": len(league_runtime.team_states),
+        "league_total_matches": len(week_one.matches) + len(season_results),
+        "league_matchdays": league_runtime.total_matchdays,
+        "champion": champion,
+        "top_scorer": top_scorer.full_name if top_scorer else "",
+        "top_scorer_goals": top_scorer.goals_scored_season if top_scorer else 0,
         "snapshot_path": str(snapshot_path),
         "snapshot_player_count": snapshot["meta"]["player_count"],
     }
