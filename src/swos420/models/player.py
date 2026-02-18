@@ -7,11 +7,10 @@ and economy fields (wage, value) that drive the NFT ownership layer.
 from __future__ import annotations
 
 import hashlib
-import math
 from enum import Enum
 from typing import Optional
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, Field, field_validator
 
 
 class Position(str, Enum):

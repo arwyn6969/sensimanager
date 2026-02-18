@@ -17,9 +17,14 @@ python3.12 -m venv .venv
 # Run deterministic smoke pipeline
 ./.venv/bin/python scripts/smoke_pipeline.py
 
+# Run full season from fixture-backed DB (demo mode for small squads)
+./.venv/bin/python scripts/run_full_season.py --season 25/26 --min-squad-size 1
+
 # Run tests
 ./.venv/bin/python -m pytest -q
 ```
+
+For production-like runs on full datasets, use the default `--min-squad-size 11`.
 
 ## Architecture
 
@@ -64,6 +69,13 @@ current_value = base_value * (0.6 + form/100 + goals*0.01) * age_factor
 1. **Sofifa / EA FC 26** — Primary (real names, 60+ attributes)
 2. **SWOS Community 25/26 Mod** — League/team structure
 3. **Transfermarkt** — Market values, contracts (planned)
+
+## Documentation
+
+- `docs/PRD.md` — product requirements and phased roadmap
+- `docs/SWOS420_MASTER_BLUEPRINT.md` — architecture/deployment blueprint
+- `docs/SWOS420_GROK420_MASTER.md` — execution plan for Codex + Antigravity
+- `docs/DEPLOYMENT_STATUS_2026-02-18.md` — latest local deployment verification run
 
 ## License
 

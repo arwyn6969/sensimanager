@@ -120,6 +120,10 @@ python scripts/run_match.py --home "Manchester City" --away "Arsenal" --weather 
 ### Run Full Season
 
 ```bash
+# Fixture data demo (bundled sample squads)
+python scripts/run_full_season.py --season 25/26 --min-squad-size 1
+
+# Full data run (default min squad size = 11)
 python scripts/run_full_season.py --season 25/26
 ```
 
@@ -197,7 +201,7 @@ Already defined in `config/rules.json` → `economy` section:
 
 1. ✅ Documentation committed (`docs/PRD.md`, `docs/SWOS420_MASTER_BLUEPRINT.md`, `docs/SWOS420_GROK420_MASTER.md`)
 2. ✅ Streaming stub + NFT contract stub created
-3. 🔲 Run `python scripts/run_full_season.py` — screenshot results
+3. 🔲 Run `python scripts/run_full_season.py --season 25/26 --min-squad-size 1` — screenshot results
 4. 🔲 Open GitHub Issue "Grok420 Phase 2.0 Complete — Review & Merge"
 5. 🔲 Codex begins MAPPO training tuning
 6. 🔲 Antigravity begins Docker port build

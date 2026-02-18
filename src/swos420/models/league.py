@@ -52,6 +52,7 @@ class LeagueRuntime:
         players: list[SWOSPlayer],
         season_id: str = "25/26",
         rules_path: str | Path | None = None,
+        min_squad_size: int = 11,
     ) -> "LeagueRuntime":
         """Build a runtime from plain model lists.
 
@@ -66,9 +67,9 @@ class LeagueRuntime:
         team_states: list[TeamSeasonState] = []
         for team in teams:
             squad = players_by_club_name.get(team.name, [])
-            if len(squad) < 11:
+            if len(squad) < min_squad_size:
                 squad = players_by_club_code.get(team.code, [])
-            if len(squad) < 11:
+            if len(squad) < min_squad_size:
                 continue
             team.player_ids = [p.base_id for p in squad]
             team_states.append(TeamSeasonState(team=team, players=squad))

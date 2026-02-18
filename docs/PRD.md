@@ -161,6 +161,10 @@ python scripts/run_match.py --home "Manchester City" --away "Arsenal" --weather 
 ### Run a Full Season
 
 ```bash
+# Fixture data demo (works with bundled sample data)
+python scripts/run_full_season.py --season 25/26 --min-squad-size 1
+
+# Full data run (default realism threshold)
 python scripts/run_full_season.py --season 25/26
 ```
 

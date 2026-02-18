@@ -120,9 +120,9 @@ def main() -> int:
             away_team_name=away_team.name,
         )
 
-        league_team_candidates = [(team, squad) for team, squad in squads_by_team if len(squad) >= 11]
+        league_team_candidates = [(team, squad) for team, squad in squads_by_team if squad]
         if len(league_team_candidates) < 2:
-            logger.error("Smoke pipeline failed: need at least 2 teams with 11+ players")
+            logger.error("Smoke pipeline failed: need at least 2 non-empty team squads")
             return 1
 
         league_teams = [team for team, _ in league_team_candidates[:6]]
@@ -135,6 +135,7 @@ def main() -> int:
             players=league_players,
             season_id=args.season,
             rules_path=rules_path,
+            min_squad_size=1,
         )
 
         week_one = league_runtime.simulate_week()

@@ -82,8 +82,8 @@ python scripts/update_db.py --season 25/26 --sofifa-csv tests/fixtures/sample_so
 # Run smoke test
 python scripts/smoke_pipeline.py
 
-# Run full season (DB-backed, with table + top scorers)
-python scripts/run_full_season.py --season 25/26
+# Run full season (fixture demo mode for bundled sample data)
+python scripts/run_full_season.py --season 25/26 --min-squad-size 1
 
 # Run a single match
 python scripts/run_match.py --home "Manchester City" --away "Arsenal" --weather wet
