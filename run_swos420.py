@@ -41,7 +41,16 @@ def check_dependencies() -> dict[str, bool]:
 
     # DOSBox-X
     import shutil
-    deps["dosbox-x"] = shutil.which("dosbox-x") is not None
+    # Check for any DOSBox variant (dosbox-x has GL segfault on macOS ARM)
+    dosbox_candidates = [
+        "/Applications/dosbox.app/Contents/MacOS/DOSBox",
+        "dosbox-x",
+        "dosbox",
+    ]
+    dosbox_found = any(
+        shutil.which(c) or Path(c).exists() for c in dosbox_candidates
+    )
+    deps["dosbox"] = dosbox_found
 
     # Optional: pyautogui (for AI controller)
     try:
@@ -355,7 +364,7 @@ def main() -> None:
 
     # Print status
     print(f"   📂 Game dir: {game_dir or 'Not set (using ICP simulation)'}")
-    print(f"   🎮 DOSBox-X: {'✅ Installed' if deps.get('dosbox-x') else '❌ Not found'}")
+    print(f"   🎮 DOSBox: {'✅ Installed' if deps.get('dosbox') else '❌ Not found'}")
     print(f"   🤖 pyautogui: {'✅' if deps.get('pyautogui') else '❌ (keyboard injection disabled)'}")
     print(f"   📡 Stream: {'✅ Enabled' if args.stream else '❌ Disabled'}")
     print()

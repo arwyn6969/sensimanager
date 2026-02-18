@@ -11,6 +11,7 @@ import pytest
 
 from swos420.engine.dosbox_runner import (
     ArcadeMatchConfig,
+    DEFAULT_DOSBOX_BIN,
     DOSBoxRunner,
 )
 from swos420.importers.swos_edt_binary import (
@@ -78,7 +79,7 @@ class TestConfig:
         config = ArcadeMatchConfig()
         assert config.timeout_seconds == 300
         assert config.capture_frames is False
-        assert config.dosbox_bin == "dosbox-x"
+        assert config.dosbox_bin == DEFAULT_DOSBOX_BIN
 
     def test_custom_values(self):
         config = ArcadeMatchConfig(
@@ -141,7 +142,7 @@ class TestRunner:
         (workspace / "game").mkdir(parents=True)
 
         cmd = runner._build_dosbox_command(workspace)
-        assert "dosbox-x" in cmd[0]
+        assert "DOSBox" in cmd[0] or "dosbox" in cmd[0]
         assert "-conf" in cmd
         assert "mount C" in " ".join(cmd)
         # SWS.EXE is the default fallback when no exe exists in workspace

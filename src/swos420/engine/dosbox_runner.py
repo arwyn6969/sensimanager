@@ -34,8 +34,17 @@ from swos420.importers.swos_edt_binary import (
 
 logger = logging.getLogger(__name__)
 
-# Default paths
-DEFAULT_DOSBOX_BIN = "dosbox-x"
+# Default paths — prefer DOSBox.app (regular dosbox, stable on macOS ARM)
+# DOSBox-X 2026.01.02 has a known GL segfault on macOS ARM
+DOSBOX_CANDIDATES = [
+    "/Applications/dosbox.app/Contents/MacOS/DOSBox",
+    "dosbox-x",
+    "dosbox",
+]
+DEFAULT_DOSBOX_BIN = next(
+    (c for c in DOSBOX_CANDIDATES if shutil.which(c) or Path(c).exists()),
+    "dosbox-x",
+)
 DEFAULT_CONFIG = Path(__file__).resolve().parent.parent.parent.parent / "config" / "dosbox.conf"
 DEFAULT_CAPTURE_DIR = Path(__file__).resolve().parent.parent.parent.parent / "streaming" / "captures"
 
