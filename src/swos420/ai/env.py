@@ -103,10 +103,13 @@ class SWOSManagerEnv(ParallelEnv):
         transfer_matchdays: set[int] | None = None,
         reward_weights: dict[str, float] | None = None,
         seed: int | None = None,
+        render_mode: str | None = None,
     ):
         super().__init__()
         assert num_teams >= 2, "Need at least 2 teams"
         assert num_teams % 2 == 0 or num_teams >= 3, "Odd teams need >=3"
+
+        self.render_mode = render_mode
 
         self.num_teams = num_teams
         self._skill_range = skill_range
