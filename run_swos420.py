@@ -102,8 +102,11 @@ def validate_game_dir(game_dir: str | None) -> Path | None:
         logger.warning("   Falling back to ICP simulation engine")
         return None
 
-    # Check for SWOS files
-    swos_markers = ["SWOS.EXE", "swos.exe", "TEAM.EDT", "team.edt"]
+    # Check for SWOS files (supports both original SWOS and 96/97)
+    swos_markers = [
+        "SWOS.EXE", "swos.exe", "SWS.EXE", "sws.exe",
+        "TEAM.EDT", "team.edt", "TEAM1.DAT", "team1.dat",
+    ]
     if not any((path / marker).exists() for marker in swos_markers):
         logger.warning("⚠️  No SWOS files found in: %s", path)
         return None

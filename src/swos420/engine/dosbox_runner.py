@@ -39,8 +39,9 @@ DEFAULT_DOSBOX_BIN = "dosbox-x"
 DEFAULT_CONFIG = Path(__file__).resolve().parent.parent.parent.parent / "config" / "dosbox.conf"
 DEFAULT_CAPTURE_DIR = Path(__file__).resolve().parent.parent.parent.parent / "streaming" / "captures"
 
-# SWOS EDT filename within the game directory
-SWOS_TEAM_FILE = "TEAM.EDT"
+# SWOS file markers — supports both original SWOS and 96/97
+SWOS_EXECUTABLES = ["SWS.EXE", "sws.exe", "SWOS.EXE", "swos.exe"]
+SWOS_TEAM_FILES = ["TEAM.EDT", "team.edt", "TEAM1.DAT", "team1.dat", "CUSTOMS.EDT", "customs.edt"]
 
 
 @dataclass
@@ -99,9 +100,16 @@ class DOSBoxRunner:
     def game_dir_valid(game_dir: str | Path) -> bool:
         """Check if a game directory contains SWOS files."""
         game_path = Path(game_dir)
-        # Look for common SWOS files
-        swos_markers = ["SWOS.EXE", "swos.exe", "TEAM.EDT", "team.edt"]
-        return any((game_path / marker).exists() for marker in swos_markers)
+        markers = SWOS_EXECUTABLES + SWOS_TEAM_FILES
+        return any((game_path / marker).exists() for marker in markers)
+
+    @staticmethod
+    def detect_executable(game_dir: Path) -> str | None:
+        """Detect which SWOS executable exists in the game directory."""
+        for exe in SWOS_EXECUTABLES:
+            if (game_dir / exe).exists():
+                return exe
+        return None
 
     def _prepare_workspace(self) -> Path:
         """Create a temp copy of the game directory for safe modification."""
@@ -118,8 +126,8 @@ class DOSBoxRunner:
         home_team: EdtTeam,
         away_team: EdtTeam,
     ) -> None:
-        """Write teams into the workspace's EDT file."""
-        edt_path = workspace / "game" / SWOS_TEAM_FILE
+        """Write teams into the workspace's CUSTOMS.EDT file."""
+        edt_path = workspace / "game" / "CUSTOMS.EDT"
         write_edt([home_team, away_team], edt_path)
         logger.info("Injected %s vs %s into %s",
                     home_team.name, away_team.name, edt_path)
@@ -127,12 +135,13 @@ class DOSBoxRunner:
     def _build_dosbox_command(self, workspace: Path) -> list[str]:
         """Build the DOSBox-X command line."""
         game_path = workspace / "game"
+        exe_name = self.detect_executable(game_path) or "SWS.EXE"
         cmd = [
             self.config.dosbox_bin,
             "-conf", str(self.config.config_path),
             "-c", f"mount C {game_path}",
             "-c", "C:",
-            "-c", "SWOS.EXE",
+            "-c", exe_name,
             "-c", "exit",
         ]
         # Window resolution override
@@ -162,9 +171,15 @@ class DOSBoxRunner:
         - Player league_goals / cup_goals change
         - Cards/injuries byte updates
         """
-        edt_path = workspace / "game" / SWOS_TEAM_FILE
-        if not edt_path.exists():
-            logger.warning("No post-match EDT found at %s", edt_path)
+        # Look for whichever team file exists
+        edt_path = None
+        for tf in SWOS_TEAM_FILES:
+            candidate = workspace / "game" / tf
+            if candidate.exists():
+                edt_path = candidate
+                break
+        if edt_path is None:
+            logger.warning("No post-match EDT found in %s", workspace / "game")
             return {"error": "no_edt_output"}
 
         teams = read_edt(edt_path)

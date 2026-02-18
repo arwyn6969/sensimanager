@@ -61,3 +61,7 @@ contracts/out/
 # Node (for frontend)
 node_modules/
 .next/
+
+# SWOS game files (user-provided, never commit)
+game/
+!game/README.md

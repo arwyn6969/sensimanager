@@ -57,6 +57,14 @@ class TestAvailability:
         (tmp_path / "TEAM.EDT").touch()
         assert DOSBoxRunner.game_dir_valid(tmp_path) is True
 
+    def test_game_dir_valid_with_sws_exe(self, tmp_path):
+        (tmp_path / "SWS.EXE").touch()
+        assert DOSBoxRunner.game_dir_valid(tmp_path) is True
+
+    def test_game_dir_valid_with_team1_dat(self, tmp_path):
+        (tmp_path / "TEAM1.DAT").touch()
+        assert DOSBoxRunner.game_dir_valid(tmp_path) is True
+
     def test_game_dir_invalid_empty(self, tmp_path):
         assert DOSBoxRunner.game_dir_valid(tmp_path) is False
 
@@ -117,7 +125,7 @@ class TestRunner:
         away = _make_team("Away FC")
         runner._inject_teams(workspace, home, away)
 
-        edt_path = workspace / "game" / "TEAM.EDT"
+        edt_path = workspace / "game" / "CUSTOMS.EDT"
         assert edt_path.exists()
         assert edt_path.stat().st_size > 0
 
@@ -136,7 +144,8 @@ class TestRunner:
         assert "dosbox-x" in cmd[0]
         assert "-conf" in cmd
         assert "mount C" in " ".join(cmd)
-        assert "SWOS.EXE" in " ".join(cmd)
+        # SWS.EXE is the default fallback when no exe exists in workspace
+        assert "SWS.EXE" in " ".join(cmd) or "SWOS.EXE" in " ".join(cmd)
 
     @patch("shutil.which", return_value=None)
     def test_run_match_raises_without_dosbox(self, mock_which, tmp_path):
