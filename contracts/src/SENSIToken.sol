@@ -85,4 +85,28 @@ contract SENSIToken is ERC20, ERC20Burnable, Ownable2Step {
         treasury = _treasury;
         emit TreasuryUpdated(old, _treasury);
     }
+
+    // ── Compatibility aliases (used by LeagueManager.sol) ───────────────
+
+    /// @notice Alias for mintRewards — used by LeagueManager.settleSeason()
+    function mint(address to, uint256 amount) external onlyOwner {
+        require(to != address(0), "SENSIToken: mint to zero address");
+        require(amount > 0, "SENSIToken: zero amount");
+        _mint(to, amount);
+    }
+
+    /// @notice Alias for distributeWage — used by LeagueManager._distributeMatchWages()
+    function distributeWages(address nftOwner, uint256 totalWage) external onlyOwner {
+        require(nftOwner != address(0), "SENSIToken: owner is zero address");
+        require(totalWage > 0, "SENSIToken: zero wage");
+
+        uint256 ownerShare = (totalWage * 90) / 100;
+        uint256 burnShare = (totalWage * 5) / 100;
+        uint256 treasuryShare = totalWage - ownerShare - burnShare;
+
+        _mint(nftOwner, ownerShare);
+        _mint(treasury, treasuryShare);
+        _mint(address(this), burnShare);
+        _burn(address(this), burnShare);
+    }
 }

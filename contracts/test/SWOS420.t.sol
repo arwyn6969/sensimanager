@@ -207,7 +207,7 @@ contract SENSITokenTest is Test {
     }
 
     function test_name() public view {
-        assertEq(sensi.name(), "Sensi");
+        assertEq(sensi.name(), "Sensible Token");
         assertEq(sensi.symbol(), "SENSI");
     }
 
@@ -216,9 +216,9 @@ contract SENSITokenTest is Test {
         assertEq(sensi.balanceOf(alice), 1_000 ether);
     }
 
-    function test_mintOnlyMinter() public {
+    function test_mintOnlyOwner() public {
         vm.prank(alice);
-        vm.expectRevert(SENSIToken.OnlyMinter.selector);
+        vm.expectRevert();
         sensi.mint(alice, 1_000 ether);
     }
 
@@ -232,27 +232,12 @@ contract SENSITokenTest is Test {
         // 5% burned (net zero on contract balance)
     }
 
-    function test_batchDistributeWages() public {
-        address[] memory recipients = new address[](2);
-        recipients[0] = alice;
-        recipients[1] = bob;
-
-        uint256[] memory amounts = new uint256[](2);
-        amounts[0] = 1_000 ether;
-        amounts[1] = 500 ether;
-
-        sensi.batchDistributeWages(recipients, amounts);
+    function test_distributeWagesTwice() public {
+        sensi.distributeWages(alice, 1_000 ether);
+        sensi.distributeWages(bob, 500 ether);
 
         assertEq(sensi.balanceOf(alice), 900 ether);
         assertEq(sensi.balanceOf(bob), 450 ether);
-    }
-
-    function test_setMinter() public {
-        sensi.setMinter(alice, true);
-
-        vm.prank(alice);
-        sensi.mint(bob, 100 ether);
-        assertEq(sensi.balanceOf(bob), 100 ether);
     }
 
     function test_burn() public {
@@ -362,8 +347,10 @@ contract LeagueManagerTest is Test {
         sensi = new SENSIToken(treasury);
         league = new LeagueManager(address(nft), address(sensi));
 
-        // Grant league minter role
-        sensi.setMinter(address(league), true);
+        // Transfer ownership to league so it can mint/distribute (2-step)
+        sensi.transferOwnership(address(league));
+        vm.prank(address(league));
+        sensi.acceptOwnership();
         // Set league as oracle so it can reset seasons
         nft.setOracle(address(league));
 

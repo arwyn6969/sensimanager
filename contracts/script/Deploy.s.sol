@@ -49,8 +49,8 @@ contract DeploySWOS420 is Script {
 
         // ── Wire permissions ──────────────────────────────────────────
 
-        // LeagueManager needs minter role for $SENSI (wage distribution)
-        sensiToken.setMinter(address(leagueManager), true);
+        // LeagueManager needs owner role for $SENSI (wage distribution + minting)
+        sensiToken.transferOwnership(address(leagueManager));
 
         // LeagueManager is the oracle for PlayerNFT (season resets)
         playerNFT.setOracle(address(leagueManager));
