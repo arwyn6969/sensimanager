@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import random
 
-import pytest
 
 from swos420.engine.transfer_market import (
     TransferMarket,

@@ -30,6 +30,12 @@ dev = [
     "pytest-cov>=5.0",
     "ruff>=0.4",
 ]
+stream = [
+    "ffmpeg-python",
+]
+nft = [
+    "web3",
+]
 
 [tool.setuptools.packages.find]
 where = ["src"]

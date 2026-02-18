@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
 
 from swos420.engine.scouting import ScoutingSystem, SCOUTING_COSTS
 from swos420.models.player import Position, Skills, SWOSPlayer

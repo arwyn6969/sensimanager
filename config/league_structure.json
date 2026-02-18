@@ -1,0 +1,57 @@
+{
+  "description": "SWOS420 league structure — 4-tier English football pyramid",
+  "tiers": [
+    {
+      "name": "Premier League",
+      "division": 1,
+      "country": "England",
+      "team_count": 20,
+      "matches_per_season": 38,
+      "league_multiplier": 2.0,
+      "promotion_relegation": {
+        "promotion_spots": 0,
+        "relegation_spots": 3,
+        "playoff_spots": 0
+      }
+    },
+    {
+      "name": "Championship",
+      "division": 2,
+      "country": "England",
+      "team_count": 24,
+      "matches_per_season": 46,
+      "league_multiplier": 1.2,
+      "promotion_relegation": {
+        "promotion_spots": 2,
+        "relegation_spots": 3,
+        "playoff_spots": 4
+      }
+    },
+    {
+      "name": "League One",
+      "division": 3,
+      "country": "England",
+      "team_count": 24,
+      "matches_per_season": 46,
+      "league_multiplier": 0.8,
+      "promotion_relegation": {
+        "promotion_spots": 2,
+        "relegation_spots": 4,
+        "playoff_spots": 4
+      }
+    },
+    {
+      "name": "League Two",
+      "division": 4,
+      "country": "England",
+      "team_count": 24,
+      "matches_per_season": 46,
+      "league_multiplier": 0.5,
+      "promotion_relegation": {
+        "promotion_spots": 3,
+        "relegation_spots": 2,
+        "playoff_spots": 4
+      }
+    }
+  ]
+}

@@ -12,9 +12,8 @@ from __future__ import annotations
 
 import functools
 import random
-from typing import Any, Optional
+from typing import Optional
 
-import gymnasium
 import numpy as np
 from gymnasium import spaces
 from pettingzoo import ParallelEnv
@@ -23,9 +22,7 @@ from swos420.ai.actions import (
     FORMATIONS,
     STYLES,
     TRAINING_FOCUS,
-    ManagerAction,
     decode_action,
-    build_action_mask,
 )
 from swos420.ai.obs import (
     build_league_table_obs,
@@ -37,7 +34,6 @@ from swos420.ai.rewards import (
     compute_matchday_reward,
     compute_season_end_reward,
 )
-from swos420.engine.match_sim import MatchSimulator
 from swos420.engine.season_runner import SeasonRunner, TeamSeasonState
 from swos420.engine.transfer_market import TransferMarket, generate_free_agents
 from swos420.engine.scouting import ScoutingSystem

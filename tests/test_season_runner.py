@@ -12,7 +12,6 @@ import time
 import numpy as np
 import pytest
 
-from swos420.engine.match_sim import MatchSimulator
 from swos420.engine.season_runner import SeasonRunner, TeamSeasonState
 from swos420.models.player import Position, Skills, SWOSPlayer, generate_base_id
 from swos420.models.team import Team

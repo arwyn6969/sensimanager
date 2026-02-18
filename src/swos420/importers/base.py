@@ -7,7 +7,7 @@ and RawTeamRecord dicts, which the HybridImporter then merges.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any, TypedDict
+from typing import TypedDict
 
 
 class RawPlayerRecord(TypedDict, total=False):

@@ -10,7 +10,6 @@ from __future__ import annotations
 import logging
 import random
 from dataclasses import dataclass, field
-from typing import Optional
 
 from swos420.models.player import SWOSPlayer, Skills, Position, generate_base_id, SKILL_NAMES
 
@@ -277,7 +276,7 @@ class TransferMarket:
     @property
     def available_players(self) -> list[TransferListing]:
         """All currently listed players, sorted by skill total descending."""
-        return sorted(self.listings.values(), key=lambda l: l.skill_total, reverse=True)
+        return sorted(self.listings.values(), key=lambda x: x.skill_total, reverse=True)
 
     @property
     def results(self) -> list[TransferResult]:

@@ -22,7 +22,6 @@ from swos420.engine.match_result import (
     EventType,
     MatchEvent,
     MatchResult,
-    PlayerMatchStats,
 )
 from swos420.engine.match_sim import (
     ArcadeMatchSimulator,

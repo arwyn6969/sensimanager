@@ -10,7 +10,6 @@ from __future__ import annotations
 import logging
 import random
 from dataclasses import dataclass, field
-from typing import Optional
 
 from swos420.engine.fixture_generator import generate_round_robin
 from swos420.engine.match_result import MatchResult

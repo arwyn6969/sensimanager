@@ -1,0 +1,43 @@
+# SWOS420 — Docker Compose
+#
+# Usage:
+#   docker compose up --build               # build & run tests
+#   docker compose run swos420 python scripts/run_full_season.py --season 25/26 --min-squad-size 1
+#   docker compose run swos420 python scripts/train_managers.py --timesteps 50000 --num-teams 8
+
+services:
+  swos420:
+    build: .
+    volumes:
+      - .:/app
+      - ./data:/app/data
+    environment:
+      - PYTHONDONTWRITEBYTECODE=1
+      - NVIDIA_VISIBLE_DEVICES=all
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  # ── Future services (uncomment when ready) ────────────────────────
+  # postgres:
+  #   image: postgres:16-alpine
+  #   environment:
+  #     POSTGRES_DB: swos420
+  #     POSTGRES_USER: swos420
+  #     POSTGRES_PASSWORD: changeme
+  #   ports:
+  #     - "5432:5432"
+  #   volumes:
+  #     - pgdata:/var/lib/postgresql/data
+
+  # redis:
+  #   image: redis:7-alpine
+  #   ports:
+  #     - "6379:6379"
+
+# volumes:
+#   pgdata:

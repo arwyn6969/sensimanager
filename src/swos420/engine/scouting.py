@@ -11,7 +11,7 @@ import random
 from dataclasses import dataclass, field
 from typing import Optional
 
-from swos420.models.player import SWOSPlayer, SKILL_NAMES
+from swos420.models.player import SWOSPlayer
 
 # Scouting costs per tier (in £/$CM)
 SCOUTING_COSTS = {

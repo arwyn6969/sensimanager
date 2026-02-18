@@ -127,7 +127,6 @@ class TestHybridImporter:
     def test_correct_clubs(self, importer):
         """All players should have correct 2025/26 clubs."""
         players, _, _ = importer.import_all(sofifa_path=str(SOFIFA_CSV))
-        player_map = {p.full_name: p.club_name for p in players}
 
         # Spot checks
         haaland = [p for p in players if "Haaland" in p.full_name][0]

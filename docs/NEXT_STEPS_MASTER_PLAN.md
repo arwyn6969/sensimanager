@@ -1,136 +1,129 @@
-# SWOS420 — Reality Check & Next-Steps Master Plan
+# SWOS420 — NEXT STEPS MASTER PLAN v2.0 (Living Document)
 
-**Date:** 2026-02-18  
-**Author:** Antigravity (AI audit of actual repo state vs Grok420 review)
-
----
-
-## 🔍 Codebase Reality vs Review Assumptions
-
-The Grok420 review (based on commit `7f02483` title) **significantly underestimates** what has been built. Here is what actually exists:
-
-| What the review says | Actual state |
-|---|---|
-| Match Engine = "placeholder, 4/10" | ✅ 602-line Poisson engine with 10×10 tactics matrix, weather, referee, injuries (`match_sim.py`) |
-| AI / League = "not started, 0/10" | ✅ PettingZoo env (364 lines), Gym wrapper, PPO training script, baseline agents, obs/actions/rewards |
-| Commentary = not mentioned | ✅ 343-line template engine with streaming formatter (`commentary.py`) |
-| Transfer Market = not mentioned | ✅ 340-line sealed-bid auction system (`transfer_market.py`) |
-| Scouting = not mentioned | ✅ 162-line tiered scouting system (`scouting.py`) |
-| Tests = "solid, 9/10" | ✅ **297 tests passing** across 17 test files |
-| Season Runner = not mentioned | ✅ 270-line full season orchestrator with aging, retirement, value recalc |
-| NFT contract = "not started" | ✅ `PlayerNFT.sol` exists in `contracts/` |
-| Streaming = "not started" | ✅ `obs_pipeline.sh` exists in `streaming/` |
-
-**Overall: Phases 0, 1, and 2.0 are essentially complete.**
+**Date:** 2026-02-18
+**Authors:** Arwyn + Grok420 + Antigravity
+**Status:** Phases 0–2.0 COMPLETE — entering Acceleration
 
 ---
 
-## 📁 Actual Architecture (as of 2026-02-18)
+## 🔍 Current State (verified 2026-02-18)
+
+| Area | Status | Evidence |
+|------|--------|----------|
+| **Data Layer** | ✅ Complete | Importers (Sofifa/SWOS/TM/Hybrid), mapping, normalization, SQLAlchemy DB |
+| **Match Engine** | ✅ Complete | 602-line Poisson engine, 10×10 tactics matrix, weather, referee, injuries |
+| **Season Runner** | ✅ Complete | 270-line full-season orchestrator with aging, retirement, value recalc |
+| **Commentary** | ✅ Complete | 343-line template engine with stream formatter |
+| **Transfer Market** | ✅ Complete | 340-line sealed-bid auction system |
+| **Scouting** | ✅ Complete | 162-line tiered skill reveal |
+| **AI Managers** | ✅ Complete | PettingZoo ParallelEnv + Gym wrapper + PPO training + baselines |
+| **Tests** | ✅ Outstanding | 297 passing across 17 files |
+| **CI** | ✅ Hardened | GitHub Actions: ruff + pytest --cov + Python 3.12/3.13 matrix |
+| **Docker** | ✅ Ready | Dockerfile + docker-compose.yml with GPU support |
+| **Lint** | ✅ Clean | `ruff check .` passes with zero errors |
+| **SWOS Port** | 🔲 Stub | `Dockerfile.swos-port` + `ArcadeMatchSimulator` placeholder |
+| **NFTs** | 🟡 Skeleton | `PlayerNFT.sol` + `to_nft_metadata()` on player model |
+| **Streaming** | 🟡 Skeleton | `obs_pipeline.sh` + `format_for_stream()` in commentary |
+
+---
+
+## 📁 Architecture
 
 ```
 src/swos420/
-├── models/              # Pydantic data models
-│   ├── player.py        # SWOSPlayer with 7 skills, form, economy, NFT metadata
-│   ├── team.py          # Team, TeamFinances, League, PromotionRelegation
-│   └── league.py        # LeagueRuntime facade for AI/scripts
-├── engine/              # Match simulation & season orchestration
-│   ├── match_sim.py     # Poisson match engine (10×10 tactics, weather, referee)
-│   ├── season_runner.py # Full season with fixtures, decay, aging, retirement
-│   ├── fixture_generator.py
-│   ├── match_result.py  # MatchResult + MatchEvent + PlayerMatchStats
-│   ├── commentary.py    # Template-based match narration + stream formatter
-│   ├── transfer_market.py  # Sealed-bid auction system
-│   └── scouting.py      # Tiered skill reveal for transfer targets
-├── ai/                  # AI Manager system
-│   ├── env.py           # PettingZoo ParallelEnv (SWOSManagerEnv)
-│   ├── actions.py       # Action space definitions
-│   ├── obs.py           # Observation builders
-│   ├── rewards.py       # Reward functions
-│   └── baseline_agents.py  # Heuristic baselines
-├── importers/           # BaseImporter + adapters (Sofifa, SWOS, TM, Hybrid)
-├── mapping/             # Attribute mapping engine (Sofifa → SWOS 0-15 scale)
-├── normalization/       # Name normalization (UTF-8, transliteration)
-├── db/                  # SQLAlchemy models + repository layer
-└── utils/               # Helpers
+├── models/           player.py · team.py · league.py
+├── engine/           match_sim.py · season_runner.py · commentary.py · transfer_market.py · scouting.py
+├── ai/               env.py · actions.py · obs.py · rewards.py · baseline_agents.py
+├── importers/        sofifa.py · swos_edt.py · transfermarkt.py · hybrid.py
+├── mapping/          engine.py
+├── normalization/    engine.py
+├── db/               models.py · session.py · repository.py
+└── utils/
 
-scripts/
-├── smoke_pipeline.py    # Deterministic end-to-end smoke check
-├── run_full_season.py   # Full season CLI with league table output
-├── run_match.py         # Single match simulation CLI
-├── train_managers.py    # PPO training with Gym wrapper + curriculum
-├── update_db.py         # Import players from Sofifa CSV → SQLite
-└── export_to_ag_swsedt.py  # Export to AG-SWSEDT format
-
-config/rules.json        # Match engine tuning constants
-contracts/PlayerNFT.sol  # ERC-721 NFT contract
-streaming/obs_pipeline.sh # OBS overlay pipeline
-docs/                    # PRD, blueprints, deployment status
-tests/                   # 297 passing tests across 17 files
+scripts/              smoke_pipeline · run_full_season · run_match · train_managers · update_db · export
+config/               rules.json · league_structure.json
+contracts/            PlayerNFT.sol
+streaming/            obs_pipeline.sh
+tests/                17 files, 297 tests
 ```
 
 ---
 
-## ✅ What's Actually Done
+## 🎯 Remaining Work (Priority Order)
 
-| Phase | Status | Components |
-|-------|--------|------------|
-| **P0 — Data Layer** | ✅ Complete | Importers, mapping, normalization, DB, models |
-| **P1 — Match Engine** | ✅ Complete | `match_sim.py`, `season_runner.py`, `fixture_generator.py`, `match_result.py` |
-| **P1.5 — League/Season** | ✅ Complete | `league.py` runtime facade, `run_full_season.py`, commentary |
-| **P2.0 — AI Managers** | ✅ Complete | PettingZoo env, Gym wrapper, PPO training, baselines, scouting, transfers |
-| **P2.5 — SWOS Port** | 🔲 Stub only | `ArcadeMatchSimulator` placeholder + `Dockerfile.swos-port` |
-| **P3 — NFTs + $CM** | 🟡 Skeleton | `PlayerNFT.sol` exists, `to_nft_metadata()` on player model |
-| **P4 — Streaming** | 🟡 Skeleton | `obs_pipeline.sh` + `format_for_stream()` in commentary |
+### Priority 1 — Visual Soul & Streaming (Week 1)
+- [ ] Wire commentary engine + LLM flavour (`LLMCommentaryGenerator` class)
+- [ ] Build OBS scene compositor (full scene JSON)
+- [ ] Docker + Nvidia NVENC for 24/7 league stream
+- [ ] Live scoreboard overlay
 
----
-
-## 🎯 Real Remaining Work (Priority Order)
-
-### 1. Documentation Gaps (Immediate)
-- [ ] Update `README.md` to show full architecture (currently only shows data layer)
-- [ ] Create `docs/AI_TRAINING_STRATEGY_AND_DIFFICULTY.md`
-- [ ] Create `config/league_structure.json` (referenced in README but missing)
-- [ ] Add engine `__init__.py` public exports
-
-### 2. CI Hardening (Day 1)
-- [ ] Add `ruff check` lint step to CI
-- [ ] Add `pytest --cov` coverage reporting
-- [ ] Add Python 3.13 to CI matrix
-
-### 3. SWOS Port Integration (Phase 2.5 — When Ready)
+### Priority 2 — SWOS Arcade Integration (Weeks 2–3)
 - [ ] Build Docker image from `Dockerfile.swos-port`
 - [ ] Implement pybind11 wrapper for zlatkok/swos-port
 - [ ] Wire `ArcadeMatchSimulator` to native engine
 - [ ] Headless arcade match from Python
 
-### 4. NFT + $CM Economy (Phase 3)
-- [ ] Deploy `PlayerNFT.sol` to testnet
-- [ ] Build Python web3 claim script
+### Priority 3 — On-Chain Ownership (Month 1)
+- [ ] Deploy `PlayerNFT.sol` to Base testnet
+- [ ] Build Python web3 claim/mint script
+- [ ] Implement `CMToken.sol` (ERC-20 economy token)
 - [ ] Wire player wages to on-chain $CM token
-- [ ] Implement ownership transfer on player trades
+- [ ] Ownership transfer on player trades
 
-### 5. 24/7 Streaming (Phase 4)
-- [ ] Build full OBS scene compositor
-- [ ] Implement live commentary generator (extend `commentary.py`)
-- [ ] Add match visualization / scoreboard overlay
-- [ ] Auto-scheduling pipeline for continuous league broadcast
+### Priority 4 — Documentation & Community
+- [ ] Create `docs/AI_TRAINING_STRATEGY_AND_DIFFICULTY.md`
+- [ ] Create `CONTRIBUTING.md`
+- [ ] Create `CHANGELOG.md`
+- [ ] Add engine `__init__.py` public exports
 
 ---
 
-## 🏃 Recommended Next Command
+## 📊 Success Metrics
 
-Everything from Phases 0–2.0 is built and tested. You can:
+| Metric | Target | Current |
+|--------|--------|---------|
+| Tests passing | 500+ | 297 |
+| Lint errors | 0 | 0 ✅ |
+| 20-season headless run | < 45s | ~2.5s per test run |
+| 24/7 stream live | > 100 viewers week 1 | Not started |
+| Player NFTs minted | 8 on Base testnet | Not started |
+| CI pipeline | Green on every push | ✅ |
+
+---
+
+## 🏃 Quick Validation Commands
 
 ```bash
-# Run a full season right now:
+# Run a full season
 python scripts/run_full_season.py --season 25/26 --min-squad-size 1
 
-# Start AI training right now:
+# Start AI training
 python scripts/train_managers.py --timesteps 50000 --num-teams 4
 
-# Run all 297 tests:
+# Run all tests
 python -m pytest -q
+
+# Lint check
+ruff check .
+
+# Docker build + test
+docker build -t swos420 .
+docker run --rm swos420
 ```
 
-**The foundation isn't just solid — it's essentially Phase 2 complete.**  
-Next real frontier: SWOS port integration or NFT deployment.
+---
+
+## 🗓️ 30-Day Roadmap
+
+| Days | Focus | Deliverable |
+|------|-------|-------------|
+| 1–3 | ✅ Done | Infra polish: CI, Docker, lint, docs |
+| 4–10 | Streaming MVP | Rich AI commentary + OBS scene + live stream |
+| 11–20 | SWOS Port | Live arcade matches from Python |
+| 21–30 | NFT Economy | Base testnet + first owned-player season |
+
+**Every sprint ends with a GitHub Release + announcement.**
+
+---
+
+*This is a living document. Update after each sprint.*

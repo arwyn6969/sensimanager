@@ -116,7 +116,7 @@ class TestFullRoundTrip:
 
     def test_leagues_have_teams(self, full_pipeline):
         _, _, leagues, _ = full_pipeline
-        total_teams_in_leagues = sum(len(l.team_codes) for l in leagues)
+        total_teams_in_leagues = sum(len(lg.team_codes) for lg in leagues)
         assert total_teams_in_leagues > 0
 
     def test_correct_clubs_spot_check(self, full_pipeline):

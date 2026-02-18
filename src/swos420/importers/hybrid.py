@@ -15,7 +15,6 @@ from __future__ import annotations
 
 import logging
 from difflib import SequenceMatcher
-from pathlib import Path
 
 from swos420.importers.base import BaseImporter, RawPlayerRecord, RawTeamRecord
 from swos420.importers.sofifa import SofifaCSVAdapter

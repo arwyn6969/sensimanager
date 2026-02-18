@@ -9,12 +9,11 @@ from __future__ import annotations
 import json
 import logging
 from pathlib import Path
-from typing import Any
 
 from sqlalchemy.orm import Session
 
 from swos420.db.models import LeagueDB, PlayerDB, TeamDB
-from swos420.models.player import SKILL_NAMES, Skills, SWOSPlayer, Position
+from swos420.models.player import Skills, SWOSPlayer, Position
 from swos420.models.team import League, PromotionRelegation, Team, TeamFinances
 
 logger = logging.getLogger(__name__)
@@ -150,7 +149,7 @@ def export_snapshot(session: Session, output_path: str | Path) -> dict:
     snapshot = {
         "players": [p.model_dump(mode="json") for p in player_repo.get_all()],
         "teams": [t.model_dump(mode="json") for t in team_repo.get_all()],
-        "leagues": [l.model_dump(mode="json") for l in league_repo.get_all()],
+        "leagues": [lg.model_dump(mode="json") for lg in league_repo.get_all()],
         "meta": {
             "player_count": player_repo.count(),
             "team_count": len(team_repo.get_all()),

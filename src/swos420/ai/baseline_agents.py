@@ -7,11 +7,9 @@ HeuristicAgent: simple rule-based manager (strongest XI, sensible transfers).
 from __future__ import annotations
 
 import random
-from typing import Any
 
 import numpy as np
 
-from swos420.ai.actions import FORMATIONS, STYLES, TRAINING_FOCUS
 
 
 class RandomAgent:

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import numpy as np
-import pytest
 
 from swos420.ai.env import SWOSManagerEnv
 from swos420.ai.baseline_agents import RandomAgent, HeuristicAgent

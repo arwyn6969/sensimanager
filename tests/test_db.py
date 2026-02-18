@@ -3,14 +3,11 @@
 import json
 import pytest
 import tempfile
-from pathlib import Path
 
-from swos420.db.models import Base, PlayerDB, TeamDB
 from swos420.db.session import get_engine, get_session, init_db
 from swos420.db.repository import (
     PlayerRepository,
     TeamRepository,
-    LeagueRepository,
     export_snapshot,
 )
 from swos420.models.player import Position, Skills, SWOSPlayer

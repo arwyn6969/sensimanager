@@ -17,10 +17,8 @@ from __future__ import annotations
 
 import json
 import logging
-import math
 import random
 from pathlib import Path
-from typing import Optional
 
 import numpy as np
 
