@@ -139,9 +139,33 @@ current_value = base_value * (0.6 + form/100 + goals*0.01) * age_factor
 | P2.5 — SWOS Port | ✅ Complete | EDT binary I/O + DOSBox-X runner + ArcadeMatchSimulator |
 | P3 — NFTs + $SENSI | ✅ Complete | 6 contracts, 75 Forge tests, deploy script, web3 scripts |
 | P4 — Streaming | ✅ Complete | OBS pipeline, stream_league runner, JSON overlays |
-| P5 — Frontend | 🟡 Next | Next.js + wagmi + RainbowKit dashboard |
+| P5 — Frontend | ✅ Complete | Next.js 15 + wagmi v2 + RainbowKit dashboard |
 
 See [NEXT_STEPS_MASTER_PLAN.md](docs/NEXT_STEPS_MASTER_PLAN.md) for the living roadmap.
+
+## Frontend Dashboard
+
+Next.js 15 app with wagmi v2 + RainbowKit v2, targeting Base (Sepolia + mainnet).
+
+```bash
+# Install
+cd frontend && npm install
+
+# Configure (copy and edit contract addresses)
+cp .env.example .env.local
+
+# Run dev server
+npm run dev
+# → http://localhost:3000
+```
+
+**Pages:**
+- `/` — Dashboard (economy stats, commentary feed, tokenomics)
+- `/gallery` — NFT Gallery (player cards with radar charts, form bars)
+- `/market` — Transfer Market (bid, cancel, resolve listings + loans)
+- `/league` — League Table (standings, commentary, manager cards)
+
+**Stack:** Next.js 15, React 19, wagmi v2, viem v2, RainbowKit v2, TypeScript
 
 ## Documentation
 
@@ -150,6 +174,8 @@ See [NEXT_STEPS_MASTER_PLAN.md](docs/NEXT_STEPS_MASTER_PLAN.md) for the living r
 - `docs/SWOS420_GROK420_MASTER.md` — execution plan for Codex + Antigravity
 - `docs/NEXT_STEPS_MASTER_PLAN.md` — living north-star plan
 - `docs/DEPLOYMENT_STATUS_2026-02-18.md` — latest deployment verification
+- `docs/LAUNCH_CHECKLIST.md` — **Base mainnet launch checklist**
+- `docs/x-threads.md` — **3 viral X/Twitter threads ready to post**
 
 ## License
 

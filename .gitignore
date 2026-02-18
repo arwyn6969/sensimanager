@@ -34,7 +34,30 @@ htmlcov/
 
 # Misc
 *.log
+
+# ── Security: NEVER commit secrets ──────────────────────────────
 .env
+.env.local
+.env.*.local
+.env.production
+.env.staging
+
+# Private keys & certificates
+*.pem
+*.key
+private-key.txt
+mnemonic.txt
+
+# Foundry broadcast artifacts (contain deployer address + tx data)
+contracts/broadcast/
+
+# Foundry cache (large, regenerated)
+contracts/cache/
+contracts/out/
 
 # Training artifacts
 /models/
+
+# Node (for frontend)
+node_modules/
+.next/
