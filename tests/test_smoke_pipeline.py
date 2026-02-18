@@ -26,6 +26,14 @@ def test_smoke_pipeline_cli_runs(tmp_path: Path):
     assert "Smoke pipeline completed successfully" in result.stdout
     assert snapshot_path.exists()
 
+    summary_start = result.stdout.find("{")
+    assert summary_start >= 0
+    summary = json.loads(result.stdout[summary_start:])
+    assert summary["league_teams"] >= 2
+    assert summary["league_total_matches"] >= summary["matchday_matches"]
+    assert summary["league_matchdays"] >= 1
+    assert summary["champion"]
+
     with snapshot_path.open() as f:
         snapshot = json.load(f)
 

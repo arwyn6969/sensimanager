@@ -35,3 +35,6 @@ htmlcov/
 # Misc
 *.log
 .env
+
+# Training artifacts
+/models/

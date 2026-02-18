@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Optional
-
 from pydantic import BaseModel, Field
 
 
@@ -49,6 +47,32 @@ class Team(BaseModel):
     def squad_size(self) -> int:
         return len(self.player_ids)
 
+    @property
+    def points_per_match(self) -> float:
+        return self.points / max(1, self.matches_played)
+
+    def reset_season(self) -> None:
+        """Reset standings while preserving squad identity and finances."""
+        self.points = 0
+        self.wins = 0
+        self.draws = 0
+        self.losses = 0
+        self.goals_for = 0
+        self.goals_against = 0
+
+    def apply_result(self, goals_for: int, goals_against: int) -> None:
+        """Apply a single match result to standings."""
+        self.goals_for += goals_for
+        self.goals_against += goals_against
+        if goals_for > goals_against:
+            self.wins += 1
+            self.points += 3
+        elif goals_for == goals_against:
+            self.draws += 1
+            self.points += 1
+        else:
+            self.losses += 1
+
 
 class PromotionRelegation(BaseModel):
     """Configurable promotion/relegation rules."""
@@ -75,3 +99,13 @@ class League(BaseModel):
     @property
     def is_season_complete(self) -> bool:
         return self.current_matchday >= self.matches_per_season
+
+    def reset_season(self, season: str | None = None) -> None:
+        """Start a new season and reset matchday pointer."""
+        if season is not None:
+            self.season = season
+        self.current_matchday = 0
+
+    def advance_matchday(self, step: int = 1) -> None:
+        """Increment league progress up to total scheduled matchdays."""
+        self.current_matchday = min(self.matches_per_season, self.current_matchday + step)

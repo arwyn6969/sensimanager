@@ -4,6 +4,7 @@
 Usage:
     python scripts/run_full_season.py
     python scripts/run_full_season.py --season 25/26 --db-path data/leagues.db
+    python scripts/run_full_season.py --season 25/26 --min-squad-size 1
 """
 
 from __future__ import annotations
@@ -30,6 +31,12 @@ def main() -> int:
     parser.add_argument("--season", default="25/26", help="Season identifier")
     parser.add_argument("--db-path", default="data/leagues.db", help="SQLite database path")
     parser.add_argument("--rules", default="config/rules.json", help="Path to rules.json")
+    parser.add_argument(
+        "--min-squad-size",
+        type=int,
+        default=11,
+        help="Minimum players required per team to participate (default: 11)",
+    )
     parser.add_argument("--quiet", "-q", action="store_true", help="Minimal output")
     args = parser.parse_args()
 
@@ -58,19 +65,22 @@ def main() -> int:
             logger.error("Need at least 2 teams in database. Run update_db.py first.")
             return 1
 
+        min_squad_size = max(1, args.min_squad_size)
+
         # Build team states
         team_states = []
         for team in all_teams:
             players = player_repo.get_by_club(team.name)
-            if len(players) >= 11:
+            if len(players) >= min_squad_size:
                 team_states.append(TeamSeasonState(team=team, players=players))
             else:
                 logger.warning(
-                    f"Skipping {team.name}: only {len(players)} players (need 11+)"
+                    f"Skipping {team.name}: only {len(players)} players "
+                    f"(need {min_squad_size}+)"
                 )
 
         if len(team_states) < 2:
-            logger.error("Not enough teams with 11+ players!")
+            logger.error(f"Not enough teams with {min_squad_size}+ players!")
             return 1
 
         logger.info(f"🏆 SWOS420 Season {args.season} — {len(team_states)} teams")

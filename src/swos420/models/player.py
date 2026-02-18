@@ -7,11 +7,10 @@ and economy fields (wage, value) that drive the NFT ownership layer.
 from __future__ import annotations
 
 import hashlib
-import math
 from enum import Enum
 from typing import Optional
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, Field, field_validator
 
 
 class Position(str, Enum):
@@ -207,6 +206,13 @@ class SWOSPlayer(BaseModel):
                 current = getattr(self.skills, skill_name)
                 new_val = max(0, int(current - decay_rate))
                 setattr(self.skills, skill_name, new_val)
+
+    def reset_season_stats(self) -> None:
+        """Reset season counters while preserving long-term player state."""
+        self.goals_scored_season = 0
+        self.assists_season = 0
+        self.appearances_season = 0
+        self.clean_sheets_season = 0
 
     @property
     def should_retire(self) -> bool:
