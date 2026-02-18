@@ -1,0 +1,47 @@
+{
+  "network": "base-sepolia",
+  "chainId": 84532,
+  "deployedAt": "2026-02-18T12:30:00Z",
+  "deployer": "0x107E3EbA0e5cA58c990ab0c72585DE08CBA45Cf3",
+  "contracts": {
+    "SWOSPlayerNFT": {
+      "address": "0x17FED9d1d94379192743CA230De65302235F49F8",
+      "deployBlock": 37835656,
+      "txHash": "0x377a6a24c0adcb34cf947c7888583f1033995a408b42bdfafeb42d21def492ce"
+    },
+    "SENSIToken": {
+      "address": "0x3cb37C03D3d33aa09bcEdfE4efA552CfFa4E56fa",
+      "deployBlock": 37835657,
+      "txHash": "0x40213aa78e026d7677dd631e6651697a2664352fd33d86e4c718b1de2fab77c8",
+      "constructorArgs": {
+        "treasury": "0x107E3EbA0e5cA58c990ab0c72585DE08CBA45Cf3"
+      }
+    },
+    "TransferMarket": {
+      "address": "0xD684D68883986C40ab7FDde0256b28E09CCeB1D4",
+      "deployBlock": 37835658,
+      "txHash": "0xf31764baadbb49943f9a6f270aa2b5c598b292035f0cc9cb8ae1ae0fa3f60546",
+      "constructorArgs": {
+        "playerNFT": "0x17FED9d1d94379192743CA230De65302235F49F8",
+        "sensiToken": "0x3cb37C03D3d33aa09bcEdfE4efA552CfFa4E56fa",
+        "treasury": "0x107E3EbA0e5cA58c990ab0c72585DE08CBA45Cf3"
+      }
+    },
+    "LeagueManager": {
+      "address": "0x47bEb9EEa9E012D9c7Ac75869e8a5e2D0Da8e87F",
+      "deployBlock": 37835659,
+      "txHash": "0x53eb65e66ef5bf2a3dc2fde63d09fb3f53984502b01eecd62c4b7ddeafcca92d",
+      "constructorArgs": {
+        "playerNFT": "0x17FED9d1d94379192743CA230De65302235F49F8",
+        "sensiToken": "0x3cb37C03D3d33aa09bcEdfE4efA552CfFa4E56fa"
+      }
+    }
+  },
+  "permissions": {
+    "SENSIToken.owner": "0x47bEb9EEa9E012D9c7Ac75869e8a5e2D0Da8e87F",
+    "SWOSPlayerNFT.oracle": "0x47bEb9EEa9E012D9c7Ac75869e8a5e2D0Da8e87F",
+    "SWOSPlayerNFT.owner": "0x107E3EbA0e5cA58c990ab0c72585DE08CBA45Cf3",
+    "TransferMarket.owner": "0x107E3EbA0e5cA58c990ab0c72585DE08CBA45Cf3",
+    "LeagueManager.owner": "0x107E3EbA0e5cA58c990ab0c72585DE08CBA45Cf3"
+  }
+}
