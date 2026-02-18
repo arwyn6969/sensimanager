@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1920, height=1080">
+<title>SWOS420 — Live Overlay</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Inter:wght@400;600;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+/* ── Reset & Canvas ─────────────────────────────────────── */
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  width: 1920px;
+  height: 1080px;
+  overflow: hidden;
+  background: transparent;
+  font-family: 'Inter', sans-serif;
+  color: #fff;
+}
+
+/* ── Shared Glass Card ──────────────────────────────────── */
+.glass {
+  background: rgba(10, 12, 20, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+/* ── Branding ───────────────────────────────────────────── */
+#brand {
+  position: absolute;
+  top: 24px; left: 36px;
+  display: flex; align-items: center; gap: 14px;
+}
+#brand .logo {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 22px;
+  background: linear-gradient(135deg, #00e676, #00b0ff);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  letter-spacing: 2px;
+  text-shadow: none;
+}
+#brand .badge {
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 3px;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+/* ── Live Indicator ─────────────────────────────────────── */
+#live-dot {
+  position: absolute;
+  top: 32px; right: 40px;
+  display: flex; align-items: center; gap: 10px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.5);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+#live-dot .dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: #ff1744;
+  animation: pulse 1.6s ease-in-out infinite;
+}
+#live-dot.dormant .dot { background: #555; animation: none; }
+#live-dot.dormant { color: rgba(255,255,255,0.25); }
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.3; transform: scale(0.7); }
+}
+
+/* ── Scoreboard ─────────────────────────────────────────── */
+#scoreboard {
+  position: absolute;
+  top: 28px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 0;
+  padding: 0;
+  min-width: 580px;
+  overflow: hidden;
+}
+
+.team-name {
+  font-family: 'Inter', sans-serif;
+  font-weight: 900;
+  font-size: 20px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  padding: 16px 28px;
+  min-width: 180px;
+  text-align: center;
+  white-space: nowrap;
+}
+.team-name.home { border-radius: 12px 0 0 12px; }
+.team-name.away { border-radius: 0 12px 12px 0; }
+
+.score-display {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  background: rgba(255, 255, 255, 0.04);
+  border-left: 1px solid rgba(255, 255, 255, 0.06);
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.score-num {
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 700;
+  font-size: 34px;
+  padding: 10px 18px;
+  min-width: 56px;
+  text-align: center;
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.score-num.pop {
+  transform: scale(1.35);
+  color: #00e676;
+}
+
+.score-sep {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 26px;
+  color: rgba(255, 255, 255, 0.3);
+  padding: 0 2px;
+}
+
+.minute-badge {
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 700;
+  font-size: 14px;
+  padding: 6px 14px;
+  border-radius: 0 12px 12px 0;
+  color: rgba(255, 255, 255, 0.7);
+  letter-spacing: 1px;
+  white-space: nowrap;
+}
+.minute-badge.live { color: #ff1744; }
+.minute-badge.ft { color: #00e676; }
+
+/* ── League Table ───────────────────────────────────────── */
+#table-panel {
+  position: absolute;
+  top: 100px; right: 36px;
+  width: 400px;
+  max-height: 620px;
+  overflow: hidden;
+  padding: 18px 20px 14px;
+}
+
+#table-panel .panel-title {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.45);
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  margin-bottom: 14px;
+}
+
+#table-panel table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+}
+#table-panel th {
+  font-size: 10px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.35);
+  text-transform: uppercase;
+  padding: 4px 6px 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  text-align: right;
+}
+#table-panel th:first-child,
+#table-panel th:nth-child(2) { text-align: left; }
+
+#table-panel td {
+  padding: 7px 6px;
+  text-align: right;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  color: rgba(255, 255, 255, 0.75);
+  transition: background 0.3s;
+}
+#table-panel td:first-child { text-align: center; width: 28px; }
+#table-panel td:nth-child(2) {
+  text-align: left;
+  font-weight: 700;
+  color: #fff;
+  max-width: 130px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#table-panel tr.pos-1 td:nth-child(2) { color: #ffd740; }
+#table-panel tr.pos-champion td { background: rgba(255, 215, 64, 0.06); }
+#table-panel tr.pos-relegate td:nth-child(2) { color: #ff5252; }
+#table-panel tr.pos-relegate td { background: rgba(255, 82, 82, 0.04); }
+
+/* ── Commentary ─────────────────────────────────────────── */
+#commentary {
+  position: absolute;
+  bottom: 36px; left: 36px;
+  width: 680px;
+  max-height: 300px;
+  padding: 18px 22px;
+  overflow: hidden;
+}
+
+#commentary .panel-title {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.45);
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+}
+
+.event-line {
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  line-height: 1.65;
+  color: rgba(255, 255, 255, 0.78);
+  padding: 3px 0;
+  animation: fadeSlideIn 0.4s ease-out;
+  border-left: 3px solid transparent;
+  padding-left: 12px;
+}
+.event-line:first-child {
+  color: #fff;
+  font-weight: 600;
+  border-left-color: #00e676;
+}
+.event-line.goal { border-left-color: #ffd740; }
+.event-line.card { border-left-color: #ff5252; }
+.event-line.injury { border-left-color: #ff6d00; }
+
+@keyframes fadeSlideIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Match Info Bar ─────────────────────────────────────── */
+#match-info {
+  position: absolute;
+  bottom: 36px; right: 36px;
+  width: 400px;
+  padding: 16px 20px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.45);
+  text-align: center;
+}
+#match-info .season-id {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: rgba(255, 255, 255, 0.3);
+}
+
+/* ── Loading State ──────────────────────────────────────── */
+.waiting {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.2);
+  letter-spacing: 3px;
+  height: 100%;
+}
+
+</style>
+</head>
+<body>
+
+<!-- Branding -->
+<div id="brand">
+  <span class="logo">SWOS420</span>
+  <span class="badge">Autonomous League</span>
+</div>
+
+<!-- Live Indicator -->
+<div id="live-dot" class="dormant">
+  <span class="dot"></span>
+  <span id="live-text">WAITING</span>
+</div>
+
+<!-- Scoreboard -->
+<div id="scoreboard" class="glass" style="opacity: 0;">
+  <div class="team-name home" id="home-name">HOME</div>
+  <div class="score-display">
+    <span class="score-num" id="home-score">0</span>
+    <span class="score-sep">—</span>
+    <span class="score-num" id="away-score">0</span>
+  </div>
+  <div class="team-name away" id="away-name">AWAY</div>
+  <div class="minute-badge" id="minute-badge">0'</div>
+</div>
+
+<!-- League Table -->
+<div id="table-panel" class="glass">
+  <div class="panel-title">League Table</div>
+  <div id="table-body"><div class="waiting">AWAITING DATA</div></div>
+</div>
+
+<!-- Commentary -->
+<div id="commentary" class="glass">
+  <div class="panel-title">Commentary</div>
+  <div id="event-lines"><div class="waiting">⚽</div></div>
+</div>
+
+<!-- Match Info -->
+<div id="match-info" class="glass" style="opacity: 0;">
+  <div class="season-id" id="season-label">SWOS420 LEAGUE</div>
+</div>
+
+<script>
+/* ── Config ───────────────────────────────────────────── */
+const POLL_MS   = 1000;
+const MAX_LINES = 8;
+const BASE_URL  = window.location.origin;
+
+/* ── State ────────────────────────────────────────────── */
+let prevHomeGoals = -1;
+let prevAwayGoals = -1;
+let lastEventCount = 0;
+
+/* ── Fetch JSON helper ────────────────────────────────── */
+async function fetchJSON(path) {
+  try {
+    const res = await fetch(`${BASE_URL}/${path}?_=${Date.now()}`);
+    if (!res.ok) return null;
+    return await res.json();
+  } catch { return null; }
+}
+
+/* ── Scoreboard ───────────────────────────────────────── */
+async function updateScoreboard() {
+  const data = await fetchJSON('scoreboard.json');
+  if (!data) return;
+
+  const board = document.getElementById('scoreboard');
+  board.style.opacity = '1';
+
+  document.getElementById('home-name').textContent = data.home_team || 'HOME';
+  document.getElementById('away-name').textContent = data.away_team || 'AWAY';
+
+  const homeEl = document.getElementById('home-score');
+  const awayEl = document.getElementById('away-score');
+
+  // Animate goal flash
+  if (prevHomeGoals >= 0 && data.home_goals > prevHomeGoals) {
+    homeEl.classList.add('pop');
+    setTimeout(() => homeEl.classList.remove('pop'), 600);
+  }
+  if (prevAwayGoals >= 0 && data.away_goals > prevAwayGoals) {
+    awayEl.classList.add('pop');
+    setTimeout(() => awayEl.classList.remove('pop'), 600);
+  }
+
+  homeEl.textContent = data.home_goals ?? 0;
+  awayEl.textContent = data.away_goals ?? 0;
+  prevHomeGoals = data.home_goals;
+  prevAwayGoals = data.away_goals;
+
+  // Minute badge
+  const badge = document.getElementById('minute-badge');
+  const status = (data.status || '').toLowerCase();
+  badge.className = 'minute-badge';
+
+  if (status === 'prematch') {
+    badge.textContent = 'PRE';
+    badge.classList.add('ft');
+  } else if (status === 'fulltime' || status === 'ft') {
+    badge.textContent = 'FT';
+    badge.classList.add('ft');
+  } else if (status === 'halftime' || status === 'ht') {
+    badge.textContent = 'HT';
+  } else {
+    badge.textContent = `${data.minute || 0}'`;
+    badge.classList.add('live');
+  }
+
+  // Live dot
+  const liveDot = document.getElementById('live-dot');
+  const liveText = document.getElementById('live-text');
+  if (status === 'live') {
+    liveDot.classList.remove('dormant');
+    liveText.textContent = 'LIVE';
+  } else if (status === 'prematch') {
+    liveDot.classList.add('dormant');
+    liveText.textContent = 'PRE-MATCH';
+  } else if (status === 'fulltime') {
+    liveDot.classList.add('dormant');
+    liveText.textContent = 'FULL TIME';
+  } else {
+    liveDot.classList.remove('dormant');
+    liveText.textContent = 'STREAMING';
+  }
+}
+
+/* ── League Table ─────────────────────────────────────── */
+async function updateTable() {
+  const data = await fetchJSON('table.json');
+  if (!data || !Array.isArray(data) || data.length === 0) return;
+
+  const numTeams = data.length;
+
+  let html = `<table>
+    <tr><th>#</th><th>Team</th><th>P</th><th>W</th><th>D</th><th>L</th><th>GD</th><th>Pts</th></tr>`;
+
+  data.forEach((t, i) => {
+    const pos = i + 1;
+    let cls = '';
+    if (pos === 1) cls = 'pos-1 pos-champion';
+    else if (pos > numTeams - 3) cls = 'pos-relegate';
+
+    const gd = t.gd > 0 ? `+${t.gd}` : t.gd;
+    const name = (t.team || '').length > 14 ? (t.team || '').slice(0, 13) + '…' : t.team;
+
+    html += `<tr class="${cls}">
+      <td>${pos}</td>
+      <td>${name}</td>
+      <td>${t.played ?? 0}</td>
+      <td>${t.wins ?? 0}</td>
+      <td>${t.draws ?? 0}</td>
+      <td>${t.losses ?? 0}</td>
+      <td>${gd}</td>
+      <td style="font-weight:700;color:#fff">${t.points ?? 0}</td>
+    </tr>`;
+  });
+
+  html += '</table>';
+  document.getElementById('table-body').innerHTML = html;
+}
+
+/* ── Commentary ───────────────────────────────────────── */
+async function updateCommentary() {
+  const data = await fetchJSON('events.json');
+  if (!data || !data.lines || data.lines.length === 0) return;
+
+  // Only update if new lines arrived
+  if (data.count === lastEventCount) return;
+  lastEventCount = data.count;
+
+  // Filter out empty lines, take last MAX_LINES, reverse (newest first)
+  const lines = data.lines.filter(l => l.trim()).slice(-MAX_LINES).reverse();
+
+  const container = document.getElementById('event-lines');
+  container.innerHTML = '';
+
+  lines.forEach((line, i) => {
+    const div = document.createElement('div');
+    div.className = 'event-line';
+    div.style.animationDelay = `${i * 0.05}s`;
+
+    // Classify line type for border color
+    const lower = line.toLowerCase();
+    if (lower.includes('⚽') || lower.includes('goal')) div.classList.add('goal');
+    else if (lower.includes('🟨') || lower.includes('🟥') || lower.includes('card') || lower.includes('booked')) div.classList.add('card');
+    else if (lower.includes('🏥') || lower.includes('injur')) div.classList.add('injury');
+
+    div.textContent = line;
+    container.appendChild(div);
+  });
+}
+
+/* ── Poll Loop ────────────────────────────────────────── */
+async function poll() {
+  await Promise.all([
+    updateScoreboard(),
+    updateTable(),
+    updateCommentary(),
+  ]);
+}
+
+// Initial poll + interval
+poll();
+setInterval(poll, POLL_MS);
+
+/* ── Match info fade in ───────────────────────────────── */
+setTimeout(() => {
+  document.getElementById('match-info').style.opacity = '1';
+  document.getElementById('match-info').style.transition = 'opacity 1s';
+}, 2000);
+</script>
+</body>
+</html>

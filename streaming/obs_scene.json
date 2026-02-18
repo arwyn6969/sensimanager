@@ -1,6 +1,6 @@
 {
-  "description": "SWOS420 OBS Scene — Scoreboard + commentary overlay for 24/7 league stream",
-  "version": "1.0",
+  "description": "SWOS420 OBS Scene — Browser source overlay for 24/7 autonomous league stream",
+  "version": "2.0",
   "scenes": [
     {
       "name": "SWOS420 League Stream",
@@ -9,90 +9,37 @@
           "name": "Background",
           "type": "color_source",
           "settings": {
-            "color": 1711276032,
+            "color": 4279308561,
             "width": 1920,
             "height": 1080
           },
-          "position": {"x": 0, "y": 0}
+          "position": {"x": 0, "y": 0},
+          "note": "Dark background (rgba(10,12,17,1)). Replace with game footage when SWOS port is ready."
         },
         {
-          "name": "Scoreboard",
-          "type": "text_ft2_source",
+          "name": "Overlay Dashboard",
+          "type": "browser_source",
           "settings": {
-            "read_from_file": true,
-            "text_file": "streaming/scoreboard.json",
-            "font": {
-              "face": "Monospace",
-              "size": 48,
-              "style": "Bold"
-            },
-            "color1": 4294967295,
-            "outline": true,
-            "outline_color": 4278190080,
-            "outline_size": 4
+            "url": "http://localhost:8420/overlay.html",
+            "width": 1920,
+            "height": 1080,
+            "fps": 30,
+            "css": "",
+            "reroute_audio": false,
+            "restart_when_active": false,
+            "shutdown": false
           },
-          "position": {"x": 560, "y": 30},
-          "note": "Parse scoreboard.json for home/away/goals/minute display"
-        },
-        {
-          "name": "Commentary Ticker",
-          "type": "text_ft2_source",
-          "settings": {
-            "read_from_file": true,
-            "text_file": "streaming/events.json",
-            "font": {
-              "face": "Monospace",
-              "size": 24,
-              "style": "Regular"
-            },
-            "color1": 4294967295,
-            "word_wrap": true,
-            "custom_width": 900
-          },
-          "position": {"x": 40, "y": 800},
-          "note": "Shows last few commentary lines from events.json"
-        },
-        {
-          "name": "League Table",
-          "type": "text_ft2_source",
-          "settings": {
-            "read_from_file": true,
-            "text_file": "streaming/table.json",
-            "font": {
-              "face": "Monospace",
-              "size": 18,
-              "style": "Regular"
-            },
-            "color1": 4294967295
-          },
-          "position": {"x": 1400, "y": 100},
-          "note": "League standings sidebar from table.json"
-        },
-        {
-          "name": "SWOS420 Logo",
-          "type": "text_ft2_source",
-          "settings": {
-            "text": "SWOS420 ⚽",
-            "font": {
-              "face": "Monospace",
-              "size": 36,
-              "style": "Bold"
-            },
-            "color1": 4294967040
-          },
-          "position": {"x": 40, "y": 30}
+          "position": {"x": 0, "y": 0},
+          "note": "Main overlay — scoreboard, commentary, table. Reads JSON state from serve_overlay.py."
         }
       ]
     }
   ],
-  "obs_notes": {
-    "setup": [
-      "1. Import this scene JSON into OBS Studio",
-      "2. Update text_file paths to absolute paths on your system",
-      "3. Run: python scripts/stream_league.py --pace 2.0",
-      "4. The script writes scoreboard.json, events.json, table.json to streaming/",
-      "5. OBS text sources auto-refresh from these files"
-    ],
-    "custom_overlay": "For a polished look, replace the text sources with browser sources pointing to a local HTML dashboard that reads the JSON files."
-  }
+  "setup_instructions": [
+    "1. Start the overlay server:   python scripts/serve_overlay.py",
+    "2. Start the league stream:    python scripts/stream_league.py --pace 2.0",
+    "3. In OBS: Add Browser Source → URL: http://localhost:8420/overlay.html",
+    "4. Set resolution to 1920x1080, no custom CSS needed",
+    "5. For automated setup, run:   ./streaming/obs_pipeline.sh"
+  ]
 }

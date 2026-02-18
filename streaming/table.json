@@ -1,0 +1,46 @@
+[
+  {
+    "team": "Arsenal",
+    "played": 6,
+    "wins": 3,
+    "draws": 1,
+    "losses": 2,
+    "gf": 6,
+    "ga": 5,
+    "gd": 1,
+    "points": 10
+  },
+  {
+    "team": "Liverpool",
+    "played": 6,
+    "wins": 2,
+    "draws": 2,
+    "losses": 2,
+    "gf": 9,
+    "ga": 7,
+    "gd": 2,
+    "points": 8
+  },
+  {
+    "team": "Chelsea",
+    "played": 6,
+    "wins": 1,
+    "draws": 4,
+    "losses": 1,
+    "gf": 4,
+    "ga": 4,
+    "gd": 0,
+    "points": 7
+  },
+  {
+    "team": "Man City",
+    "played": 6,
+    "wins": 1,
+    "draws": 3,
+    "losses": 2,
+    "gf": 6,
+    "ga": 9,
+    "gd": -3,
+    "points": 6
+  }
+]
