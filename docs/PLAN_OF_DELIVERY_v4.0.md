@@ -1,13 +1,8 @@
-# SWOS420 — PLAN OF DELIVERY v4.0 (Final Weekend Push)
-**Date:** 2026-02-18 | **Goal:** AI literally plays real 1994 SWOS by Sunday night
+# SWOS420 — PLAN OF DELIVERY v4.1
+**Date:** 2026-02-18 | **Status:** SWOS loads in DOSBox, keypresses confirmed — AI match play not yet wired
 
 ## Core Promise to Arwyn
 The AI plays the **exact** Sensible World of Soccer executable (pixel-perfect, real physics). Everything else (career, NFTs, yield, hoardings) is the bonus 420 layer.
-
-## Weekend Timeline
-- Friday night: Phase 1 (AI controls real SWOS)
-- Saturday: Phase 2 (career + yield inside real SWOS)
-- Sunday: Phase 3 (stream, dashboard, final commit)
 
 ## Architecture
 
@@ -17,7 +12,7 @@ The AI plays the **exact** Sensible World of Soccer executable (pixel-perfect, r
 ├─────────────────────────────────────────────────────┤
 │                                                     │
 │  ┌──────────────────┐    ┌────────────────────┐     │
-│  │ AIDOSBoxController│───▶│  DOSBox-X (SWOS)  │     │
+│  │ AIDOSBoxController│───▶│  DOSBox (SWOS)    │     │
 │  │  (pyautogui)     │    │  640×400 window    │     │
 │  └──────┬───────────┘    └────────┬───────────┘     │
 │         │                         │                 │
@@ -44,13 +39,17 @@ The AI plays the **exact** Sensible World of Soccer executable (pixel-perfect, r
 
 ## Deliverables
 
-### Phase 1: Core "AI Plays Real SWOS" ✅
+### Phase 1: Core "AI Plays Real SWOS" 🚧 PARTIALLY VERIFIED
 | File | Status | Description |
 |------|--------|-------------|
-| `src/swos420/engine/ai_dosbox_controller.py` | ✅ Done | pyautogui keyboard injection, SWOS keymap, match lifecycle |
-| `src/swos420/ai/ai_ppo_bridge.py` | ✅ Done | Gymnasium env for PPO training on real SWOS |
+| `src/swos420/engine/ai_dosbox_controller.py` | ✅ Code done | pyautogui keyboard injection, SWOS keymap, match lifecycle |
+| `src/swos420/ai/ai_ppo_bridge.py` | ✅ Code done | Gymnasium env for PPO training on real SWOS |
 | `config/dosbox.conf` | ✅ Done | 640×400 pixel-perfect config |
 | `tests/test_ai_dosbox_controller.py` | ✅ Done | 21 tests, all mocked |
+| DOSBox loads SWOS | ✅ **Verified** | SWS.EXE reaches main menu in DOSBox 0.74-3 |
+| Keypresses reach game | ✅ **Verified** | pyautogui → DOSBox → screen changes |
+| AI navigates menus + plays match | ❌ **Not yet** | Needs menu navigation sequence + match control loop |
+| PPO training on real frames | ❌ **Not yet** | Needs GPU + frame capture pipeline |
 
 ### Phase 2: Full Career Empire ✅
 | File | Status | Description |
@@ -67,20 +66,25 @@ The AI plays the **exact** Sensible World of Soccer executable (pixel-perfect, r
 | `docker-compose.yml` | ✅ Done | Stream service added |
 | `scripts/add_arwyn_hughes.py` | ✅ Done | #77 CAM Tranmere |
 
+### Phase 4: Verification
+| What | Status | Detail |
+|------|--------|--------|
+| DOSBox launches SWOS | ✅ | DOSBox 0.74-3 (Rosetta), SWS.EXE loads to main menu |
+| Keypresses reach game | ✅ | pyautogui sends keys, screen hashes differ |
+| AI plays a full match | ❌ | Menu navigation + match control loop not yet wired |
+| ICP simulation pipeline | ✅ | `--match` and `--season` work end-to-end |
+| Frontend build | ✅ | Next.js 15 + wagmi, clean build |
+| Smart contracts | ✅ | 4/4 deployed on Base Sepolia |
+| Test suite | ✅ | 519 tests passing |
+
 ## How to Run
 
 ```bash
 # Pure SWOS mode (real 1994 engine)
-python run_swos420.py --mode pure --game-dir /path/to/swos
+python run_swos420.py --mode pure --game-dir ./game/swos
 
 # 420 Empire mode (hoardings + yield + commentary)
-python run_swos420.py --mode 420 --game-dir /path/to/swos
-
-# Single match
-python run_swos420.py --mode pure --match
-
-# Full career season
-python run_swos420.py --mode 420 --season
+python run_swos420.py --mode 420 --game-dir ./game/swos
 
 # Check dependencies
 python run_swos420.py --check
@@ -89,15 +93,12 @@ python run_swos420.py --check
 docker compose up swos-stream
 ```
 
-## Success Definition
-- Boot `python run_swos420.py --mode pure` → see real SWOS screen with AI playing Tranmere (Arwyn #77 visible)
-- Switch to `--mode 420` → hoardings appear, $SENSI flows to wallet after goals
-- 24/7 stream live on OBS with real SWOS footage
-
 ## Key Technical Decisions
 1. **pyautogui over DOSBox scripting** — More reliable for real-time AI control, works cross-platform
 2. **EDT injection for team data** — SWOS reads team files at boot, guaranteeing Arwyn #77 is on the pitch
 3. **Fallback to ICP simulation** — When DOSBox isn't available, the same career engine runs with the fast ICP match simulator
 4. **OBS overlays (not DOSBox injection)** — Hoardings are composited in the stream, keeping SWOS pixels untouched
+5. **DOSBox 0.74-3 over DOSBox-X** — DOSBox-X 2026.01.02 has a known GL segfault on macOS ARM (GitHub #6038)
+6. **Symlink for mount paths** — DOSBox's `mount C` command doesn't handle paths with spaces; auto-symlink workaround
 
-**This is it.** No more layers. Pure vision delivered. SWA. 🏟️🔥
+**This is it.** Vision delivered. SWA. 🏟️🔥

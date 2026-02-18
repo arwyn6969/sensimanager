@@ -234,11 +234,13 @@ chmod +x streaming/obs_pipeline.sh
 
 | When | Milestone |
 |------|-----------|
-| **Week 1 (now)** | Phase 2.0 AI complete, merge branches, 20-season autonomous demo |
-| **Week 2** | Phase 2.5 port integration (Docker + pybind11) |
-| **Month 2** | NFTs + $SENSI testnet on Base |
-| **Month 3** | 24/7 live stream + public beta |
-| **2027** | Full production: chatbot, dashboard, NFT marketplace |
+| **Week 1** ✅ | Phase 0-2 complete, AI managers, 519 tests, 20-season autonomous demo |
+| **Week 2** ✅ | Phase 2.5 SWOS integration via DOSBox (real SWS.EXE loads + AI keypresses confirmed) |
+| **Week 2** ✅ | Phase 3.0 NFTs + $SENSI live on Base Sepolia (4 contracts deployed) |
+| **Next** 🚧 | PPO training loop on real SWOS frames (GPU required) |
+| **Next** 🚧 | 24/7 live stream via Docker + OBS + DOSBox  |
+| **Month 3** | Public beta, mainnet deployment, full dashboard |
+| **2027** | Chatbot managers, NFT marketplace, league betting |
 
 ---
 

@@ -145,10 +145,22 @@ class DOSBoxRunner:
         """Build the DOSBox-X command line."""
         game_path = workspace / "game"
         exe_name = self.detect_executable(game_path) or "SWS.EXE"
+
+        # DOSBox mount doesn't handle spaces well — use a symlink
+        resolved = game_path.resolve()
+        if " " in str(resolved):
+            import os
+            link = Path(tempfile.gettempdir()) / "swos_game"
+            link.unlink(missing_ok=True)
+            os.symlink(str(resolved), str(link))
+            mount_path = str(link)
+        else:
+            mount_path = str(resolved)
+
         cmd = [
             self.config.dosbox_bin,
             "-conf", str(self.config.config_path),
-            "-c", f"mount C {game_path}",
+            "-c", f"mount C {mount_path}",
             "-c", "C:",
             "-c", exe_name,
             "-c", "exit",
