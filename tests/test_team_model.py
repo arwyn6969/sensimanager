@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
 
 from swos420.models.team import (
     League,

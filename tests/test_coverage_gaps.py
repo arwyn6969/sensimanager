@@ -6,17 +6,13 @@ and mapping engine aggregate/override edge paths.
 
 from __future__ import annotations
 
-import tempfile
-from pathlib import Path
 
-import pytest
 
 from swos420.models.player import (
     SWOSPlayer,
     Skills,
     Position,
     positional_fitness,
-    SKILL_NAMES,
 )
 from swos420.mapping.engine import AttributeMapper
 

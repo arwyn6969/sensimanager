@@ -6,6 +6,7 @@ merge_separators helper, and available_personalities listing.
 
 from __future__ import annotations
 
+import json
 import random
 
 import numpy as np
@@ -273,8 +274,7 @@ class TestAPIConfig:
 # ═══════════════════════════════════════════════════════════════════════
 
 
-import io
-import json
+
 
 
 class _FakeResponse:
@@ -330,7 +330,7 @@ class TestLLMEnabledMode:
 
         lines = gen.generate(result)
         assert isinstance(lines, list)
-        assert any("AMAZING" in l or "INCREDIBLE" in l or "STUNNING" in l for l in lines)
+        assert any("AMAZING" in line or "INCREDIBLE" in line or "STUNNING" in line for line in lines)
 
     def test_generate_stream_with_llm_enabled(self, monkeypatch):
         """generate_stream() should return enhanced text when LLM is enabled."""
