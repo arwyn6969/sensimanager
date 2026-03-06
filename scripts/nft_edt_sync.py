@@ -177,15 +177,19 @@ def main() -> None:
         print("💰 Settling $SENSI wages...")
         # Load recent match results
         streaming_dir = Path(__file__).parent.parent / "streaming"
-        results_file = streaming_dir / "last_match_result.json"
-        if results_file.exists():
+        result_candidates = [
+            streaming_dir / "runtime" / "last_match_result.json",
+            streaming_dir / "last_match_result.json",
+        ]
+        results_file = next((path for path in result_candidates if path.exists()), None)
+        if results_file:
             with open(results_file) as f:
                 results = [json.load(f)]
             ledger = settle_wages(ownership, results)
             for owner, amount in ledger.items():
                 print(f"   {owner[:10]}...{owner[-4:]}: {amount:,} $SENSI")
         else:
-            print("   No match results found in streaming/")
+            print("   No match results found in streaming/runtime/")
 
 
 if __name__ == "__main__":

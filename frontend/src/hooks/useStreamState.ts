@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 
 import { STREAM_URL } from "@/lib/contracts";
 import {
+  makeStreamRuntimePath,
   makeStreamUrl,
   type StreamEvents,
   type StreamScoreboard,
@@ -61,9 +62,9 @@ export function useStreamState(intervalMs = 2000): StreamState {
 
     const poll = async () => {
       const [scoreboard, events, table] = await Promise.all([
-        readJson<StreamScoreboard>("scoreboard.json"),
-        readJson<StreamEvents>("events.json"),
-        readJson<StreamTableRow[] | StreamTablePayload>("table.json"),
+        readJson<StreamScoreboard>(makeStreamRuntimePath("scoreboard.json")),
+        readJson<StreamEvents>(makeStreamRuntimePath("events.json")),
+        readJson<StreamTableRow[] | StreamTablePayload>(makeStreamRuntimePath("table.json")),
       ]);
 
       if (cancelled) {

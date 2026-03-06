@@ -61,10 +61,17 @@ export interface StreamTablePayload {
   meta?: Record<string, string | number>;
 }
 
+export const STREAM_RUNTIME_DIR = "runtime";
+
 export function makeStreamUrl(baseUrl: string, path: string): string {
   const cleanBase = baseUrl.replace(/\/$/, "");
   const cleanPath = path.replace(/^\//, "");
   return `${cleanBase}/${cleanPath}`;
+}
+
+export function makeStreamRuntimePath(path: string): string {
+  const cleanPath = path.replace(/^\//, "");
+  return `${STREAM_RUNTIME_DIR}/${cleanPath}`;
 }
 
 export function normalizeEventLines(lines: string[]): string[] {

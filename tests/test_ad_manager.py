@@ -145,7 +145,7 @@ class TestAdManager:
         assert result["hoardings"][0]["brand_name"] == "Super White Army"
 
         # Check file was written
-        json_path = tmp_path / "hoardings.json"
+        json_path = tmp_path / "runtime" / "hoardings.json"
         assert json_path.exists()
         data = json.loads(json_path.read_text())
         assert data["club_code"] == "TRN"

@@ -39,9 +39,10 @@ from swos420.models.player import Position, SWOSPlayer, Skills, generate_base_id
 logger = logging.getLogger(__name__)
 
 STREAMING_DIR = Path(__file__).resolve().parent.parent / "streaming"
-SCOREBOARD_PATH = STREAMING_DIR / "scoreboard.json"
-EVENTS_PATH = STREAMING_DIR / "events.json"
-TABLE_PATH = STREAMING_DIR / "table.json"
+RUNTIME_DIR = STREAMING_DIR / "runtime"
+SCOREBOARD_PATH = RUNTIME_DIR / "scoreboard.json"
+EVENTS_PATH = RUNTIME_DIR / "events.json"
+TABLE_PATH = RUNTIME_DIR / "table.json"
 
 
 def _generate_demo_teams(num_teams: int = 8) -> dict[str, list[SWOSPlayer]]:
@@ -169,6 +170,12 @@ def _initialize_standings(team_names: list[str]) -> dict[str, dict]:
     }
 
 
+def _write_runtime_json(path: Path, payload: Any) -> None:
+    """Persist a stream payload under the runtime output directory."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, indent=2, ensure_ascii=False))
+
+
 def write_scoreboard(
     home: str,
     away: str,
@@ -179,7 +186,6 @@ def write_scoreboard(
     extra: dict[str, Any] | None = None,
 ) -> None:
     """Write scoreboard state to JSON for OBS/frontend consumption."""
-    STREAMING_DIR.mkdir(parents=True, exist_ok=True)
     data = {
         "home_team": home,
         "away_team": away,
@@ -190,7 +196,7 @@ def write_scoreboard(
     }
     if extra:
         data.update(extra)
-    SCOREBOARD_PATH.write_text(json.dumps(data, indent=2, ensure_ascii=False))
+    _write_runtime_json(SCOREBOARD_PATH, data)
 
 
 def write_events(
@@ -199,7 +205,6 @@ def write_events(
     summary: dict[str, Any] | None = None,
 ) -> None:
     """Write commentary feed to JSON for OBS/frontend consumption."""
-    STREAMING_DIR.mkdir(parents=True, exist_ok=True)
     data: dict[str, Any] = {
         "lines": lines,
         "count": len(lines),
@@ -209,16 +214,15 @@ def write_events(
         data["latest"] = events[-1] if events else None
     if summary is not None:
         data["summary"] = summary
-    EVENTS_PATH.write_text(json.dumps(data, indent=2, ensure_ascii=False))
+    _write_runtime_json(EVENTS_PATH, data)
 
 
 def write_table(standings: dict[str, dict], meta: dict[str, Any] | None = None) -> None:
     """Write league table to JSON for OBS/frontend consumption."""
-    STREAMING_DIR.mkdir(parents=True, exist_ok=True)
     payload: Any = _sorted_standings(standings)
     if meta:
         payload = {"rows": payload, "meta": meta}
-    TABLE_PATH.write_text(json.dumps(payload, indent=2, ensure_ascii=False))
+    _write_runtime_json(TABLE_PATH, payload)
 
 
 def stream_commentary(

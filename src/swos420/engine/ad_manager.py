@@ -16,7 +16,7 @@ Revenue flow:
 Integration points:
     - season_runner.py: call update_demand() after each matchday
     - match_sim.py: call render_hoardings() to add visual data to MatchResult
-    - streaming/overlay.html: reads hoardings.json for OBS overlay rendering
+    - streaming/overlay.html: reads runtime/hoardings.json for OBS overlay rendering
     - llm_commentary.py: call get_sponsor_mention() for organic brand drops
 """
 
@@ -142,7 +142,7 @@ class AdManager:
             brand_name="Super White Army",
             expires_at=int(time.time()) + 30 * 86400,
         ))
-        ad_mgr.render_hoardings(club_id=1)  # writes streaming/hoardings.json
+        ad_mgr.render_hoardings(club_id=1)  # writes streaming/runtime/hoardings.json
     """
 
     def __init__(
@@ -157,7 +157,8 @@ class AdManager:
             cache_path: Optional path to a local slot cache file (JSON).
         """
         self.streaming_dir = Path(streaming_dir) if streaming_dir else Path("streaming")
-        self.cache_path = Path(cache_path) if cache_path else self.streaming_dir / "hoardings_cache.json"
+        self.runtime_dir = self.streaming_dir / "runtime"
+        self.cache_path = Path(cache_path) if cache_path else self.runtime_dir / "hoardings_cache.json"
         self.clubs: dict[int, ClubHoardings] = {}
         self.demand_factor: float = 1.0
         self.viewer_count: int = 0
@@ -243,12 +244,12 @@ class AdManager:
     def render_hoardings(self, club_id: int, output_path: str | Path | None = None) -> dict:
         """Render hoarding data as JSON for OBS overlay consumption.
 
-        Writes a hoardings.json file to the streaming directory that the
+        Writes a hoardings.json file to the streaming runtime directory that the
         overlay.html can poll and display as perimeter boards.
 
         Args:
             club_id: The home team's club ID (show their stadium hoardings).
-            output_path: Override output path (default: streaming/hoardings.json).
+            output_path: Override output path (default: streaming/runtime/hoardings.json).
 
         Returns:
             The generated JSON dict.
@@ -288,8 +289,8 @@ class AdManager:
                 },
             })
 
-        # Write to streaming directory
-        out = Path(output_path) if output_path else self.streaming_dir / "hoardings.json"
+        # Write to streaming runtime directory
+        out = Path(output_path) if output_path else self.runtime_dir / "hoardings.json"
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(json.dumps(hoarding_data, indent=2))
         logger.info("Rendered %d hoardings → %s", len(active), out)

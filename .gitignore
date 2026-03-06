@@ -34,6 +34,18 @@ htmlcov/
 
 # Misc
 *.log
+output.txt
+
+# Stream runtime artifacts
+streaming/runtime/*
+!streaming/runtime/.gitkeep
+streaming/scoreboard.json
+streaming/events.json
+streaming/table.json
+streaming/hoardings.json
+streaming/hoardings_cache.json
+streaming/last_match_result.json
+streaming/assets/raw/
 
 # ── Security: NEVER commit secrets ──────────────────────────────
 .env

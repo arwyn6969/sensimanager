@@ -64,7 +64,7 @@ echo ""
 
 # ── Start league stream ──────────────────────────────────────
 echo "🏟️  Starting autonomous league stream..."
-echo "   JSON state → streaming/*.json"
+echo "   JSON state → streaming/runtime/*.json"
 echo "   OBS overlay → http://localhost:${PORT}/overlay.html"
 echo ""
 

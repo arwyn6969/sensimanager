@@ -40,7 +40,7 @@ def main() -> int:
     parser.add_argument(
         "--hoardings",
         action="store_true",
-        help="Enable live stadium hoarding rendering (writes hoardings.json)",
+        help="Enable live stadium hoarding rendering (writes runtime/hoardings.json)",
     )
     parser.add_argument("--quiet", "-q", action="store_true", help="Minimal output")
     args = parser.parse_args()
@@ -116,7 +116,7 @@ def main() -> int:
                     expires_at=int(_time.time()) + 365 * 86400,
                 )
             )
-            logger.info("\U0001f3df\ufe0f  Hoardings enabled \u2014 live rendering to streaming/hoardings.json")
+            logger.info("\U0001f3df\ufe0f  Hoardings enabled \u2014 live rendering to streaming/runtime/hoardings.json")
 
         # Run season
         simulator = MatchSimulator(rules_path=args.rules)

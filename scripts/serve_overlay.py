@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """SWOS420 — Lightweight overlay file server for OBS browser source.
 
-Serves streaming/overlay.html and the JSON state files on a local port.
-Uses only stdlib — no dependencies.
+Serves streaming/overlay.html plus runtime JSON state from streaming/runtime/
+on a local port. Uses only stdlib — no dependencies.
 
 Usage:
     python scripts/serve_overlay.py                # default port 8420

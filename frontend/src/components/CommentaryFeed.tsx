@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { COMMENTARY_URL } from "@/lib/contracts";
+import { makeStreamRuntimePath, makeStreamUrl } from "@/lib/stream";
 
 interface EventsData {
   count: number;
@@ -15,7 +16,8 @@ export function CommentaryFeed() {
   useEffect(() => {
     const poll = async () => {
       try {
-        const res = await fetch(`${COMMENTARY_URL}/events.json?_=${Date.now()}`);
+        const url = `${makeStreamUrl(COMMENTARY_URL, makeStreamRuntimePath("events.json"))}?_=${Date.now()}`;
+        const res = await fetch(url);
         if (!res.ok) return;
         const data: EventsData = await res.json();
         if (data.count !== lastCount) {
