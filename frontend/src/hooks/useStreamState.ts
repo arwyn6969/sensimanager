@@ -6,6 +6,10 @@ import { STREAM_URL } from "@/lib/contracts";
 import {
   makeStreamRuntimePath,
   makeStreamUrl,
+  newestStreamTimestamp,
+  resolveStreamConnection,
+  STREAM_STALE_AFTER_MS,
+  type StreamConnection,
   type StreamEvents,
   type StreamScoreboard,
   type StreamTablePayload,
@@ -16,8 +20,9 @@ interface StreamState {
   scoreboard: StreamScoreboard | null;
   events: StreamEvents | null;
   table: StreamTableRow[];
-  connection: "live" | "offline";
+  connection: StreamConnection;
   lastUpdated: number | null;
+  sessionId: string | null;
 }
 
 const INITIAL_STATE: StreamState = {
@@ -26,6 +31,7 @@ const INITIAL_STATE: StreamState = {
   table: [],
   connection: "offline",
   lastUpdated: null,
+  sessionId: null,
 };
 
 async function readJson<T>(path: string): Promise<T | null> {
@@ -44,14 +50,14 @@ async function readJson<T>(path: string): Promise<T | null> {
 
 function normalizeTablePayload(
   payload: StreamTableRow[] | StreamTablePayload | null,
-): StreamTableRow[] {
+): { rows: StreamTableRow[]; meta: StreamTablePayload["meta"] | null } {
   if (!payload) {
-    return [];
+    return { rows: [], meta: null };
   }
   if (Array.isArray(payload)) {
-    return payload;
+    return { rows: payload, meta: null };
   }
-  return payload.rows ?? [];
+  return { rows: payload.rows ?? [], meta: payload.meta ?? null };
 }
 
 export function useStreamState(intervalMs = 2000): StreamState {
@@ -71,21 +77,39 @@ export function useStreamState(intervalMs = 2000): StreamState {
         return;
       }
 
-      const normalizedTable = normalizeTablePayload(table);
-      const hasPayload = Boolean(scoreboard || events || normalizedTable.length > 0);
+      const { rows: normalizedTable, meta: tableMeta } = normalizeTablePayload(table);
       const now = Date.now();
 
-      setState((current) => ({
-        scoreboard: scoreboard ?? current.scoreboard,
-        events: events ?? current.events,
-        table: normalizedTable.length > 0 ? normalizedTable : current.table,
-        connection:
-          hasPayload ||
-          (current.lastUpdated !== null && now - current.lastUpdated < intervalMs * 3)
-            ? "live"
-            : "offline",
-        lastUpdated: hasPayload ? now : current.lastUpdated,
-      }));
+      setState((current) => {
+        const nextScoreboard = scoreboard ?? current.scoreboard;
+        const nextEvents = events ?? current.events;
+        const nextTable = normalizedTable.length > 0 ? normalizedTable : current.table;
+        const hasPayload = Boolean(nextScoreboard || nextEvents || nextTable.length > 0);
+        const lastUpdated =
+          newestStreamTimestamp(
+            scoreboard?.updated_at,
+            events?.updated_at,
+            tableMeta?.updated_at,
+            current.scoreboard?.updated_at,
+            current.events?.updated_at,
+          ) ?? current.lastUpdated;
+        const connection = hasPayload
+          ? resolveStreamConnection(lastUpdated, now, STREAM_STALE_AFTER_MS)
+          : "offline";
+
+        return {
+          scoreboard: nextScoreboard,
+          events: nextEvents,
+          table: nextTable,
+          connection,
+          lastUpdated: hasPayload ? lastUpdated : null,
+          sessionId:
+            scoreboard?.session_id ??
+            events?.session_id ??
+            tableMeta?.session_id ??
+            current.sessionId,
+        };
+      });
     };
 
     poll();

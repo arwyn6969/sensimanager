@@ -552,6 +552,10 @@ a:hover { text-decoration: underline; }
   background: rgba(0, 230, 118, 0.12);
   color: var(--accent-green);
 }
+.season-badge.stale {
+  background: rgba(255, 215, 64, 0.12);
+  color: var(--accent-gold);
+}
 .season-badge.settled {
   background: rgba(255, 215, 64, 0.12);
   color: var(--accent-gold);
@@ -748,9 +752,13 @@ a:hover { text-decoration: underline; }
   display: inline-flex;
   align-items: center;
   gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   color: var(--text-secondary);
   font-family: var(--font-mono);
   font-size: 12px;
+  line-height: 1.6;
+  text-align: right;
   text-transform: uppercase;
   letter-spacing: 1.2px;
 }
@@ -762,6 +770,17 @@ a:hover { text-decoration: underline; }
   background: var(--accent-green);
   box-shadow: 0 0 16px rgba(0, 230, 118, 0.45);
   animation: pulse 1.6s ease-in-out infinite;
+}
+
+.live-signal-dot.stale {
+  background: var(--accent-gold);
+  box-shadow: 0 0 16px rgba(255, 215, 64, 0.32);
+}
+
+.live-signal-dot.offline {
+  background: rgba(255, 255, 255, 0.34);
+  box-shadow: none;
+  animation: none;
 }
 
 .score-shell {

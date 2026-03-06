@@ -3,14 +3,23 @@
 import Link from "next/link";
 
 import { STREAM_URL } from "@/lib/contracts";
-import { formatClock, formatStatusLabel, makeStreamUrl, type StreamScoreboard } from "@/lib/stream";
+import {
+  formatClock,
+  formatFeedFreshness,
+  formatStatusLabel,
+  makeStreamUrl,
+  type StreamConnection,
+  type StreamScoreboard,
+} from "@/lib/stream";
 
 interface MatchCentreProps {
   scoreboard: StreamScoreboard | null;
   latestEvent: string | null;
   xgLine: string | null;
   motmLine: string | null;
+  connection: StreamConnection;
   lastUpdated: number | null;
+  sessionId: string | null;
 }
 
 const HOME_MARKERS = [
@@ -29,12 +38,13 @@ const AWAY_MARKERS = [
   [58, 72],
 ];
 
-function formatUpdated(lastUpdated: number | null): string {
-  if (!lastUpdated) return "waiting for stream";
-  return `updated ${new Date(lastUpdated).toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-  })}`;
+function formatStatusTitle(
+  scoreboard: StreamScoreboard | null,
+  connection: StreamConnection,
+): string {
+  if (connection === "stale") return "Feed Stale";
+  if (connection === "offline") return "Awaiting Feed";
+  return formatStatusLabel(scoreboard?.status);
 }
 
 export function MatchCentre({
@@ -42,7 +52,9 @@ export function MatchCentre({
   latestEvent,
   xgLine,
   motmLine,
+  connection,
   lastUpdated,
+  sessionId,
 }: MatchCentreProps) {
   const homeTeam = scoreboard?.home_team ?? "Home";
   const awayTeam = scoreboard?.away_team ?? "Away";
@@ -60,17 +72,19 @@ export function MatchCentre({
     : "Formation and pressure context will appear when the live feed is active.";
   const scoreTilt = Math.max(-12, Math.min(12, (homeGoals - awayGoals) * 4));
   const minuteDrift = scoreboard ? (scoreboard.minute % 15) - 7 : 0;
+  const freshness = formatFeedFreshness(lastUpdated, connection);
+  const statusText = sessionId ? `${sessionId} · ${freshness}` : freshness;
 
   return (
     <section className="glass-card match-centre-card">
       <div className="match-centre-head">
         <div>
           <div className="panel-kicker">Now Showing</div>
-          <h2 className="panel-title-xl">{formatStatusLabel(scoreboard?.status)}</h2>
+          <h2 className="panel-title-xl">{formatStatusTitle(scoreboard, connection)}</h2>
         </div>
         <div className="match-centre-status">
-          <span className="live-signal-dot" />
-          {formatUpdated(lastUpdated)}
+          <span className={`live-signal-dot ${connection}`} />
+          {statusText}
         </div>
       </div>
 

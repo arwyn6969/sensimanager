@@ -25,6 +25,22 @@ if _scripts_dir not in sys.path:
 import stream_league  # noqa: E402
 
 
+def _result_signature(result: stream_league.MatchResult) -> tuple:
+    return (
+        result.home_team,
+        result.away_team,
+        result.home_goals,
+        result.away_goals,
+        round(result.home_xg, 2),
+        round(result.away_xg, 2),
+        result.home_formation,
+        result.away_formation,
+        result.home_style,
+        result.away_style,
+        result.match_narrative,
+    )
+
+
 def _make_stream_squad(
     prefix: str,
     *,
@@ -137,6 +153,7 @@ class TestScoreboardJSON:
         assert data["away_goals"] == 1
         assert data["minute"] == 67
         assert data["status"] == "live"
+        assert data["updated_at"].endswith("Z")
 
     def test_write_scoreboard_prematch(self, tmp_path):
         scoreboard_path = tmp_path / "scoreboard.json"
@@ -147,6 +164,7 @@ class TestScoreboardJSON:
         data = json.loads(scoreboard_path.read_text())
         assert data["status"] == "prematch"
         assert data["home_goals"] == 0
+        assert data["updated_at"].endswith("Z")
 
 
 class TestEventsJSON:
@@ -161,6 +179,7 @@ class TestEventsJSON:
         assert data["count"] == 2
         assert len(data["lines"]) == 2
         assert "Haaland" in data["lines"][0]
+        assert data["updated_at"].endswith("Z")
 
     def test_write_empty_events(self, tmp_path):
         events_path = tmp_path / "events.json"
@@ -170,6 +189,7 @@ class TestEventsJSON:
 
         data = json.loads(events_path.read_text())
         assert data["count"] == 0
+        assert data["updated_at"].endswith("Z")
 
     def test_write_events_supports_structured_payload(self, tmp_path):
         events_path = tmp_path / "events.json"
@@ -183,6 +203,7 @@ class TestEventsJSON:
         data = json.loads(events_path.read_text())
         assert data["events"][0]["event_type"] == "goal"
         assert data["summary"]["xg"].startswith("xG:")
+        assert data["updated_at"].endswith("Z")
 
 
 class TestTableJSON:
@@ -216,6 +237,7 @@ class TestTableJSON:
         data = json.loads(table_path.read_text())
         assert data["rows"][0]["team"] == "Arsenal"
         assert data["meta"]["season_id"] == "25/26"
+        assert data["meta"]["updated_at"].endswith("Z")
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -354,6 +376,7 @@ class TestPressureHooks:
              patch.object(stream_league, "EVENTS_PATH", events_path):
             stream_league._persist_live_state(
                 result=result,
+                session_id="seed-420-demo",
                 season_id="25/26",
                 matchday_idx=1,
                 minute=0,
@@ -372,6 +395,12 @@ class TestPressureHooks:
         assert data["pressure_note"] == "Title pressure: this one matters."
         assert data["pressure_tone"] == "title"
         assert data["story"] == "Title pressure: this one matters."
+        assert data["session_id"] == "seed-420-demo"
+        assert data["updated_at"].endswith("Z")
+
+        events_data = json.loads(events_path.read_text())
+        assert events_data["session_id"] == "seed-420-demo"
+        assert events_data["updated_at"].endswith("Z")
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -440,6 +469,62 @@ class TestRunStream:
             )
 
         assert len(results) == 12
+
+    def test_matchdays_limit_truncates_fixture_list(self, tmp_path):
+        with patch.object(stream_league, "STREAMING_DIR", tmp_path), \
+             patch.object(stream_league, "SCOREBOARD_PATH", tmp_path / "scoreboard.json"), \
+             patch.object(stream_league, "EVENTS_PATH", tmp_path / "events.json"), \
+             patch.object(stream_league, "TABLE_PATH", tmp_path / "table.json"):
+            results = stream_league.run_stream(
+                seasons=1,
+                num_teams=4,
+                matchdays=2,
+                pace=0,
+                dry_run=True,
+                source="demo",
+                seed=420,
+            )
+
+        assert len(results) == 4
+
+    def test_seeded_dry_run_is_deterministic(self, tmp_path):
+        def run_once(run_dir: Path) -> tuple[list[tuple], dict, dict, dict]:
+            run_dir.mkdir()
+            scoreboard_path = run_dir / "scoreboard.json"
+            events_path = run_dir / "events.json"
+            table_path = run_dir / "table.json"
+
+            with patch.object(stream_league, "STREAMING_DIR", run_dir), \
+                 patch.object(stream_league, "SCOREBOARD_PATH", scoreboard_path), \
+                 patch.object(stream_league, "EVENTS_PATH", events_path), \
+                 patch.object(stream_league, "TABLE_PATH", table_path):
+                results = stream_league.run_stream(
+                    seasons=1,
+                    num_teams=4,
+                    matchdays=2,
+                    pace=0,
+                    dry_run=True,
+                    source="demo",
+                    seed=420,
+                )
+
+            return (
+                [_result_signature(result) for result in results],
+                json.loads(scoreboard_path.read_text()),
+                json.loads(events_path.read_text()),
+                json.loads(table_path.read_text()),
+            )
+
+        first_results, first_scoreboard, first_events, first_table = run_once(tmp_path / "run-one")
+        second_results, second_scoreboard, second_events, second_table = run_once(tmp_path / "run-two")
+
+        assert first_results == second_results
+        assert first_scoreboard["session_id"] == second_scoreboard["session_id"]
+        assert first_events["session_id"] == second_events["session_id"]
+        assert first_table["meta"]["session_id"] == second_table["meta"]["session_id"]
+        assert first_scoreboard["home_formation"] == second_scoreboard["home_formation"]
+        assert first_scoreboard["away_style"] == second_scoreboard["away_style"]
+        assert first_scoreboard["updated_at"] != second_scoreboard["updated_at"]
 
     def test_dry_run_produces_varied_identity_combinations(self, tmp_path):
         with patch.object(stream_league, "STREAMING_DIR", tmp_path), \

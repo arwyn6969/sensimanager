@@ -18,13 +18,19 @@ Usage:
 from __future__ import annotations
 
 import argparse
+from datetime import datetime, timezone
+import hashlib
 import json
 import logging
+import random
 import sys
 import time
+import uuid
 from dataclasses import asdict
 from pathlib import Path
 from typing import Any
+
+import numpy as np
 
 # Ensure src/ is on the path when running as a script
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
@@ -68,6 +74,33 @@ DEMO_ARCHETYPES = [
     {"key": "wide", "formation": "3-4-3"},
     {"key": "balanced", "formation": "4-2-3-1"},
 ]
+
+
+def _utc_timestamp() -> str:
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def _seed_everything(seed: int | None) -> None:
+    if seed is None:
+        return
+    random.seed(seed)
+    np.random.seed(seed % (2**32))
+
+
+def _build_session_id(
+    *,
+    seed: int | None,
+    seasons: int,
+    num_teams: int,
+    source: str,
+    matchdays: int | None,
+) -> str:
+    if seed is None:
+        return f"live-{uuid.uuid4().hex[:12]}"
+
+    descriptor = f"{seed}:{seasons}:{num_teams}:{source}:{matchdays or 'full'}"
+    digest = hashlib.sha1(descriptor.encode("utf-8")).hexdigest()[:8]
+    return f"seed-{seed}-{digest}"
 
 
 def _demo_archetype(index: int) -> dict[str, str]:
@@ -487,6 +520,7 @@ def write_scoreboard(
         "away_goals": away_goals,
         "minute": minute,
         "status": status,
+        "updated_at": _utc_timestamp(),
     }
     if extra:
         data.update(extra)
@@ -497,17 +531,21 @@ def write_events(
     lines: list[str],
     events: list[dict[str, Any]] | None = None,
     summary: dict[str, Any] | None = None,
+    meta: dict[str, Any] | None = None,
 ) -> None:
     """Write commentary feed to JSON for OBS/frontend consumption."""
     data: dict[str, Any] = {
         "lines": lines,
         "count": len(lines),
+        "updated_at": _utc_timestamp(),
     }
     if events is not None:
         data["events"] = events
         data["latest"] = events[-1] if events else None
     if summary is not None:
         data["summary"] = summary
+    if meta is not None:
+        data.update(meta)
     _write_runtime_json(EVENTS_PATH, data)
 
 
@@ -515,7 +553,7 @@ def write_table(standings: dict[str, dict], meta: dict[str, Any] | None = None) 
     """Write league table to JSON for OBS/frontend consumption."""
     payload: Any = _sorted_standings(standings)
     if meta:
-        payload = {"rows": payload, "meta": meta}
+        payload = {"rows": payload, "meta": {"updated_at": _utc_timestamp(), **meta}}
     _write_runtime_json(TABLE_PATH, payload)
 
 
@@ -610,6 +648,7 @@ def _update_standings(standings: dict[str, dict], result: MatchResult) -> None:
 def _persist_live_state(
     *,
     result: MatchResult,
+    session_id: str,
     season_id: str,
     matchday_idx: int,
     minute: int,
@@ -635,6 +674,7 @@ def _persist_live_state(
         status=status,
         extra={
             "competition": "SWOS420 League",
+            "session_id": session_id,
             "season_id": season_id,
             "matchday": matchday_idx,
             "weather": result.weather,
@@ -658,6 +698,7 @@ def _persist_live_state(
         [beat.text for beat in displayed_beats],
         events=_beats_to_event_payload(displayed_beats),
         summary=_summary_from_beats(result, displayed_beats),
+        meta={"session_id": session_id},
     )
 
 
@@ -665,6 +706,7 @@ def _play_stream_match(
     *,
     result: MatchResult,
     commentary_gen: LLMCommentaryGenerator,
+    session_id: str,
     season_id: str,
     matchday_idx: int,
     standings: dict[str, dict],
@@ -696,6 +738,7 @@ def _play_stream_match(
 
     _persist_live_state(
         result=result,
+        session_id=session_id,
         season_id=season_id,
         matchday_idx=matchday_idx,
         minute=0,
@@ -725,6 +768,7 @@ def _play_stream_match(
 
         _persist_live_state(
             result=result,
+            session_id=session_id,
             season_id=season_id,
             matchday_idx=matchday_idx,
             minute=minute,
@@ -742,6 +786,7 @@ def _play_stream_match(
 
     _persist_live_state(
         result=result,
+        session_id=session_id,
         season_id=season_id,
         matchday_idx=matchday_idx,
         minute=90,
@@ -757,6 +802,8 @@ def _play_stream_match(
 def run_stream(
     seasons: int = 1,
     num_teams: int = 8,
+    matchdays: int | None = None,
+    seed: int | None = None,
     pace: float = 1.5,
     dry_run: bool = False,
     personality: str = "dramatic",
@@ -766,8 +813,16 @@ def run_stream(
     min_squad_size: int = 11,
 ) -> list[MatchResult]:
     """Run the autonomous streaming league and return all match results."""
+    _seed_everything(seed)
     sim = MatchSimulator()
     commentary_gen = LLMCommentaryGenerator(personality=personality)
+    session_id = _build_session_id(
+        seed=seed,
+        seasons=seasons,
+        num_teams=num_teams,
+        source=source,
+        matchdays=matchdays,
+    )
 
     all_results: list[MatchResult] = []
 
@@ -785,15 +840,25 @@ def run_stream(
         print(f"\n{'=' * 60}")
         print(f"🏆 SWOS420 LEAGUE — SEASON {season_id}")
         print(f"📦 Squad source: {source_used}")
+        print(f"🆔 Session: {session_id}")
+        if seed is not None:
+            print(f"🎯 Seed: {seed}")
         print(f"{'=' * 60}\n")
 
         standings = _initialize_standings(team_names)
         fixtures = generate_round_robin(team_names)
+        if matchdays is not None:
+            fixtures = fixtures[:max(0, matchdays)]
         season_results: list[MatchResult] = []
 
         write_table(
             standings,
-            meta={"season_id": season_id, "source": source_used, "matchday": 0},
+            meta={
+                "season_id": season_id,
+                "source": source_used,
+                "matchday": 0,
+                "session_id": session_id,
+            },
         )
 
         for matchday_idx, matchday in enumerate(fixtures, 1):
@@ -827,6 +892,7 @@ def run_stream(
                 _play_stream_match(
                     result=result,
                     commentary_gen=commentary_gen,
+                    session_id=session_id,
                     season_id=season_id,
                     matchday_idx=matchday_idx,
                     standings=standings,
@@ -848,6 +914,7 @@ def run_stream(
                         "season_id": season_id,
                         "source": source_used,
                         "matchday": matchday_idx,
+                        "session_id": session_id,
                     },
                 )
 
@@ -898,6 +965,14 @@ def main() -> None:
         help="Number of teams in the league (default: 8)",
     )
     parser.add_argument(
+        "--matchdays", type=int, default=None,
+        help="Stop after N matchdays instead of running the full season",
+    )
+    parser.add_argument(
+        "--seed", type=int, default=None,
+        help="Seed the stream runner for deterministic demo/testing runs",
+    )
+    parser.add_argument(
         "--pace", type=float, default=1.5,
         help="Intermission pacing in seconds (default: 1.5)",
     )
@@ -942,6 +1017,8 @@ def main() -> None:
     run_stream(
         seasons=args.seasons,
         num_teams=args.num_teams,
+        matchdays=args.matchdays,
+        seed=args.seed,
         pace=args.pace,
         dry_run=args.dry_run,
         personality=args.personality,

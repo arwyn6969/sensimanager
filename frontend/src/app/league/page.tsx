@@ -3,15 +3,22 @@
 import { StreamCommentaryPanel } from "@/components/StreamCommentaryPanel";
 import { StreamLeagueTable } from "@/components/StreamLeagueTable";
 import { useStreamState } from "@/hooks/useStreamState";
-import { classifyEventLine, findSummaryLine, normalizeEventLines } from "@/lib/stream";
+import {
+  classifyEventLine,
+  findSummaryLine,
+  formatConnectionLabel,
+  normalizeEventLines,
+} from "@/lib/stream";
 
 export default function LeaguePage() {
-  const { table, events, connection } = useStreamState();
+  const { table, events, connection, sessionId } = useStreamState();
   const lines = normalizeEventLines(events?.lines ?? []);
   const xgLine = events?.summary?.xg ?? findSummaryLine(lines, "xG:");
   const goals = lines.filter((line) => classifyEventLine(line) === "goal").length;
   const leader = table[0];
   const cellar = table[table.length - 1];
+  const connectionClass =
+    connection === "live" ? "active" : connection === "stale" ? "stale" : "registration";
 
   return (
     <>
@@ -22,10 +29,11 @@ export default function LeaguePage() {
           matchday notes feeding the table.
         </div>
         <div className="watch-header-chips">
-          <span className={`season-badge ${connection === "live" ? "active" : "registration"}`}>
+          <span className={`season-badge ${connectionClass}`}>
             {connection === "live" && <span className="live-dot" />}
-            {connection === "live" ? "Live standings" : "Waiting for feed"}
+            {formatConnectionLabel(connection)}
           </span>
+          {sessionId && <span className="header-pill">Session {sessionId}</span>}
           {xgLine && <span className="header-pill">{xgLine}</span>}
         </div>
       </div>

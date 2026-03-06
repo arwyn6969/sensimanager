@@ -88,52 +88,52 @@ const STYLE_PROFILES = {
     boxDelay: 1,
   },
   "compact defending": {
-    width: 0.82,
-    depth: 0.86,
-    support: 0.82,
-    press: 0.9,
-    verticality: 0.9,
-    shortPassBias: 1,
-    wideBias: 0.24,
-    crossBias: 0.28,
-    breakaway: 0.92,
-    boxDelay: 1.12,
-  },
-  "patient possession": {
-    width: 1.16,
-    depth: 1.02,
-    support: 1.08,
-    press: 1.02,
-    verticality: 0.84,
-    shortPassBias: 1.24,
-    wideBias: 0.58,
-    crossBias: 0.34,
-    breakaway: 0.96,
+    width: 0.74,
+    depth: 0.8,
+    support: 0.76,
+    press: 0.88,
+    verticality: 0.82,
+    shortPassBias: 1.04,
+    wideBias: 0.18,
+    crossBias: 0.24,
+    breakaway: 0.88,
     boxDelay: 1.18,
   },
-  "direct transition": {
-    width: 1.02,
-    depth: 1.08,
+  "patient possession": {
+    width: 1.24,
+    depth: 0.98,
     support: 1.14,
+    press: 1,
+    verticality: 0.78,
+    shortPassBias: 1.34,
+    wideBias: 0.66,
+    crossBias: 0.28,
+    breakaway: 0.92,
+    boxDelay: 1.24,
+  },
+  "direct transition": {
+    width: 0.98,
+    depth: 1.14,
+    support: 1.18,
     press: 1.08,
-    verticality: 1.24,
-    shortPassBias: 0.86,
-    wideBias: 0.44,
-    crossBias: 0.42,
-    breakaway: 1.24,
-    boxDelay: 0.84,
+    verticality: 1.34,
+    shortPassBias: 0.78,
+    wideBias: 0.36,
+    crossBias: 0.38,
+    breakaway: 1.36,
+    boxDelay: 0.78,
   },
   "wing-heavy attacks": {
-    width: 1.22,
-    depth: 1.06,
-    support: 1.08,
+    width: 1.36,
+    depth: 1.1,
+    support: 1.12,
     press: 1,
-    verticality: 1.02,
-    shortPassBias: 0.96,
-    wideBias: 1.2,
-    crossBias: 1.16,
-    breakaway: 1.08,
-    boxDelay: 0.94,
+    verticality: 1.04,
+    shortPassBias: 0.92,
+    wideBias: 1.38,
+    crossBias: 1.34,
+    breakaway: 1.14,
+    boxDelay: 0.9,
   },
 };
 
@@ -170,10 +170,11 @@ class SWOSEngine {
     this.loadedImages = 0;
     this.lastTimestamp = 0;
     this.lastAppliedEventKey = "";
+    this.randomState = 0x42042042;
     this.possessionTeam = "home";
     this.sequence = null;
     this.visualPulse = { type: "", team: null, strength: 0, expiresAt: 0 };
-    this.weatherFx = { raining: false, rain: [], wind: 0 };
+    this.weatherFx = { raining: false, rain: [], wind: 0, mode: "dry" };
     this.liveState = {
       status: "waiting",
       minute: 0,
@@ -189,6 +190,7 @@ class SWOSEngine {
       pressureNote: "",
       weather: "dry",
       story: "",
+      sessionId: "",
       latestEvent: null,
     };
 
@@ -211,6 +213,32 @@ class SWOSEngine {
     return Math.min(max, Math.max(min, value));
   }
 
+  hashString(value) {
+    let hash = 2166136261;
+    const text = String(value || "swos420");
+    for (let index = 0; index < text.length; index += 1) {
+      hash ^= text.charCodeAt(index);
+      hash = Math.imul(hash, 16777619);
+    }
+    return hash >>> 0;
+  }
+
+  setRandomSeed(seed) {
+    this.randomState = (seed >>> 0) || 0x42042042;
+  }
+
+  rand() {
+    this.randomState = (this.randomState + 0x6d2b79f5) >>> 0;
+    let next = this.randomState;
+    next = Math.imul(next ^ (next >>> 15), next | 1);
+    next ^= next + Math.imul(next ^ (next >>> 7), next | 61);
+    return ((next ^ (next >>> 14)) >>> 0) / 4294967296;
+  }
+
+  randRange(min, max) {
+    return min + (max - min) * this.rand();
+  }
+
   otherTeam(team) {
     return team === "away" ? "home" : "away";
   }
@@ -219,6 +247,7 @@ class SWOSEngine {
     const normalized = String(status || "waiting").toLowerCase();
     if (normalized === "ft") return "fulltime";
     if (normalized === "ht") return "halftime";
+    if (normalized === "stale" || normalized === "offline") return "waiting";
     if (normalized === "live" || normalized === "prematch" || normalized === "halftime" || normalized === "fulltime") {
       return normalized;
     }
@@ -350,27 +379,32 @@ class SWOSEngine {
       y,
       tx: x,
       ty: y,
-      speed: 2.2 + Math.random() * 1.2,
-      stride: Math.random() * Math.PI * 2,
+      speed: 2.2 + this.rand() * 1.2,
+      stride: this.rand() * Math.PI * 2,
       aura: team === "home" ? "rgba(0, 176, 255, 0.26)" : "rgba(255, 215, 64, 0.28)",
     };
   }
 
   createRainDrop() {
     return {
-      x: Math.random() * this.width,
-      y: Math.random() * this.height,
-      speed: 18 + Math.random() * 16,
-      length: 18 + Math.random() * 20,
+      x: this.rand() * this.width,
+      y: this.rand() * this.height,
+      speed: 18 + this.rand() * 16,
+      length: 18 + this.rand() * 20,
     };
   }
 
   configureWeather(weather) {
     const weatherText = String(weather || "").toLowerCase();
+    if (weatherText === this.weatherFx.mode) {
+      return;
+    }
+
     const raining = /(rain|wet|storm)/.test(weatherText);
     this.weatherFx.raining = raining;
+    this.weatherFx.mode = weatherText;
     this.weatherFx.wind = /(wind|storm)/.test(weatherText)
-      ? (Math.random() < 0.5 ? -1 : 1) * (0.08 + Math.random() * 0.08)
+      ? (this.rand() < 0.5 ? -1 : 1) * (0.08 + this.rand() * 0.08)
       : 0;
 
     if (raining && this.weatherFx.rain.length === 0) {
@@ -433,11 +467,14 @@ class SWOSEngine {
   syncBroadcast(snapshot = {}) {
     const status = this.normalizeStatus(snapshot.status ?? this.liveState.status);
     const latestEvent = snapshot.latestEvent ?? this.liveState.latestEvent ?? null;
+    const sessionId = snapshot.sessionId ?? this.liveState.sessionId ?? "";
+    const sessionChanged = sessionId && sessionId !== this.liveState.sessionId;
 
     this.liveState = {
       ...this.liveState,
       ...snapshot,
       status,
+      sessionId,
       latestEvent,
       homeFormation: this.normalizeFormation(snapshot.homeFormation ?? this.liveState.homeFormation),
       awayFormation: this.normalizeFormation(snapshot.awayFormation ?? this.liveState.awayFormation),
@@ -445,10 +482,24 @@ class SWOSEngine {
       awayStyle: this.normalizeStyle(snapshot.awayStyle ?? this.liveState.awayStyle),
     };
 
+    if (sessionChanged) {
+      this.setRandomSeed(this.hashString(sessionId));
+      this.players = [];
+      this.ball = this.createBall();
+      this.matchState = "waiting";
+      this.sequence = null;
+      this.lastAppliedEventKey = "";
+      this.visualPulse = { type: "", team: null, strength: 0, expiresAt: 0 };
+      this.weatherFx = { raining: false, rain: [], wind: 0, mode: "" };
+    }
+
     this.configureWeather(this.liveState.weather);
 
-    if (!this.players.length) return;
-    this.refreshShapeAnchors(status !== "live");
+    if (!this.players.length) {
+      this.refreshShapeAnchors(true);
+    } else {
+      this.refreshShapeAnchors(status !== "live");
+    }
 
     if (status === "live" && (this.matchState === "waiting" || this.matchState === "prematch")) {
       this.resetForKickoff(this.pickRestartTeam());
@@ -532,7 +583,7 @@ class SWOSEngine {
     if (this.matchState === "goal_celebration") return;
 
     const anchorX = this.width * (attackingTeam === "home" ? 0.68 : 0.32);
-    const anchorY = this.height * (0.35 + Math.random() * 0.3);
+    const anchorY = this.height * (0.3 + this.rand() * 0.4);
     this.sequence = {
       kind,
       team: attackingTeam,
@@ -571,7 +622,7 @@ class SWOSEngine {
     if (!striker) return;
 
     striker.x = scorerTeam === "home" ? this.width * 0.72 : this.width * 0.28;
-    striker.y = this.height * (0.36 + Math.random() * 0.28);
+    striker.y = this.height * (0.32 + this.rand() * 0.36);
     striker.tx = striker.x;
     striker.ty = striker.y;
 
@@ -589,9 +640,9 @@ class SWOSEngine {
       team: scorerTeam,
       scorer: striker,
       celebrationX: scorerTeam === "home" ? this.width * 0.84 : this.width * 0.16,
-      celebrationY: this.height * (0.2 + Math.random() * 0.6),
+      celebrationY: this.height * (0.18 + this.rand() * 0.64),
       targetX: scorerTeam === "home" ? this.width + 24 : -24,
-      targetY: this.height / 2 + (Math.random() * 180 - 90),
+      targetY: this.height / 2 + (this.rand() * 180 - 90),
       shotAt: performance.now() + 320,
       shotFired: false,
       expiresAt: performance.now() + 3200,
@@ -679,7 +730,7 @@ class SWOSEngine {
       drop.x += this.weatherFx.wind * 32;
       drop.y += drop.speed;
       if (drop.y > this.height + drop.length || drop.x < -20 || drop.x > this.width + 20) {
-        drop.x = Math.random() * this.width;
+        drop.x = this.rand() * this.width;
         drop.y = -drop.length;
       }
     });
@@ -751,7 +802,7 @@ class SWOSEngine {
     const angle = Math.atan2(targetY - player.y, targetX - player.x);
     this.ball.vx = Math.cos(angle) * power;
     this.ball.vy = Math.sin(angle) * power;
-    this.ball.vz = 8 + Math.random() * 4;
+    this.ball.vz = 8 + this.rand() * 4;
   }
 
   passBall(player, teammate) {
@@ -761,7 +812,7 @@ class SWOSEngine {
     const power = this.clamp(distance / 18, 12, 26);
     this.ball.vx = Math.cos(angle) * power;
     this.ball.vy = Math.sin(angle) * power;
-    this.ball.vz = 3 + Math.random() * 2;
+    this.ball.vz = 3 + this.rand() * 2;
   }
 
   bestPassTarget(player, mode = "build") {
@@ -793,14 +844,14 @@ class SWOSEngine {
           score += 0.25 * profile.verticality;
         }
 
-        score += Math.random() * 0.1;
+        score += this.rand() * 0.1;
         return { candidate, score };
       })
       .sort((left, right) => right.score - left.score);
 
     if (ranked.length === 0) return null;
     const pool = ranked.slice(0, Math.min(3, ranked.length));
-    return pool[Math.floor(Math.random() * pool.length)].candidate;
+    return pool[Math.floor(this.rand() * pool.length)].candidate;
   }
 
   updateBallPhysics(focusTeam) {
@@ -897,21 +948,21 @@ class SWOSEngine {
           * (0.9 + profile.verticality * 0.45)
           * (this.isStrikerRole(player.role) ? 1.3 : 1);
 
-        if (Math.random() < actionRate) {
+        if (this.rand() < actionRate) {
           const wideCrossZone = this.isWideRole(player.role)
             && ((player.team === "home" && player.x > this.width * 0.62)
               || (player.team === "away" && player.x < this.width * 0.38));
           const shootWindow = distanceToGoal < (profile.shortPassBias > 1 ? 330 : 400)
             || (context.lateFactor > 0.76 && urgency > 1.02);
 
-          if (wideCrossZone && Math.random() < 0.34 * profile.crossBias) {
+          if (wideCrossZone && this.rand() < 0.34 * profile.crossBias) {
             const crossTarget = this.bestPassTarget(player, "cross");
             if (crossTarget) this.passBall(player, crossTarget);
-          } else if (shootWindow && Math.random() > 0.46 * profile.shortPassBias) {
+          } else if (shootWindow && this.rand() > 0.46 * profile.shortPassBias) {
             this.shootBall(
               player,
               player.team === "home" ? this.width + 30 : -30,
-              this.height / 2 + (Math.random() * 180 - 90),
+              this.height / 2 + (this.rand() * 180 - 90),
               24 + context.intensity * 6 + profile.verticality * 2,
             );
           } else {

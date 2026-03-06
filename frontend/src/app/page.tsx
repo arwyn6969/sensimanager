@@ -9,6 +9,7 @@ import { useStreamState } from "@/hooks/useStreamState";
 import { STREAM_URL } from "@/lib/contracts";
 import {
   classifyEventLine,
+  formatConnectionLabel,
   findSummaryLine,
   latestNarrativeLine,
   makeStreamUrl,
@@ -16,7 +17,7 @@ import {
 } from "@/lib/stream";
 
 export default function DashboardPage() {
-  const { scoreboard, events, table, connection, lastUpdated } = useStreamState();
+  const { scoreboard, events, table, connection, lastUpdated, sessionId } = useStreamState();
   const lines = normalizeEventLines(events?.lines ?? []);
   const pressureNote = scoreboard?.pressure_note ?? null;
   const latestEvent = pressureNote ?? scoreboard?.story ?? events?.latest?.text ?? latestNarrativeLine(lines);
@@ -37,6 +38,9 @@ export default function DashboardPage() {
   const pressureSummary = pressureNote ?? "Table pressure will appear when the live feed has standings context.";
   const tableHeat =
     titleRace.map((team) => team.team).join(" · ") || "Waiting";
+  const connectionClass =
+    connection === "live" ? "active" : connection === "stale" ? "stale" : "registration";
+  const previewAvailable = connection !== "offline";
 
   return (
     <>
@@ -49,10 +53,11 @@ export default function DashboardPage() {
           </div>
         </div>
         <div className="watch-header-chips">
-          <span className={`season-badge ${connection === "live" ? "active" : "registration"}`}>
+          <span className={`season-badge ${connectionClass}`}>
             {connection === "live" && <span className="live-dot" />}
-            {connection === "live" ? "Feed Connected" : "Feed Offline"}
+            {formatConnectionLabel(connection)}
           </span>
+          {sessionId && <span className="header-pill">Session {sessionId}</span>}
           <span className="header-pill">
             {leader ? `Leader ${leader.team} • ${leader.points} pts` : "Standings waiting"}
           </span>
@@ -65,7 +70,9 @@ export default function DashboardPage() {
           latestEvent={latestEvent}
           xgLine={xgLine}
           motmLine={motmLine}
+          connection={connection}
           lastUpdated={lastUpdated}
+          sessionId={sessionId}
         />
 
         <div className="broadcast-side-stack">
@@ -80,7 +87,7 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {connection === "live" ? (
+            {previewAvailable ? (
               <iframe
                 className="watch-frame"
                 src={makeStreamUrl(STREAM_URL, "overlay.html")}

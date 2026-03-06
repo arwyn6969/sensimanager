@@ -454,6 +454,26 @@ class TestCommentaryTimeline:
         assert "patient possession" in tactical_beat.text.lower()
         assert "wing-heavy attacks" in tactical_beat.text.lower()
 
+    def test_generate_commentary_surfaces_shape_and_halftime_tactical_lines(self):
+        result = _make_result(
+            home_formation="4-3-3",
+            away_formation="5-4-1",
+            home_style="patient possession",
+            away_style="compact defending",
+        )
+
+        lines = generate_commentary(result)
+        text = "\n".join(lines).lower()
+
+        assert "4-3-3" in text
+        assert "5-4-1" in text
+        assert "half time" in text or "break" in text
+        assert (
+            "patient possession" in text
+            or "compact defending" in text
+            or "styles are still clashing" in text
+        )
+
 
 # ═══════════════════════════════════════════════════════════════════════
 # Helper Function Tests

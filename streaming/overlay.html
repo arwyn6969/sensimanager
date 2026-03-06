@@ -113,6 +113,11 @@ body {
   animation: none;
 }
 
+#live-indicator.stale .dot {
+  background: #ffd740;
+  box-shadow: 0 0 16px rgba(255, 215, 64, 0.36);
+}
+
 @keyframes pulse {
   0%, 100% { opacity: 1; transform: scale(1); }
   50% { opacity: 0.35; transform: scale(0.7); }
@@ -154,6 +159,11 @@ body {
 }
 
 #status-chip.settled {
+  background: rgba(255, 215, 64, 0.12);
+  color: #ffd740;
+}
+
+#status-chip.stale {
   background: rgba(255, 215, 64, 0.12);
   color: #ffd740;
 }
@@ -600,6 +610,7 @@ window.addEventListener("resize", resizeOverlay);
 resizeOverlay();
 
 const POLL_MS = 1000;
+const STALE_AFTER_MS = 8000;
 const MAX_LINES = 8;
 const BASE_URL = window.location.origin;
 const RUNTIME_DIR = "runtime";
@@ -609,6 +620,7 @@ let prevAwayGoals = -1;
 let lastEventCount = 0;
 let scoreboardState = null;
 let commentaryState = null;
+let tableState = null;
 
 function classifyLine(line) {
   const lower = line.toLowerCase();
@@ -637,6 +649,78 @@ function extractMinute(line) {
 
 function latestStory(lines) {
   return [...lines].reverse().find((line) => !line.startsWith("xG:") && !line.startsWith("⭐")) || null;
+}
+
+function parseTimestamp(value) {
+  const parsed = Date.parse(value || "");
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function currentTableRows(data = tableState) {
+  if (!data) return [];
+  return Array.isArray(data) ? data : data.rows || [];
+}
+
+function currentTableMeta(data = tableState) {
+  if (!data || Array.isArray(data)) return null;
+  return data.meta || null;
+}
+
+function currentSessionId() {
+  return scoreboardState?.session_id || commentaryState?.session_id || currentTableMeta()?.session_id || "";
+}
+
+function getFeedFreshness(now = Date.now()) {
+  const updatedAt = [
+    parseTimestamp(scoreboardState?.updated_at),
+    parseTimestamp(commentaryState?.updated_at),
+    parseTimestamp(currentTableMeta()?.updated_at),
+  ].filter((value) => value !== null);
+
+  if (updatedAt.length === 0) {
+    return { connection: "offline", updatedAt: null, ageMs: null };
+  }
+
+  const newest = Math.max(...updatedAt);
+  return {
+    connection: now - newest > STALE_AFTER_MS ? "stale" : "live",
+    updatedAt: newest,
+    ageMs: Math.max(0, now - newest),
+  };
+}
+
+function formatFeedFreshness(freshness) {
+  if (freshness.connection === "offline") return "waiting for stream";
+  const ageSeconds = Math.max(0, Math.round((freshness.ageMs || 0) / 1000));
+  if (freshness.connection === "stale") return `stale · ${ageSeconds}s old`;
+  return ageSeconds <= 1 ? "updated just now" : `${ageSeconds}s behind`;
+}
+
+function refreshFeedChrome() {
+  const freshness = getFeedFreshness();
+  const effectiveStatus = freshness.connection === "live"
+    ? (scoreboardState?.status || "")
+    : freshness.connection;
+
+  setStatus(effectiveStatus.toLowerCase());
+
+  const matchMeta = document.getElementById("match-meta");
+  if (!scoreboardState) {
+    matchMeta.textContent = "The overlay reacts to scoreboard, table, and event JSON updates.";
+    return freshness;
+  }
+
+  const parts = [
+    `${scoreboardState.home_team || "Home"} ${scoreboardState.home_goals ?? 0} - ${scoreboardState.away_goals ?? 0} ${scoreboardState.away_team || "Away"}`,
+    `${scoreboardState.weather || "dry"} conditions`,
+    formatFeedFreshness(freshness),
+  ];
+  const sessionId = currentSessionId();
+  if (sessionId) {
+    parts.push(sessionId);
+  }
+  matchMeta.textContent = parts.join(" · ");
+  return freshness;
 }
 
 async function fetchJSON(path) {
@@ -693,8 +777,11 @@ function syncEngine(extra = {}) {
   if (!window.swosEngine || !scoreboardState) return;
 
   const latestEvent = extra.latestEvent || currentLatestEvent();
+  const freshness = getFeedFreshness();
   window.swosEngine.syncBroadcast({
-    status: (scoreboardState.status || "").toLowerCase(),
+    status: freshness.connection === "live"
+      ? (scoreboardState.status || "").toLowerCase()
+      : freshness.connection,
     minute: scoreboardState.minute || 0,
     homeGoals: scoreboardState.home_goals ?? 0,
     awayGoals: scoreboardState.away_goals ?? 0,
@@ -708,6 +795,7 @@ function syncEngine(extra = {}) {
     pressureNote: scoreboardState.pressure_note || "",
     weather: scoreboardState.weather || commentaryState?.summary?.weather || "dry",
     story: scoreboardState.story || latestEvent?.text || "",
+    sessionId: currentSessionId(),
     latestEvent,
     eventKey: extra.eventKey || buildEventKey(latestEvent),
   });
@@ -721,12 +809,19 @@ function setStatus(status) {
 
   statusChip.className = "";
   statusChip.id = "status-chip";
+  liveIndicator.classList.remove("dormant", "stale");
 
   if (status === "live") {
     statusChip.textContent = "Live Match";
     liveIndicator.classList.remove("dormant");
     liveText.textContent = "Live";
     clock.style.color = "#00e676";
+  } else if (status === "stale") {
+    statusChip.textContent = "Feed Stale";
+    statusChip.classList.add("stale");
+    liveIndicator.classList.add("stale");
+    liveText.textContent = "Stale";
+    clock.style.color = "#ffd740";
   } else if (status === "prematch") {
     statusChip.textContent = "Kickoff Soon";
     statusChip.classList.add("waiting");
@@ -789,16 +884,20 @@ async function updateScoreboard() {
   else if (status === "halftime" || status === "ht") clock.textContent = "HT";
   else clock.textContent = `${data.minute || 0}'`;
 
-  document.getElementById("round-chip").textContent = `Minute ${data.minute || 0}`;
-  document.getElementById("match-meta").textContent = `${data.home_team || "Home"} ${data.home_goals ?? 0} - ${data.away_goals ?? 0} ${data.away_team || "Away"} · ${data.weather || "dry"} conditions`;
+  document.getElementById("round-chip").textContent = data.matchday
+    ? `MD ${data.matchday} · ${data.minute || 0}'`
+    : `Minute ${data.minute || 0}`;
   document.getElementById("match-style-meta").textContent = buildIdentityLine(data);
   document.getElementById("story-text").textContent = data.pressure_note || data.story || "The stream is idle. Start the runner to begin the matchday narrative.";
-  setStatus(status);
+  refreshFeedChrome();
   syncEngine();
 }
 
 async function updateTable() {
   const data = await fetchJSON("table.json");
+  if (data) {
+    tableState = data;
+  }
   const rows = Array.isArray(data) ? data : data?.rows;
   if (!rows || !Array.isArray(rows) || rows.length === 0) return;
 
@@ -840,11 +939,13 @@ async function updateCommentary() {
   if (!data) return;
   commentaryState = data;
   if (!Array.isArray(data.lines) || data.lines.length === 0) {
+    refreshFeedChrome();
     syncEngine();
     return;
   }
 
   if (data.count === lastEventCount) {
+    refreshFeedChrome();
     syncEngine();
     return;
   }
@@ -884,6 +985,7 @@ async function updateCommentary() {
     container.appendChild(article);
   });
 
+  refreshFeedChrome();
   syncEngine();
 }
 
@@ -893,6 +995,8 @@ async function poll() {
     updateTable(),
     updateCommentary(),
   ]);
+  refreshFeedChrome();
+  syncEngine();
 }
 
 poll();
