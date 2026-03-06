@@ -39,6 +39,8 @@ def _make_result(
     events: list[MatchEvent] | None = None,
     home_team: str = "Man City",
     away_team: str = "Arsenal",
+    home_formation: str = "4-4-2",
+    away_formation: str = "4-4-2",
     home_style: str = "balanced shape",
     away_style: str = "balanced shape",
     match_narrative: str = "",
@@ -55,6 +57,8 @@ def _make_result(
         away_xg=1.2,
         weather=weather,
         referee_strictness=referee_strictness,
+        home_formation=home_formation,
+        away_formation=away_formation,
         home_style=home_style,
         away_style=away_style,
         match_narrative=match_narrative,
@@ -318,6 +322,18 @@ class TestWeatherRefereeCommentary:
         assert "patient possession" in text
         assert "direct transition" in text
 
+    def test_formation_context_flavor(self):
+        result = _make_result(
+            home_formation="4-3-3",
+            away_formation="5-4-1",
+            home_style="patient possession",
+            away_style="compact defending",
+        )
+        lines = generate_commentary(result)
+        text = "\n".join(lines)
+        assert "4-3-3" in text
+        assert "5-4-1" in text
+
 
 # ═══════════════════════════════════════════════════════════════════════
 # Draw vs Win Commentary Tests
@@ -419,6 +435,24 @@ class TestCommentaryTimeline:
         )
         timeline = generate_commentary_timeline(result)
         assert any(beat.event_type == "style" for beat in timeline)
+
+    def test_timeline_includes_shape_and_tactical_context(self):
+        result = _make_result(
+            home_formation="4-2-3-1",
+            away_formation="3-4-3",
+            home_style="patient possession",
+            away_style="wing-heavy attacks",
+        )
+        timeline = generate_commentary_timeline(result)
+        shape_beat = next(beat for beat in timeline if beat.event_type == "shape")
+        tactical_beat = next(beat for beat in timeline if beat.event_type == "tactical")
+
+        assert shape_beat.minute == 0
+        assert "4-2-3-1" in shape_beat.text
+        assert "3-4-3" in shape_beat.text
+        assert tactical_beat.minute == 45
+        assert "patient possession" in tactical_beat.text.lower()
+        assert "wing-heavy attacks" in tactical_beat.text.lower()
 
 
 # ═══════════════════════════════════════════════════════════════════════

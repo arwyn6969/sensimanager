@@ -6,6 +6,154 @@
  * commentary events.
  */
 
+const FORMATION_ANCHORS = {
+  "4-4-2": [
+    { x: 0.09, y: 0.5, role: "gk" },
+    { x: 0.22, y: 0.18, role: "lb" },
+    { x: 0.18, y: 0.38, role: "cb" },
+    { x: 0.18, y: 0.62, role: "cb" },
+    { x: 0.22, y: 0.82, role: "rb" },
+    { x: 0.36, y: 0.2, role: "lm" },
+    { x: 0.32, y: 0.42, role: "cm" },
+    { x: 0.32, y: 0.58, role: "cm" },
+    { x: 0.36, y: 0.8, role: "rm" },
+    { x: 0.5, y: 0.42, role: "st" },
+    { x: 0.5, y: 0.58, role: "st" },
+  ],
+  "4-3-3": [
+    { x: 0.09, y: 0.5, role: "gk" },
+    { x: 0.22, y: 0.2, role: "lb" },
+    { x: 0.18, y: 0.4, role: "cb" },
+    { x: 0.18, y: 0.6, role: "cb" },
+    { x: 0.22, y: 0.8, role: "rb" },
+    { x: 0.34, y: 0.28, role: "cm" },
+    { x: 0.3, y: 0.5, role: "dm" },
+    { x: 0.34, y: 0.72, role: "cm" },
+    { x: 0.48, y: 0.16, role: "lw" },
+    { x: 0.54, y: 0.5, role: "st" },
+    { x: 0.48, y: 0.84, role: "rw" },
+  ],
+  "4-2-3-1": [
+    { x: 0.09, y: 0.5, role: "gk" },
+    { x: 0.22, y: 0.18, role: "lb" },
+    { x: 0.18, y: 0.38, role: "cb" },
+    { x: 0.18, y: 0.62, role: "cb" },
+    { x: 0.22, y: 0.82, role: "rb" },
+    { x: 0.3, y: 0.4, role: "dm" },
+    { x: 0.3, y: 0.6, role: "dm" },
+    { x: 0.42, y: 0.18, role: "lw" },
+    { x: 0.44, y: 0.5, role: "cam" },
+    { x: 0.42, y: 0.82, role: "rw" },
+    { x: 0.56, y: 0.5, role: "st" },
+  ],
+  "5-4-1": [
+    { x: 0.09, y: 0.5, role: "gk" },
+    { x: 0.28, y: 0.14, role: "lwb" },
+    { x: 0.18, y: 0.3, role: "cb" },
+    { x: 0.16, y: 0.5, role: "cb" },
+    { x: 0.18, y: 0.7, role: "cb" },
+    { x: 0.28, y: 0.86, role: "rwb" },
+    { x: 0.38, y: 0.24, role: "lm" },
+    { x: 0.34, y: 0.42, role: "cm" },
+    { x: 0.34, y: 0.58, role: "cm" },
+    { x: 0.38, y: 0.76, role: "rm" },
+    { x: 0.52, y: 0.5, role: "st" },
+  ],
+  "3-4-3": [
+    { x: 0.09, y: 0.5, role: "gk" },
+    { x: 0.18, y: 0.28, role: "cb" },
+    { x: 0.16, y: 0.5, role: "cb" },
+    { x: 0.18, y: 0.72, role: "cb" },
+    { x: 0.32, y: 0.14, role: "lwb" },
+    { x: 0.32, y: 0.4, role: "cm" },
+    { x: 0.32, y: 0.6, role: "cm" },
+    { x: 0.32, y: 0.86, role: "rwb" },
+    { x: 0.48, y: 0.16, role: "lw" },
+    { x: 0.54, y: 0.5, role: "st" },
+    { x: 0.48, y: 0.84, role: "rw" },
+  ],
+};
+
+const STYLE_PROFILES = {
+  "balanced shape": {
+    width: 1,
+    depth: 1,
+    support: 1,
+    press: 1,
+    verticality: 1,
+    shortPassBias: 1,
+    wideBias: 0.45,
+    crossBias: 0.4,
+    breakaway: 1,
+    boxDelay: 1,
+  },
+  "compact defending": {
+    width: 0.82,
+    depth: 0.86,
+    support: 0.82,
+    press: 0.9,
+    verticality: 0.9,
+    shortPassBias: 1,
+    wideBias: 0.24,
+    crossBias: 0.28,
+    breakaway: 0.92,
+    boxDelay: 1.12,
+  },
+  "patient possession": {
+    width: 1.16,
+    depth: 1.02,
+    support: 1.08,
+    press: 1.02,
+    verticality: 0.84,
+    shortPassBias: 1.24,
+    wideBias: 0.58,
+    crossBias: 0.34,
+    breakaway: 0.96,
+    boxDelay: 1.18,
+  },
+  "direct transition": {
+    width: 1.02,
+    depth: 1.08,
+    support: 1.14,
+    press: 1.08,
+    verticality: 1.24,
+    shortPassBias: 0.86,
+    wideBias: 0.44,
+    crossBias: 0.42,
+    breakaway: 1.24,
+    boxDelay: 0.84,
+  },
+  "wing-heavy attacks": {
+    width: 1.22,
+    depth: 1.06,
+    support: 1.08,
+    press: 1,
+    verticality: 1.02,
+    shortPassBias: 0.96,
+    wideBias: 1.2,
+    crossBias: 1.16,
+    breakaway: 1.08,
+    boxDelay: 0.94,
+  },
+};
+
+const ROLE_WEIGHTS = {
+  gk: -0.6,
+  cb: -0.34,
+  lb: -0.12,
+  rb: -0.12,
+  lwb: -0.04,
+  rwb: -0.04,
+  dm: -0.16,
+  cm: 0.02,
+  cam: 0.16,
+  lm: 0.16,
+  rm: 0.16,
+  lw: 0.24,
+  rw: 0.24,
+  st: 0.34,
+};
+
 class SWOSEngine {
   constructor(canvasId) {
     this.canvas = document.getElementById(canvasId);
@@ -33,6 +181,12 @@ class SWOSEngine {
       awayGoals: 0,
       homeTeam: "Home",
       awayTeam: "Away",
+      homeFormation: "4-4-2",
+      awayFormation: "4-4-2",
+      homeStyle: "balanced shape",
+      awayStyle: "balanced shape",
+      matchNarrative: "",
+      pressureNote: "",
       weather: "dry",
       story: "",
       latestEvent: null,
@@ -69,6 +223,96 @@ class SWOSEngine {
       return normalized;
     }
     return "waiting";
+  }
+
+  normalizeFormation(formation) {
+    const candidate = String(formation || "4-4-2");
+    return FORMATION_ANCHORS[candidate] ? candidate : "4-4-2";
+  }
+
+  normalizeStyle(style) {
+    const normalized = String(style || "balanced shape").toLowerCase();
+    if (STYLE_PROFILES[normalized]) return normalized;
+    if (normalized.includes("patient")) return "patient possession";
+    if (normalized.includes("direct")) return "direct transition";
+    if (normalized.includes("compact")) return "compact defending";
+    if (normalized.includes("wing")) return "wing-heavy attacks";
+    return "balanced shape";
+  }
+
+  teamPlayers(team) {
+    return this.players
+      .filter((player) => player.team === team)
+      .sort((left, right) => left.slot - right.slot);
+  }
+
+  getTeamIdentity(team) {
+    const formationKey = team === "home" ? "homeFormation" : "awayFormation";
+    const styleKey = team === "home" ? "homeStyle" : "awayStyle";
+    const formation = this.normalizeFormation(this.liveState[formationKey]);
+    const style = this.normalizeStyle(this.liveState[styleKey]);
+    return {
+      formation,
+      style,
+      anchors: FORMATION_ANCHORS[formation],
+      profile: STYLE_PROFILES[style],
+    };
+  }
+
+  applyTeamShape(team, resetPositions = false) {
+    const identity = this.getTeamIdentity(team);
+    const existing = this.teamPlayers(team);
+
+    if (existing.length === 0) {
+      identity.anchors.forEach((anchor, index) => {
+        this.players.push(this.buildPlayer(team, anchor, index));
+      });
+      return;
+    }
+
+    identity.anchors.forEach((anchor, index) => {
+      const player = existing[index];
+      const mirroredX = team === "home" ? anchor.x : 1 - anchor.x;
+      player.role = anchor.role;
+      player.baseX = mirroredX;
+      player.baseY = anchor.y;
+
+      if (resetPositions) {
+        player.x = mirroredX * this.width;
+        player.y = anchor.y * this.height;
+        player.tx = player.x;
+        player.ty = player.y;
+      }
+    });
+  }
+
+  refreshShapeAnchors(resetPositions = false) {
+    this.applyTeamShape("home", resetPositions);
+    this.applyTeamShape("away", resetPositions);
+  }
+
+  isWideRole(role) {
+    return ["lb", "rb", "lwb", "rwb", "lm", "rm", "lw", "rw"].includes(role);
+  }
+
+  isWingBackRole(role) {
+    return role === "lwb" || role === "rwb";
+  }
+
+  isBackLineRole(role) {
+    return ["cb", "lb", "rb", "lwb", "rwb"].includes(role);
+  }
+
+  isHoldingRole(role) {
+    return role === "dm" || role === "cm";
+  }
+
+  isStrikerRole(role) {
+    return role === "st";
+  }
+
+  isAttackingRole(role) {
+    return ["cam", "lm", "rm", "lw", "rw", "st"].includes(role);
   }
 
   loadAssets() {
@@ -139,27 +383,7 @@ class SWOSEngine {
   initMatch() {
     this.pitchPattern = this.ctx.createPattern(this.assets.pitch, "repeat");
     this.players = [];
-
-    const formation = [
-      { x: 0.1, y: 0.5, role: "gk" },
-      { x: 0.24, y: 0.2, role: "lb" },
-      { x: 0.2, y: 0.38, role: "cb" },
-      { x: 0.2, y: 0.62, role: "cb" },
-      { x: 0.24, y: 0.8, role: "rb" },
-      { x: 0.38, y: 0.18, role: "lm" },
-      { x: 0.34, y: 0.4, role: "cm" },
-      { x: 0.34, y: 0.6, role: "cm" },
-      { x: 0.38, y: 0.82, role: "rm" },
-      { x: 0.48, y: 0.42, role: "st" },
-      { x: 0.48, y: 0.58, role: "st" },
-    ];
-
-    formation.forEach((anchor, index) => {
-      this.players.push(this.buildPlayer("home", anchor, index));
-    });
-    formation.forEach((anchor, index) => {
-      this.players.push(this.buildPlayer("away", anchor, index));
-    });
+    this.refreshShapeAnchors(true);
 
     this.configureWeather(this.liveState.weather);
     this.resetForKickoff("home");
@@ -167,7 +391,9 @@ class SWOSEngine {
   }
 
   pickKickoffPlayer(team) {
-    return this.players.find((player) => player.team === team && player.role === "st")
+    return this.players.find((player) => player.team === team && this.isStrikerRole(player.role))
+      || this.players.find((player) => player.team === team && player.role === "cam")
+      || this.players.find((player) => player.team === team && player.role === "cm")
       || this.players.find((player) => player.team === team)
       || null;
   }
@@ -213,11 +439,16 @@ class SWOSEngine {
       ...snapshot,
       status,
       latestEvent,
+      homeFormation: this.normalizeFormation(snapshot.homeFormation ?? this.liveState.homeFormation),
+      awayFormation: this.normalizeFormation(snapshot.awayFormation ?? this.liveState.awayFormation),
+      homeStyle: this.normalizeStyle(snapshot.homeStyle ?? this.liveState.homeStyle),
+      awayStyle: this.normalizeStyle(snapshot.awayStyle ?? this.liveState.awayStyle),
     };
 
     this.configureWeather(this.liveState.weather);
 
     if (!this.players.length) return;
+    this.refreshShapeAnchors(status !== "live");
 
     if (status === "live" && (this.matchState === "waiting" || this.matchState === "prematch")) {
       this.resetForKickoff(this.pickRestartTeam());
@@ -289,6 +520,11 @@ class SWOSEngine {
 
     if (type === "prematch") {
       this.matchState = "prematch";
+      return;
+    }
+
+    if (type === "shape" || type === "tactical" || type === "pressure" || type === "style") {
+      this.matchState = this.liveState.status === "live" ? "playing" : this.normalizeStatus(this.liveState.status);
     }
   }
 
@@ -370,8 +606,15 @@ class SWOSEngine {
     const awayGoals = this.liveState.awayGoals || 0;
     const scoreDiff = homeGoals - awayGoals;
     const lateFactor = this.clamp(minute / 90, 0, 1);
+    const homeIdentity = this.getTeamIdentity("home");
+    const awayIdentity = this.getTeamIdentity("away");
+    const homeBaseTilt = (
+      (homeIdentity.profile.verticality - awayIdentity.profile.verticality) * 0.18
+      + (homeIdentity.profile.press - awayIdentity.profile.press) * 0.08
+      + (homeIdentity.profile.support - awayIdentity.profile.support) * 0.05
+    );
 
-    let homeTilt = 0;
+    let homeTilt = homeBaseTilt;
     if (scoreDiff < 0) homeTilt += 0.28 + lateFactor * 0.24;
     if (scoreDiff > 0) homeTilt -= 0.14 * lateFactor;
     if (this.possessionTeam === "home") homeTilt += 0.08;
@@ -380,15 +623,35 @@ class SWOSEngine {
     if (this.liveState.latestEvent?.team === "away") homeTilt -= this.visualPulse.strength * 0.2;
     homeTilt = this.clamp(homeTilt, -0.55, 0.55);
 
+    const homeUrgencyBase = scoreDiff < 0
+      ? 1.08 + lateFactor * 0.38
+      : scoreDiff > 0
+        ? 0.9 - lateFactor * 0.1
+        : 1;
+    const awayUrgencyBase = scoreDiff > 0
+      ? 1.08 + lateFactor * 0.38
+      : scoreDiff < 0
+        ? 0.9 - lateFactor * 0.1
+        : 1;
+
     return {
       minute,
       scoreDiff,
       lateFactor,
       homeTilt,
-      intensity: this.clamp(0.78 + lateFactor * 0.38 + this.visualPulse.strength * 0.2, 0.72, 1.45),
-      homeUrgency: scoreDiff < 0 ? 1.1 + lateFactor * 0.5 : scoreDiff > 0 ? 0.84 - lateFactor * 0.2 : 1,
-      awayUrgency: scoreDiff > 0 ? 1.1 + lateFactor * 0.5 : scoreDiff < 0 ? 0.84 - lateFactor * 0.2 : 1,
+      intensity: this.clamp(
+        0.72
+          + lateFactor * 0.3
+          + ((homeIdentity.profile.press + awayIdentity.profile.press) / 2 - 1) * 0.22
+          + this.visualPulse.strength * 0.2,
+        0.68,
+        1.5,
+      ),
+      homeUrgency: this.clamp(homeUrgencyBase * homeIdentity.profile.breakaway, 0.76, 1.7),
+      awayUrgency: this.clamp(awayUrgencyBase * awayIdentity.profile.breakaway, 0.76, 1.7),
       focusTeam: this.ball.attachedTo?.team || this.possessionTeam || (homeTilt >= 0 ? "home" : "away"),
+      homeIdentity,
+      awayIdentity,
     };
   }
 
@@ -447,16 +710,7 @@ class SWOSEngine {
   }
 
   roleWeight(role) {
-    return {
-      gk: -0.55,
-      cb: -0.28,
-      lb: -0.08,
-      rb: -0.08,
-      cm: 0.04,
-      lm: 0.14,
-      rm: 0.14,
-      st: 0.28,
-    }[role] ?? 0;
+    return ROLE_WEIGHTS[role] ?? 0;
   }
 
   closestPlayer(x, y, team) {
@@ -510,14 +764,43 @@ class SWOSEngine {
     this.ball.vz = 3 + Math.random() * 2;
   }
 
-  bestPassTarget(player) {
-    const candidates = this.players
+  bestPassTarget(player, mode = "build") {
+    const { profile } = this.getTeamIdentity(player.team);
+    const direction = player.team === "home" ? 1 : -1;
+    const ranked = this.players
       .filter((candidate) => candidate.team === player.team && candidate !== player)
-      .sort((left, right) => {
-        if (player.team === "home") return right.x - left.x;
-        return left.x - right.x;
-      });
-    return candidates[Math.floor(Math.random() * Math.max(1, Math.min(4, candidates.length)))];
+      .map((candidate) => {
+        const distance = Math.hypot(candidate.x - player.x, candidate.y - player.y);
+        const progress = direction * (candidate.x - player.x);
+        const widthFactor = Math.abs(candidate.y - this.height / 2) / (this.height / 2);
+        const shortBonus = 1 - this.clamp(distance / 480, 0, 1);
+        let score = progress / 260;
+        score += shortBonus * (0.7 + profile.shortPassBias * 0.45);
+        score += widthFactor * profile.wideBias * 0.45;
+        score += this.isStrikerRole(candidate.role) ? 0.18 * profile.support : 0;
+        score += this.isHoldingRole(candidate.role) && distance < 220 ? 0.12 * profile.shortPassBias : 0;
+        score += this.isAttackingRole(candidate.role) ? 0.18 * profile.verticality : 0;
+
+        if (mode === "cross") {
+          score += this.isStrikerRole(candidate.role) ? 0.85 + profile.crossBias * 0.35 : -0.1;
+          score += widthFactor * 0.12;
+        }
+
+        if (this.isWideRole(player.role) && this.isStrikerRole(candidate.role)) {
+          score += 0.28 * profile.crossBias;
+        }
+        if (profile.verticality > 1 && progress > 120) {
+          score += 0.25 * profile.verticality;
+        }
+
+        score += Math.random() * 0.1;
+        return { candidate, score };
+      })
+      .sort((left, right) => right.score - left.score);
+
+    if (ranked.length === 0) return null;
+    const pool = ranked.slice(0, Math.min(3, ranked.length));
+    return pool[Math.floor(Math.random() * pool.length)].candidate;
   }
 
   updateBallPhysics(focusTeam) {
@@ -570,44 +853,76 @@ class SWOSEngine {
     const holder = this.ball.attachedTo;
 
     for (const player of this.players) {
-      const baseX = player.baseX * this.width;
-      const baseY = player.baseY * this.height;
       const teamDirection = player.team === "home" ? 1 : -1;
+      const identity = player.team === "home" ? context.homeIdentity : context.awayIdentity;
+      const profile = identity.profile;
       const teamTilt = player.team === "home" ? context.homeTilt : -context.homeTilt;
       const roleWeight = this.roleWeight(player.role);
-      const lateralDrift = Math.sin(timestamp / 520 + player.stride) * 24;
+      const baseX = player.baseX * this.width;
+      const baseY = player.baseY * this.height;
+      const laneFromCenter = baseY - this.height / 2;
+      const wideExtra = this.isWideRole(player.role) ? 0.18 : 0;
+      const widthFactor = profile.width * (1 + wideExtra * profile.wideBias);
+      const shapedY = this.height / 2 + laneFromCenter * widthFactor;
+      const depthBoost = (profile.depth - 1) * 110 + roleWeight * 42;
+      const lateralDrift = Math.sin(timestamp / (480 + player.slot * 9) + player.stride)
+        * (16 + profile.width * 8 + (this.isWideRole(player.role) ? 18 : 6));
       const shapeX = baseX
-        + (this.ball.x - this.width / 2) * 0.12
-        + teamDirection * (teamTilt * (150 + roleWeight * 140));
-      const shapeY = baseY + (this.ball.y - this.height / 2) * 0.18;
-      const speedMultiplier = context.intensity * (player.team === "home" ? context.homeUrgency : context.awayUrgency);
+        + (this.ball.x - this.width / 2) * (0.08 + profile.verticality * 0.05)
+        + teamDirection * (depthBoost + teamTilt * (120 + roleWeight * 130));
+      const shapeY = shapedY
+        + (this.ball.y - this.height / 2) * (0.08 + profile.support * 0.07)
+        - Math.sign(laneFromCenter || 1) * (1 - profile.width) * (this.isBackLineRole(player.role) ? 60 : 18);
+      const urgency = player.team === "home" ? context.homeUrgency : context.awayUrgency;
+      const speedMultiplier = context.intensity
+        * urgency
+        * (0.9 + profile.press * 0.14)
+        * (this.isWingBackRole(player.role) || this.isWideRole(player.role) ? 1.03 : 1);
 
       if (this.ball.attachedTo === player) {
-        const targetX = player.team === "home" ? this.width - 120 : 120;
-        const targetY = this.clamp(player.y + Math.sin(timestamp / 300 + player.stride) * 56, 90, this.height - 90);
+        const wideTargetY = this.isWideRole(player.role)
+          ? shapedY
+          : this.height / 2 + Math.sin(timestamp / 260 + player.stride) * 52;
+        const targetX = player.team === "home"
+          ? this.width - (this.isStrikerRole(player.role) ? 86 : 126 + (profile.boxDelay - 1) * 40)
+          : 126 + (this.isStrikerRole(player.role) ? -40 : 0) + (profile.boxDelay - 1) * 40;
+        const targetY = this.clamp(wideTargetY + Math.sin(timestamp / 280 + player.stride) * 34, 90, this.height - 90);
         player.tx = targetX;
         player.ty = targetY;
 
         const distanceToGoal = Math.hypot(player.x - targetX, player.y - this.height / 2);
-        const urgent = player.team === "home" ? context.homeUrgency : context.awayUrgency;
-        const actionRate = 0.01 * context.intensity * urgent * (player.role === "st" ? 1.6 : 1);
+        const actionRate = 0.0065
+          * context.intensity
+          * urgency
+          * (0.9 + profile.verticality * 0.45)
+          * (this.isStrikerRole(player.role) ? 1.3 : 1);
 
         if (Math.random() < actionRate) {
-          if (distanceToGoal < 380 || (context.lateFactor > 0.76 && urgent > 1)) {
+          const wideCrossZone = this.isWideRole(player.role)
+            && ((player.team === "home" && player.x > this.width * 0.62)
+              || (player.team === "away" && player.x < this.width * 0.38));
+          const shootWindow = distanceToGoal < (profile.shortPassBias > 1 ? 330 : 400)
+            || (context.lateFactor > 0.76 && urgency > 1.02);
+
+          if (wideCrossZone && Math.random() < 0.34 * profile.crossBias) {
+            const crossTarget = this.bestPassTarget(player, "cross");
+            if (crossTarget) this.passBall(player, crossTarget);
+          } else if (shootWindow && Math.random() > 0.46 * profile.shortPassBias) {
             this.shootBall(
               player,
               player.team === "home" ? this.width + 30 : -30,
               this.height / 2 + (Math.random() * 180 - 90),
-              24 + context.intensity * 6,
+              24 + context.intensity * 6 + profile.verticality * 2,
             );
           } else {
-            const teammate = this.bestPassTarget(player);
+            const teammate = this.bestPassTarget(player, "build");
             if (teammate) this.passBall(player, teammate);
           }
         }
       } else if (!holder) {
         const sameTeamClosest = this.closestPlayer(this.ball.x, this.ball.y, player.team);
-        if (sameTeamClosest === player || Math.hypot(player.x - this.ball.x, player.y - this.ball.y) < 120) {
+        const chaseRadius = 110 + profile.press * 60;
+        if (sameTeamClosest === player || Math.hypot(player.x - this.ball.x, player.y - this.ball.y) < chaseRadius) {
           player.tx = this.ball.x + teamDirection * 10;
           player.ty = this.ball.y + lateralDrift * 0.25;
         } else {
@@ -615,24 +930,40 @@ class SWOSEngine {
           player.ty = shapeY + lateralDrift * 0.35;
         }
       } else if (holder.team === player.team) {
-        if (player.role === "st") {
-          player.tx = this.clamp(holder.x + teamDirection * 160, 60, this.width - 60);
-          player.ty = this.clamp(holder.y + lateralDrift * 1.6, 90, this.height - 90);
-        } else if (player.role === "lm" || player.role === "rm" || player.role === "lb" || player.role === "rb") {
-          player.tx = this.clamp(shapeX + teamDirection * 90, 40, this.width - 40);
-          player.ty = this.clamp(baseY + lateralDrift, 70, this.height - 70);
+        if (this.isStrikerRole(player.role)) {
+          player.tx = this.clamp(
+            holder.x + teamDirection * (120 + profile.support * 48),
+            60,
+            this.width - 60,
+          );
+          player.ty = this.clamp(shapedY + lateralDrift * (1.2 + profile.breakaway * 0.18), 90, this.height - 90);
+        } else if (player.role === "cam") {
+          player.tx = this.clamp(holder.x + teamDirection * (58 + profile.support * 26), 72, this.width - 72);
+          player.ty = this.clamp(this.height / 2 + laneFromCenter * 0.6 + lateralDrift * 0.55, 96, this.height - 96);
+        } else if (this.isWideRole(player.role)) {
+          player.tx = this.clamp(shapeX + teamDirection * (66 + profile.wideBias * 32), 40, this.width - 40);
+          player.ty = this.clamp(shapedY + lateralDrift, 70, this.height - 70);
+        } else if (this.isBackLineRole(player.role)) {
+          player.tx = this.clamp(shapeX - teamDirection * (18 - teamTilt * 36), 50, this.width - 50);
+          player.ty = this.clamp(shapeY, 78, this.height - 78);
         } else {
-          player.tx = shapeX + teamDirection * 36;
-          player.ty = shapeY;
+          player.tx = this.clamp(shapeX + teamDirection * (32 + profile.support * 14), 54, this.width - 54);
+          player.ty = this.clamp(shapeY, 80, this.height - 80);
         }
       } else {
         const primaryPresser = this.closestPlayer(holder.x, holder.y, player.team);
-        if (primaryPresser === player && Math.hypot(player.x - holder.x, player.y - holder.y) < 520) {
-          player.tx = holder.x - teamDirection * 12;
+        const pressRange = 300 + profile.press * 170;
+        if (primaryPresser === player && Math.hypot(player.x - holder.x, player.y - holder.y) < pressRange) {
+          player.tx = holder.x - teamDirection * (10 + profile.press * 6);
           player.ty = holder.y;
         } else {
-          player.tx = shapeX - teamDirection * (60 - teamTilt * 70);
-          player.ty = shapeY;
+          const recoveryDepth = this.isBackLineRole(player.role) ? 70 : 48;
+          player.tx = this.clamp(
+            shapeX - teamDirection * (recoveryDepth + (1 - profile.depth) * 70 - teamTilt * 38),
+            48,
+            this.width - 48,
+          );
+          player.ty = this.clamp(shapeY, 76, this.height - 76);
         }
       }
 
@@ -695,7 +1026,7 @@ class SWOSEngine {
 
     for (const player of this.players) {
       if (player.team === this.sequence.team) {
-        if (player.role === "st" || player.role === "cm") {
+        if (this.isStrikerRole(player.role) || player.role === "cam" || player.role === "cm" || this.isWideRole(player.role)) {
           player.tx = this.sequence.anchorX - attackDirection * (30 + player.slot * 6);
           player.ty = this.sequence.anchorY + Math.sin(player.stride + player.slot) * 70;
         } else {
@@ -749,7 +1080,7 @@ class SWOSEngine {
 
     for (const player of this.players) {
       if (player.team === this.sequence.team) {
-        if (player === scorer || player.role === "st" || player.role === "lm" || player.role === "rm") {
+        if (player === scorer || this.isStrikerRole(player.role) || this.isWideRole(player.role) || player.role === "cam") {
           player.tx = this.sequence.celebrationX + Math.cos(player.stride + player.slot) * 70;
           player.ty = this.sequence.celebrationY + Math.sin(player.stride + player.slot) * 52;
         } else {

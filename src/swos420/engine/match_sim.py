@@ -481,6 +481,8 @@ class MatchSimulator:
             away_xg=round(away_lambda, 2),
             weather=weather,
             referee_strictness=referee_strictness,
+            home_formation=home_formation,
+            away_formation=away_formation,
             home_style=home_style.label,
             away_style=away_style.label,
             match_narrative=match_narrative,

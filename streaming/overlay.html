@@ -496,6 +496,12 @@ body {
   margin-bottom: 4px;
 }
 
+#match-style-meta {
+  display: block;
+  margin-top: 8px;
+  color: rgba(255, 255, 255, 0.82);
+}
+
 .waiting {
   display: flex;
   align-items: center;
@@ -573,6 +579,7 @@ body {
   <div id="match-info" class="glass">
     <strong id="match-heading">Watch the autonomous league breathe.</strong>
     <span id="match-meta">The overlay reacts to scoreboard, table, and event JSON updates.</span>
+    <span id="match-style-meta">Formation and style context appears when a match feed is live.</span>
   </div>
 
   <div id="ticker" class="glass">
@@ -674,6 +681,14 @@ function buildEventKey(event) {
   ].join(":");
 }
 
+function buildIdentityLine(data) {
+  const homeFormation = data.home_formation || "4-4-2";
+  const awayFormation = data.away_formation || "4-4-2";
+  const homeStyle = data.home_style || "balanced shape";
+  const awayStyle = data.away_style || "balanced shape";
+  return `${data.home_team || "Home"} ${homeFormation} · ${homeStyle} | ${data.away_team || "Away"} ${awayFormation} · ${awayStyle}`;
+}
+
 function syncEngine(extra = {}) {
   if (!window.swosEngine || !scoreboardState) return;
 
@@ -685,6 +700,12 @@ function syncEngine(extra = {}) {
     awayGoals: scoreboardState.away_goals ?? 0,
     homeTeam: scoreboardState.home_team || "Home",
     awayTeam: scoreboardState.away_team || "Away",
+    homeFormation: scoreboardState.home_formation || "4-4-2",
+    awayFormation: scoreboardState.away_formation || "4-4-2",
+    homeStyle: scoreboardState.home_style || "balanced shape",
+    awayStyle: scoreboardState.away_style || "balanced shape",
+    matchNarrative: scoreboardState.match_narrative || "",
+    pressureNote: scoreboardState.pressure_note || "",
     weather: scoreboardState.weather || commentaryState?.summary?.weather || "dry",
     story: scoreboardState.story || latestEvent?.text || "",
     latestEvent,
@@ -770,9 +791,8 @@ async function updateScoreboard() {
 
   document.getElementById("round-chip").textContent = `Minute ${data.minute || 0}`;
   document.getElementById("match-meta").textContent = `${data.home_team || "Home"} ${data.home_goals ?? 0} - ${data.away_goals ?? 0} ${data.away_team || "Away"} · ${data.weather || "dry"} conditions`;
-  if (data.story) {
-    document.getElementById("story-text").textContent = data.story;
-  }
+  document.getElementById("match-style-meta").textContent = buildIdentityLine(data);
+  document.getElementById("story-text").textContent = data.pressure_note || data.story || "The stream is idle. Start the runner to begin the matchday narrative.";
   setStatus(status);
   syncEngine();
 }
@@ -831,7 +851,7 @@ async function updateCommentary() {
   lastEventCount = data.count;
 
   const lines = data.lines.filter((line) => line.trim());
-  const story = data.latest?.text || latestStory(lines);
+  const story = scoreboardState?.pressure_note || scoreboardState?.story || data.latest?.text || latestStory(lines);
   document.getElementById("story-text").textContent = story || "The commentary feed is warming up.";
 
   const xgLine = data.summary?.xg || [...lines].reverse().find((line) => line.startsWith("xG:"));

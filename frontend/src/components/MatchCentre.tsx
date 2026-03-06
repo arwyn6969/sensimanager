@@ -48,10 +48,16 @@ export function MatchCentre({
   const awayTeam = scoreboard?.away_team ?? "Away";
   const homeGoals = scoreboard?.home_goals ?? 0;
   const awayGoals = scoreboard?.away_goals ?? 0;
+  const homeFormation = scoreboard?.home_formation ?? "4-4-2";
+  const awayFormation = scoreboard?.away_formation ?? "4-4-2";
   const homeStyle = scoreboard?.home_style ?? "balanced shape";
   const awayStyle = scoreboard?.away_style ?? "balanced shape";
+  const pressureNote = scoreboard?.pressure_note ?? null;
   const matchNarrative =
     scoreboard?.match_narrative ?? "The next job is making every fixture feel tactically distinct.";
+  const tacticalFrame = scoreboard
+    ? `${homeTeam} ${homeFormation} with ${homeStyle} against ${awayTeam} ${awayFormation} with ${awayStyle}.`
+    : "Formation and pressure context will appear when the live feed is active.";
   const scoreTilt = Math.max(-12, Math.min(12, (homeGoals - awayGoals) * 4));
   const minuteDrift = scoreboard ? (scoreboard.minute % 15) - 7 : 0;
 
@@ -88,9 +94,9 @@ export function MatchCentre({
       </div>
 
       <div className="match-style-strip">
-        <span className="match-style-chip home">{homeTeam}: {homeStyle}</span>
-        <span className="match-style-chip narrative">{matchNarrative}</span>
-        <span className="match-style-chip away">{awayTeam}: {awayStyle}</span>
+        <span className="match-style-chip home">{homeTeam}: {homeFormation} · {homeStyle}</span>
+        <span className="match-style-chip narrative">{pressureNote ?? matchNarrative}</span>
+        <span className="match-style-chip away">{awayTeam}: {awayFormation} · {awayStyle}</span>
       </div>
 
       <div className="pitch-board">
@@ -121,16 +127,26 @@ export function MatchCentre({
 
       <div className="match-context-grid">
         <article className="match-context-card">
-          <span className="match-context-label">Storyline</span>
-          <p>{latestEvent ?? "The feed is quiet right now. Kick off the stream runner to start the show."}</p>
+          <span className="match-context-label">{pressureNote ? "Pressure State" : "Storyline"}</span>
+          <p>
+            {pressureNote
+              ?? latestEvent
+              ?? "The feed is quiet right now. Kick off the stream runner to start the show."}
+          </p>
+        </article>
+        <article className="match-context-card">
+          <span className="match-context-label">Shape Clash</span>
+          <p>{tacticalFrame}</p>
         </article>
         <article className="match-context-card">
           <span className="match-context-label">Data Layer</span>
-          <p>{xgLine ?? "Expected goals will appear once the match summary lands."}</p>
-        </article>
-        <article className="match-context-card">
-          <span className="match-context-label">Spotlight</span>
-          <p>{motmLine ?? "Man of the match will be called once the game closes."}</p>
+          <p>
+            {xgLine && motmLine
+              ? `${xgLine} · ${motmLine}`
+              : xgLine
+                ?? motmLine
+                ?? "Expected goals and the man of the match will lock in once the game closes."}
+          </p>
         </article>
       </div>
 

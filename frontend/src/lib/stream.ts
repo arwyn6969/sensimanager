@@ -10,9 +10,13 @@ export interface StreamScoreboard {
   matchday?: number;
   weather?: string;
   referee_strictness?: number;
+  home_formation?: string;
+  away_formation?: string;
   home_style?: string;
   away_style?: string;
   match_narrative?: string;
+  pressure_note?: string;
+  pressure_tone?: string;
   home_xg?: number;
   away_xg?: number;
   story?: string;

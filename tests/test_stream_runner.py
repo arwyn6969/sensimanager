@@ -89,6 +89,33 @@ def _make_stream_squad(
     return squad
 
 
+def _make_stream_result(
+    *,
+    home_team: str = "Man City",
+    away_team: str = "Arsenal",
+    home_goals: int = 2,
+    away_goals: int = 1,
+    home_formation: str = "4-3-3",
+    away_formation: str = "5-4-1",
+    home_style: str = "patient possession",
+    away_style: str = "compact defending",
+) -> stream_league.MatchResult:
+    return stream_league.MatchResult(
+        home_team=home_team,
+        away_team=away_team,
+        home_goals=home_goals,
+        away_goals=away_goals,
+        home_xg=1.7,
+        away_xg=0.9,
+        home_formation=home_formation,
+        away_formation=away_formation,
+        home_style=home_style,
+        away_style=away_style,
+        match_narrative=f"{home_team} bring {home_style}; {away_team} answer with {away_style}.",
+        events=[],
+    )
+
+
 # ═══════════════════════════════════════════════════════════════════════
 # JSON Output Tests
 # ═══════════════════════════════════════════════════════════════════════
@@ -250,6 +277,102 @@ class TestDemoTeams:
         )
         assert formation == "5-4-1"
 
+    def test_assign_stream_formations_demo_is_varied_and_stable(self):
+        teams = stream_league._generate_demo_teams(4)
+        team_names = list(teams.keys())
+
+        formations = stream_league._assign_stream_formations(team_names, teams, "demo")
+
+        assert formations["Man City"] == "4-3-3"
+        assert formations["Arsenal"] == "4-4-2"
+        assert formations["Liverpool"] == "5-4-1"
+        assert formations["Chelsea"] == "3-4-3"
+        assert len(set(formations.values())) >= 3
+
+
+class TestPressureHooks:
+    def test_build_pressure_context_detects_title_race(self):
+        standings = {
+            "Man City": {"team": "Man City", "played": 10, "wins": 7, "draws": 1, "losses": 2, "gf": 20, "ga": 9, "gd": 11, "points": 22},
+            "Arsenal": {"team": "Arsenal", "played": 10, "wins": 6, "draws": 3, "losses": 1, "gf": 18, "ga": 10, "gd": 8, "points": 21},
+            "Liverpool": {"team": "Liverpool", "played": 10, "wins": 5, "draws": 3, "losses": 2, "gf": 17, "ga": 12, "gd": 5, "points": 18},
+            "Chelsea": {"team": "Chelsea", "played": 10, "wins": 4, "draws": 2, "losses": 4, "gf": 12, "ga": 13, "gd": -1, "points": 14},
+        }
+        result = _make_stream_result(home_goals=1, away_goals=0)
+        projected = stream_league._project_standings(standings, result)
+
+        note, tone = stream_league._build_pressure_context(
+            stage="prematch",
+            before_standings=standings,
+            after_standings=projected,
+            result=result,
+        )
+
+        assert tone == "title"
+        assert note is not None
+        assert "Title pressure" in note
+
+    def test_inject_pressure_beats_wraps_timeline(self):
+        result = _make_stream_result()
+        beats = [
+            stream_league.CommentaryBeat(minute=0, phase="prematch", text="Kickoff soon", event_type="prematch"),
+            stream_league.CommentaryBeat(minute=90, phase="fulltime", text="Full time", event_type="fulltime"),
+        ]
+
+        wrapped = stream_league._inject_pressure_beats(
+            beats,
+            result=result,
+            prematch_pressure="Title pressure: this one matters.",
+            fulltime_pressure="Upset pressure: the table has shifted.",
+        )
+
+        assert wrapped[1].event_type == "pressure"
+        assert wrapped[1].minute == 0
+        assert wrapped[-1].event_type == "pressure"
+        assert wrapped[-1].minute == 90
+
+    def test_persist_live_state_includes_formation_and_pressure_metadata(self, tmp_path):
+        scoreboard_path = tmp_path / "scoreboard.json"
+        events_path = tmp_path / "events.json"
+        result = _make_stream_result()
+        beats = [
+            stream_league.CommentaryBeat(
+                minute=0,
+                phase="context",
+                text="Shape watch",
+                event_type="shape",
+                home_goals=0,
+                away_goals=0,
+            )
+        ]
+        standings = {
+            "Man City": {"team": "Man City", "played": 0, "wins": 0, "draws": 0, "losses": 0, "gf": 0, "ga": 0, "gd": 0, "points": 0},
+            "Arsenal": {"team": "Arsenal", "played": 0, "wins": 0, "draws": 0, "losses": 0, "gf": 0, "ga": 0, "gd": 0, "points": 0},
+        }
+
+        with patch.object(stream_league, "SCOREBOARD_PATH", scoreboard_path), \
+             patch.object(stream_league, "EVENTS_PATH", events_path):
+            stream_league._persist_live_state(
+                result=result,
+                season_id="25/26",
+                matchday_idx=1,
+                minute=0,
+                status="prematch",
+                displayed_beats=beats,
+                standings=standings,
+                source_used="demo",
+                pressure_note="Title pressure: this one matters.",
+                pressure_tone="title",
+            )
+
+        data = json.loads(scoreboard_path.read_text())
+        assert data["home_formation"] == "4-3-3"
+        assert data["away_formation"] == "5-4-1"
+        assert data["home_style"] == "patient possession"
+        assert data["pressure_note"] == "Title pressure: this one matters."
+        assert data["pressure_tone"] == "title"
+        assert data["story"] == "Title pressure: this one matters."
+
 
 # ═══════════════════════════════════════════════════════════════════════
 # End-to-End Dry Run Test
@@ -317,3 +440,26 @@ class TestRunStream:
             )
 
         assert len(results) == 12
+
+    def test_dry_run_produces_varied_identity_combinations(self, tmp_path):
+        with patch.object(stream_league, "STREAMING_DIR", tmp_path), \
+             patch.object(stream_league, "SCOREBOARD_PATH", tmp_path / "scoreboard.json"), \
+             patch.object(stream_league, "EVENTS_PATH", tmp_path / "events.json"), \
+             patch.object(stream_league, "TABLE_PATH", tmp_path / "table.json"):
+            results = stream_league.run_stream(
+                seasons=1,
+                num_teams=4,
+                pace=0,
+                dry_run=True,
+                source="demo",
+            )
+
+        identity_combos = {
+            (result.home_formation, result.home_style)
+            for result in results
+        } | {
+            (result.away_formation, result.away_style)
+            for result in results
+        }
+
+        assert len(identity_combos) >= 3

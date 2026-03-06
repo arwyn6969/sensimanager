@@ -18,7 +18,8 @@ import {
 export default function DashboardPage() {
   const { scoreboard, events, table, connection, lastUpdated } = useStreamState();
   const lines = normalizeEventLines(events?.lines ?? []);
-  const latestEvent = scoreboard?.story ?? events?.latest?.text ?? latestNarrativeLine(lines);
+  const pressureNote = scoreboard?.pressure_note ?? null;
+  const latestEvent = pressureNote ?? scoreboard?.story ?? events?.latest?.text ?? latestNarrativeLine(lines);
   const xgLine = events?.summary?.xg ?? findSummaryLine(lines, "xG:");
   const motmLine = events?.summary?.motm ?? findSummaryLine(lines, "⭐");
 
@@ -30,6 +31,12 @@ export default function DashboardPage() {
   const injuries = lines.filter((line) => classifyEventLine(line) === "injury").length;
   const matchNarrative =
     scoreboard?.match_narrative ?? "The stream needs distinct identities, not the same match wearing new badges.";
+  const tacticalMatchup = scoreboard
+    ? `${scoreboard.home_team} ${scoreboard.home_formation ?? "4-4-2"} vs ${scoreboard.away_team} ${scoreboard.away_formation ?? "4-4-2"}`
+    : "Waiting for the next tactical frame";
+  const pressureSummary = pressureNote ?? "Table pressure will appear when the live feed has standings context.";
+  const tableHeat =
+    titleRace.map((team) => team.team).join(" · ") || "Waiting";
 
   return (
     <>
@@ -89,28 +96,30 @@ export default function DashboardPage() {
 
           <div className="story-card-grid">
             <article className="glass-card story-card">
-              <span className="story-card-label">Match Texture</span>
-              <strong>{goals} goals</strong>
+              <span className="story-card-label">{pressureNote ? "Pressure State" : "Match Texture"}</span>
+              <strong>
+                {pressureNote
+                  ? `${(scoreboard?.pressure_tone ?? "live").replace(/^\w/, (char) => char.toUpperCase())} pressure`
+                  : `${goals} goals`}
+              </strong>
               <p>
-                {chances} key chances, {cards} cards, and {injuries} injuries have shaped the current feed.
+                {pressureNote
+                  ? pressureSummary
+                  : `${chances} key chances, ${cards} cards, and ${injuries} injuries have shaped the current feed.`}
               </p>
             </article>
 
             <article className="glass-card story-card">
-              <span className="story-card-label">Identity Clash</span>
-              <strong>
-                {scoreboard
-                  ? `${scoreboard.home_style ?? "balanced shape"} vs ${scoreboard.away_style ?? "balanced shape"}`
-                  : "Waiting for the next style clash"}
-              </strong>
+              <span className="story-card-label">Shape Clash</span>
+              <strong>{tacticalMatchup}</strong>
               <p>
                 {matchNarrative}
               </p>
             </article>
 
             <article className="glass-card story-card">
-              <span className="story-card-label">Title Race</span>
-              <strong>{titleRace.map((team) => team.team).join(" · ") || "Waiting"}</strong>
+              <span className="story-card-label">Table Heat</span>
+              <strong>{tableHeat}</strong>
               <p>
                 <Link href="/league">Open the full league table</Link> to follow the pressure building
                 above and below the line.

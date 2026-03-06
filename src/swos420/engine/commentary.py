@@ -114,6 +114,18 @@ STYLE_CONTEXT_TEMPLATES = [
     "Tactical backdrop: {narrative}",
 ]
 
+FORMATION_CONTEXT_TEMPLATES = [
+    "Shape watch: {home} hold a {home_formation}, while {away} answer with {away_formation}.",
+    "On the board first: {home} are set in {home_formation}; {away} line up in {away_formation}.",
+    "Formation note: {home} start in {home_formation} against {away}'s {away_formation}.",
+]
+
+HALFTIME_TACTICAL_TEMPLATES = [
+    "Half-time read: {home} keep their {home_formation} with {home_style}, while {away} stay in {away_formation} with {away_style}.",
+    "Tactical read: {home}'s {home_formation} and {home_style} are meeting {away}'s {away_formation} and {away_style}.",
+    "Shape check at the break: {home} remain in {home_formation}; {away} hold {away_formation} and the styles are still clashing.",
+]
+
 
 @dataclass
 class CommentaryBeat:
@@ -187,6 +199,26 @@ def _running_scoreline(
     return f"{home_team} {home_goals} - {away_goals} {away_team}"
 
 
+def _formation_context_line(result: MatchResult) -> str:
+    return random.choice(FORMATION_CONTEXT_TEMPLATES).format(
+        home=result.home_team,
+        away=result.away_team,
+        home_formation=result.home_formation,
+        away_formation=result.away_formation,
+    )
+
+
+def _halftime_tactical_line(result: MatchResult) -> str:
+    return random.choice(HALFTIME_TACTICAL_TEMPLATES).format(
+        home=result.home_team,
+        away=result.away_team,
+        home_formation=result.home_formation,
+        away_formation=result.away_formation,
+        home_style=result.home_style,
+        away_style=result.away_style,
+    )
+
+
 def generate_commentary_timeline(result: MatchResult) -> list[CommentaryBeat]:
     """Generate structured commentary beats for a full match timeline."""
     beats: list[CommentaryBeat] = []
@@ -238,6 +270,15 @@ def generate_commentary_timeline(result: MatchResult) -> list[CommentaryBeat]:
             )
         )
 
+    beats.append(
+        CommentaryBeat(
+            minute=0,
+            phase="context",
+            event_type="shape",
+            text=_formation_context_line(result),
+        )
+    )
+
     sorted_events = sorted(result.events, key=_event_sort_key)
     first_half_events = [event for event in sorted_events if event.minute <= 45]
     second_half_events = [event for event in sorted_events if event.minute > 45]
@@ -268,6 +309,16 @@ def generate_commentary_timeline(result: MatchResult) -> list[CommentaryBeat]:
             text=random.choice(HALFTIME_TEMPLATES).format(
                 scoreline=_running_scoreline(result.home_team, result.away_team, list(sorted_events), 45)
             ),
+            home_goals=halftime_home,
+            away_goals=halftime_away,
+        )
+    )
+    beats.append(
+        CommentaryBeat(
+            minute=45,
+            phase="context",
+            event_type="tactical",
+            text=_halftime_tactical_line(result),
             home_goals=halftime_home,
             away_goals=halftime_away,
         )
@@ -371,6 +422,7 @@ def generate_commentary(result: MatchResult) -> list[str]:
                 narrative=result.match_narrative
             )
         )
+    lines.append(_formation_context_line(result))
 
     lines.append("")  # Visual separator
 
@@ -398,6 +450,7 @@ def generate_commentary(result: MatchResult) -> list[str]:
     )
     lines.append("")
     lines.append(random.choice(HALFTIME_TEMPLATES).format(scoreline=ht_scoreline))
+    lines.append(_halftime_tactical_line(result))
     lines.append("")
 
     # ── Second Half ──────────────────────────────────────────────────

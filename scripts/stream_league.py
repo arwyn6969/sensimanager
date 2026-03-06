@@ -48,12 +48,95 @@ ATTACKING_POSITIONS = {"ST", "CF", "SS", "LW", "RW"}
 MIDFIELD_POSITIONS = {"CM", "CAM", "AM", "RM", "LM", "CDM"}
 DEFENSIVE_POSITIONS = {"CB", "RB", "LB", "RWB", "LWB", "SW"}
 WIDE_POSITIONS = {"RM", "LM", "RW", "LW", "RB", "LB", "RWB", "LWB"}
+STARTING_POSITIONS = [
+    Position.GK,
+    Position.RB,
+    Position.CB,
+    Position.CB,
+    Position.LB,
+    Position.RM,
+    Position.CM,
+    Position.CM,
+    Position.LM,
+    Position.ST,
+    Position.ST,
+]
+DEMO_ARCHETYPES = [
+    {"key": "possession", "formation": "4-3-3"},
+    {"key": "direct", "formation": "4-4-2"},
+    {"key": "compact", "formation": "5-4-1"},
+    {"key": "wide", "formation": "3-4-3"},
+    {"key": "balanced", "formation": "4-2-3-1"},
+]
+
+
+def _demo_archetype(index: int) -> dict[str, str]:
+    return DEMO_ARCHETYPES[index % len(DEMO_ARCHETYPES)]
+
+
+def _clamp_skill(value: int) -> int:
+    return max(2, min(7, value))
+
+
+def _demo_skill_profile(position: Position, archetype_key: str) -> Skills:
+    import random
+
+    base = {
+        "passing": random.randint(3, 6),
+        "velocity": random.randint(3, 6),
+        "heading": random.randint(2, 6),
+        "tackling": random.randint(2, 6),
+        "control": random.randint(3, 6),
+        "speed": random.randint(3, 6),
+        "finishing": random.randint(2, 6),
+    }
+
+    if position in {Position.CM, Position.RM, Position.LM}:
+        base["passing"] += 1
+        base["control"] += 1
+    if position in {Position.RB, Position.CB, Position.LB}:
+        base["tackling"] += 1
+        base["heading"] += 1
+    if position == Position.ST:
+        base["finishing"] += 1
+        base["speed"] += 1
+
+    if archetype_key == "possession":
+        if position in {Position.CM, Position.RM, Position.LM, Position.RB, Position.LB}:
+            base["passing"] += 2
+            base["control"] += 2
+        if position in {Position.CM, Position.ST}:
+            base["velocity"] += 1
+    elif archetype_key == "direct":
+        if position in {Position.ST, Position.RM, Position.LM}:
+            base["speed"] += 2
+            base["finishing"] += 2
+            base["velocity"] += 2
+        if position == Position.CM:
+            base["velocity"] += 2
+    elif archetype_key == "compact":
+        if position in {Position.RB, Position.CB, Position.LB, Position.CM}:
+            base["tackling"] += 2
+            base["heading"] += 2
+            base["passing"] += 1
+        if position in {Position.ST, Position.RM, Position.LM}:
+            base["speed"] -= 1
+    elif archetype_key == "wide":
+        if position in {Position.RM, Position.LM, Position.RB, Position.LB}:
+            base["speed"] += 2
+            base["passing"] += 2
+            base["control"] += 1
+        if position in {Position.ST, Position.CM}:
+            base["heading"] += 1
+    elif archetype_key == "balanced":
+        for skill_name in base:
+            base[skill_name] += 1 if skill_name in {"passing", "control", "speed"} else 0
+
+    return Skills(**{skill: _clamp_skill(value) for skill, value in base.items()})
 
 
 def _generate_demo_teams(num_teams: int = 8) -> dict[str, list[SWOSPlayer]]:
     """Generate demo teams with random players for streaming demo."""
-    import random
-
     team_names = [
         "Man City", "Arsenal", "Liverpool", "Chelsea",
         "Man Utd", "Spurs", "Newcastle", "Aston Villa",
@@ -61,28 +144,21 @@ def _generate_demo_teams(num_teams: int = 8) -> dict[str, list[SWOSPlayer]]:
         "Everton", "Fulham", "Brentford", "Nottm Forest",
     ][:num_teams]
 
-    positions = list(Position)
     teams: dict[str, list[SWOSPlayer]] = {}
 
-    for team_name in team_names:
+    for team_index, team_name in enumerate(team_names):
+        import random
+
+        archetype = _demo_archetype(team_index)
         code = team_name[:3].upper().replace(" ", "")
         squad: list[SWOSPlayer] = []
-        for i in range(11):
-            pos = positions[i % len(positions)]
+        for i, pos in enumerate(STARTING_POSITIONS):
             player = SWOSPlayer(
                 base_id=generate_base_id(f"{code}_{i}", "25/26"),
                 full_name=f"{team_name} Player {i + 1}",
                 display_name=f"{code}{i + 1:02d}",
                 position=pos,
-                skills=Skills(
-                    passing=random.randint(2, 7),
-                    velocity=random.randint(2, 7),
-                    heading=random.randint(2, 7),
-                    tackling=random.randint(2, 7),
-                    control=random.randint(2, 7),
-                    speed=random.randint(2, 7),
-                    finishing=random.randint(2, 7),
-                ),
+                skills=_demo_skill_profile(pos, archetype["key"]),
                 age=random.randint(19, 34),
                 base_value=random.randint(1_000_000, 80_000_000),
                 club_name=team_name,
@@ -205,6 +281,189 @@ def _pick_stream_formation(squad: list[SWOSPlayer]) -> str:
     return best_formation
 
 
+def _assign_stream_formations(
+    team_names: list[str],
+    teams: dict[str, list[SWOSPlayer]],
+    source_used: str,
+) -> dict[str, str]:
+    """Choose a stable formation per team for the current streamed season."""
+    formations: dict[str, str] = {}
+    for index, team_name in enumerate(team_names):
+        if source_used == "demo":
+            formations[team_name] = _demo_archetype(index)["formation"]
+        else:
+            formations[team_name] = _pick_stream_formation(teams[team_name])
+    return formations
+
+
+def _clone_standings(standings: dict[str, dict]) -> dict[str, dict]:
+    return {team_name: row.copy() for team_name, row in standings.items()}
+
+
+def _project_standings(standings: dict[str, dict], result: MatchResult) -> dict[str, dict]:
+    projected = _clone_standings(standings)
+    _update_standings(projected, result)
+    return projected
+
+
+def _positions_from_rows(rows: list[dict[str, Any]]) -> dict[str, int]:
+    return {row["team"]: index + 1 for index, row in enumerate(rows)}
+
+
+def _plural_points(points: int) -> str:
+    return "point" if abs(points) == 1 else "points"
+
+
+def _build_title_pressure(
+    rows: list[dict[str, Any]],
+    positions: dict[str, int],
+    result: MatchResult,
+    stage: str,
+) -> str | None:
+    if len(rows) < 2:
+        return None
+
+    leader = rows[0]
+    title_window = leader["points"] - 3
+    contenders = [
+        row for row in rows
+        if row["team"] in {result.home_team, result.away_team}
+        and row["points"] >= title_window
+        and positions[row["team"]] <= min(4, len(rows))
+    ]
+    if not contenders:
+        return None
+
+    focus = sorted(contenders, key=lambda row: (positions[row["team"]], -row["points"]))[0]
+    gap = max(0, leader["points"] - focus["points"])
+    if stage == "prematch":
+        if focus["team"] == leader["team"]:
+            return (
+                f"Title pressure: {focus['team']} kick off top, but the lead is only "
+                f"{gap} {_plural_points(gap)}."
+            )
+        return (
+            f"Title pressure: {focus['team']} start {gap} {_plural_points(gap)} off top, "
+            "so this can bend the race tonight."
+        )
+
+    top_gap = max(0, rows[0]["points"] - rows[1]["points"])
+    if positions.get(focus["team"], len(rows)) <= 2 and top_gap <= 3:
+        return (
+            f"Title pressure: {rows[0]['team']} lead the table, but the gap is only "
+            f"{top_gap} {_plural_points(top_gap)} after that result."
+        )
+    return None
+
+
+def _build_relegation_pressure(
+    rows: list[dict[str, Any]],
+    positions: dict[str, int],
+    result: MatchResult,
+    stage: str,
+) -> str | None:
+    if len(rows) < 3:
+        return None
+
+    relegation_slots = 1 if len(rows) <= 6 else 2
+    safety_index = len(rows) - relegation_slots - 1
+    if safety_index < 0:
+        return None
+
+    safety_team = rows[safety_index]
+    focus_candidates: list[dict[str, Any]] = []
+    for team_name in (result.home_team, result.away_team):
+        row = next((candidate for candidate in rows if candidate["team"] == team_name), None)
+        if not row:
+            continue
+        pos = positions[team_name]
+        if pos > len(rows) - relegation_slots:
+            focus_candidates.append(row)
+        elif pos == len(rows) - relegation_slots and row["points"] - rows[safety_index + 1]["points"] <= 3:
+            focus_candidates.append(row)
+
+    if not focus_candidates:
+        return None
+
+    focus = sorted(focus_candidates, key=lambda row: (-positions[row["team"]], row["points"]))[0]
+    gap = abs(safety_team["points"] - focus["points"])
+    if stage == "prematch":
+        return (
+            f"Relegation pressure: {focus['team']} are {gap} {_plural_points(gap)} from safety, "
+            "so this one has real danger on it."
+        )
+    return (
+        f"Relegation pressure: {focus['team']} stay in the squeeze, only "
+        f"{gap} {_plural_points(gap)} from safety."
+    )
+
+
+def _build_upset_pressure(
+    before_rows: list[dict[str, Any]],
+    before_positions: dict[str, int],
+    result: MatchResult,
+) -> str | None:
+    if result.winner == "draw":
+        return None
+
+    winner = result.home_team if result.winner == "home" else result.away_team
+    loser = result.away_team if result.winner == "home" else result.home_team
+    winner_row = next((row for row in before_rows if row["team"] == winner), None)
+    loser_row = next((row for row in before_rows if row["team"] == loser), None)
+    if not winner_row or not loser_row:
+        return None
+
+    winner_pos = before_positions[winner]
+    loser_pos = before_positions[loser]
+    point_gap = loser_row["points"] - winner_row["points"]
+    if loser_pos == 1 and winner_pos > loser_pos:
+        return f"Upset pressure: {winner} have just knocked over the leaders and rattled the table."
+    if winner_pos > loser_pos and point_gap >= 3:
+        return (
+            f"Upset pressure: {winner} were {point_gap} {_plural_points(point_gap)} behind {loser} "
+            "and have flipped the script."
+        )
+    return None
+
+
+def _build_pressure_context(
+    *,
+    stage: str,
+    before_standings: dict[str, dict],
+    after_standings: dict[str, dict],
+    result: MatchResult,
+) -> tuple[str | None, str | None]:
+    before_rows = _sorted_standings(before_standings)
+    after_rows = _sorted_standings(after_standings)
+    before_positions = _positions_from_rows(before_rows)
+    after_positions = _positions_from_rows(after_rows)
+
+    if stage == "fulltime":
+        upset = _build_upset_pressure(before_rows, before_positions, result)
+        if upset:
+            return upset, "upset"
+
+    title = _build_title_pressure(
+        after_rows if stage == "fulltime" else before_rows,
+        after_positions if stage == "fulltime" else before_positions,
+        result,
+        stage,
+    )
+    if title:
+        return title, "title"
+
+    relegation = _build_relegation_pressure(
+        after_rows if stage == "fulltime" else before_rows,
+        after_positions if stage == "fulltime" else before_positions,
+        result,
+        stage,
+    )
+    if relegation:
+        return relegation, "relegation"
+
+    return None, None
+
+
 def _write_runtime_json(path: Path, payload: Any) -> None:
     """Persist a stream payload under the runtime output directory."""
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -288,6 +547,47 @@ def _summary_from_beats(result: MatchResult, beats: list[CommentaryBeat]) -> dic
     }
 
 
+def _inject_pressure_beats(
+    timeline: list[CommentaryBeat],
+    *,
+    result: MatchResult,
+    prematch_pressure: str | None,
+    fulltime_pressure: str | None,
+) -> list[CommentaryBeat]:
+    beats = list(timeline)
+
+    if prematch_pressure:
+        last_prematch_index = max(
+            (index for index, beat in enumerate(beats) if beat.minute == 0),
+            default=0,
+        )
+        beats.insert(
+            last_prematch_index + 1,
+            CommentaryBeat(
+                minute=0,
+                phase="context",
+                event_type="pressure",
+                text=prematch_pressure,
+                home_goals=0,
+                away_goals=0,
+            ),
+        )
+
+    if fulltime_pressure:
+        beats.append(
+            CommentaryBeat(
+                minute=90,
+                phase="summary",
+                event_type="pressure",
+                text=fulltime_pressure,
+                home_goals=result.home_goals,
+                away_goals=result.away_goals,
+            )
+        )
+
+    return beats
+
+
 def _update_standings(standings: dict[str, dict], result: MatchResult) -> None:
     for side, team_name in [("home", result.home_team), ("away", result.away_team)]:
         goals_for = result.home_goals if side == "home" else result.away_goals
@@ -317,10 +617,12 @@ def _persist_live_state(
     displayed_beats: list[CommentaryBeat],
     standings: dict[str, dict],
     source_used: str,
+    pressure_note: str | None = None,
+    pressure_tone: str | None = None,
 ) -> None:
     current_home_goals = displayed_beats[-1].home_goals if displayed_beats else 0
     current_away_goals = displayed_beats[-1].away_goals if displayed_beats else 0
-    latest_story = displayed_beats[-1].text if displayed_beats else ""
+    latest_story = pressure_note or (displayed_beats[-1].text if displayed_beats else "")
     sorted_table = _sorted_standings(standings)
     leader = sorted_table[0] if sorted_table else None
 
@@ -337,9 +639,13 @@ def _persist_live_state(
             "matchday": matchday_idx,
             "weather": result.weather,
             "referee_strictness": result.referee_strictness,
+            "home_formation": result.home_formation,
+            "away_formation": result.away_formation,
             "home_style": result.home_style,
             "away_style": result.away_style,
             "match_narrative": result.match_narrative,
+            "pressure_note": pressure_note or "",
+            "pressure_tone": pressure_tone or "",
             "home_xg": round(result.home_xg, 2),
             "away_xg": round(result.away_xg, 2),
             "story": latest_story,
@@ -362,13 +668,23 @@ def _play_stream_match(
     season_id: str,
     matchday_idx: int,
     standings: dict[str, dict],
+    fulltime_standings: dict[str, dict],
     source_used: str,
     pace: float,
     match_seconds: float,
     dry_run: bool,
+    prematch_pressure: str | None = None,
+    prematch_pressure_tone: str | None = None,
+    fulltime_pressure: str | None = None,
+    fulltime_pressure_tone: str | None = None,
 ) -> None:
     """Play out a streamed match using a structured live timeline."""
-    timeline = commentary_gen.generate_timeline(result)
+    timeline = _inject_pressure_beats(
+        commentary_gen.generate_timeline(result),
+        result=result,
+        prematch_pressure=prematch_pressure,
+        fulltime_pressure=fulltime_pressure,
+    )
     displayed_beats: list[CommentaryBeat] = []
     minute_sleep = 0.0 if dry_run or match_seconds <= 0 else match_seconds / 90.0
 
@@ -387,6 +703,8 @@ def _play_stream_match(
         displayed_beats=displayed_beats,
         standings=standings,
         source_used=source_used,
+        pressure_note=prematch_pressure,
+        pressure_tone=prematch_pressure_tone,
     )
 
     if not dry_run and pace > 0:
@@ -412,8 +730,10 @@ def _play_stream_match(
             minute=minute,
             status=status,
             displayed_beats=displayed_beats,
-            standings=standings,
+            standings=fulltime_standings if status == "fulltime" else standings,
             source_used=source_used,
+            pressure_note=fulltime_pressure if status == "fulltime" else None,
+            pressure_tone=fulltime_pressure_tone if status == "fulltime" else None,
         )
 
         if not dry_run and minute_sleep > 0:
@@ -427,8 +747,10 @@ def _play_stream_match(
         minute=90,
         status="fulltime",
         displayed_beats=displayed_beats,
-        standings=standings,
+        standings=fulltime_standings,
         source_used=source_used,
+        pressure_note=fulltime_pressure,
+        pressure_tone=fulltime_pressure_tone,
     )
 
 
@@ -458,10 +780,7 @@ def run_stream(
             min_squad_size=min_squad_size,
         )
         team_names = list(teams.keys())
-        team_formations = {
-            name: _pick_stream_formation(squad)
-            for name, squad in teams.items()
-        }
+        team_formations = _assign_stream_formations(team_names, teams, source_used)
 
         print(f"\n{'=' * 60}")
         print(f"🏆 SWOS420 LEAGUE — SEASON {season_id}")
@@ -491,6 +810,19 @@ def run_stream(
                 )
                 season_results.append(result)
                 all_results.append(result)
+                projected_standings = _project_standings(standings, result)
+                prematch_pressure, prematch_pressure_tone = _build_pressure_context(
+                    stage="prematch",
+                    before_standings=standings,
+                    after_standings=projected_standings,
+                    result=result,
+                )
+                fulltime_pressure, fulltime_pressure_tone = _build_pressure_context(
+                    stage="fulltime",
+                    before_standings=standings,
+                    after_standings=projected_standings,
+                    result=result,
+                )
 
                 _play_stream_match(
                     result=result,
@@ -498,10 +830,15 @@ def run_stream(
                     season_id=season_id,
                     matchday_idx=matchday_idx,
                     standings=standings,
+                    fulltime_standings=projected_standings,
                     source_used=source_used,
                     pace=pace,
                     match_seconds=match_seconds,
                     dry_run=dry_run,
+                    prematch_pressure=prematch_pressure,
+                    prematch_pressure_tone=prematch_pressure_tone,
+                    fulltime_pressure=fulltime_pressure,
+                    fulltime_pressure_tone=fulltime_pressure_tone,
                 )
 
                 _update_standings(standings, result)
