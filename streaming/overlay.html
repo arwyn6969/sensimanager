@@ -3,485 +3,851 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=1920, height=1080">
-<title>SWOS420 — Live Overlay</title>
+<title>SWOS420 Broadcast Overlay</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Inter:wght@400;600;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Inter:wght@400;600;700;800;900&family=JetBrains+Mono:wght@400;700;800&display=swap" rel="stylesheet">
 <style>
-/* ── Reset & Canvas ─────────────────────────────────────── */
-*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
-  width: 1920px;
-  height: 1080px;
   overflow: hidden;
   background: transparent;
-  font-family: 'Inter', sans-serif;
   color: #fff;
+  font-family: "Inter", sans-serif;
 }
 
-/* ── Shared Glass Card ──────────────────────────────────── */
+#overlay-container {
+  width: 1920px;
+  height: 1080px;
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: top left;
+}
+
 .glass {
-  background: rgba(10, 12, 20, 0.82);
+  background: rgba(8, 12, 20, 0.82);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  border-radius: 18px;
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
   box-shadow:
-    0 8px 32px rgba(0, 0, 0, 0.45),
+    0 24px 60px rgba(0, 0, 0, 0.42),
     inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
-/* ── Branding ───────────────────────────────────────────── */
-#brand {
+#pitch {
   position: absolute;
-  top: 24px; left: 36px;
-  display: flex; align-items: center; gap: 14px;
-}
-#brand .logo {
-  font-family: 'Press Start 2P', monospace;
-  font-size: 22px;
-  background: linear-gradient(135deg, #00e676, #00b0ff);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  letter-spacing: 2px;
-  text-shadow: none;
-}
-#brand .badge {
-  font-family: 'Inter', sans-serif;
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 3px;
-  color: rgba(255, 255, 255, 0.4);
+  inset: 0;
+  z-index: -20;
+  background: #3e7d36;
 }
 
-/* ── Live Indicator ─────────────────────────────────────── */
-#live-dot {
+#atmosphere {
   position: absolute;
-  top: 32px; right: 40px;
-  display: flex; align-items: center; gap: 10px;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 13px;
-  font-weight: 700;
-  color: rgba(255, 255, 255, 0.5);
-  letter-spacing: 2px;
-  text-transform: uppercase;
+  inset: 0;
+  background:
+    radial-gradient(circle at top left, rgba(0, 176, 255, 0.18), transparent 28%),
+    radial-gradient(circle at bottom right, rgba(255, 215, 64, 0.18), transparent 24%),
+    linear-gradient(180deg, rgba(4, 8, 14, 0.05), rgba(4, 8, 14, 0.22));
+  z-index: -10;
+  pointer-events: none;
 }
-#live-dot .dot {
-  width: 10px; height: 10px;
+
+#brand {
+  position: absolute;
+  top: 28px;
+  left: 34px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+#brand .eyebrow {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 12px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+#brand .logo {
+  font-family: "Press Start 2P", monospace;
+  font-size: 24px;
+  letter-spacing: 2px;
+  background: linear-gradient(135deg, #00e676, #00b0ff, #ffd740);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+#live-indicator {
+  position: absolute;
+  top: 34px;
+  right: 36px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: rgba(8, 12, 20, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+#live-indicator .dot {
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
-  background: #ff1744;
+  background: #ff3b30;
+  box-shadow: 0 0 16px rgba(255, 59, 48, 0.45);
   animation: pulse 1.6s ease-in-out infinite;
 }
-#live-dot.dormant .dot { background: #555; animation: none; }
-#live-dot.dormant { color: rgba(255,255,255,0.25); }
+
+#live-indicator.dormant .dot {
+  background: rgba(255, 255, 255, 0.3);
+  box-shadow: none;
+  animation: none;
+}
 
 @keyframes pulse {
   0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.3; transform: scale(0.7); }
+  50% { opacity: 0.35; transform: scale(0.7); }
 }
 
-/* ── Scoreboard ─────────────────────────────────────────── */
-#scoreboard {
+#scoreboard-shell {
   position: absolute;
-  top: 28px;
+  top: 24px;
   left: 50%;
   transform: translateX(-50%);
+  width: 820px;
+  padding: 16px;
+}
+
+#status-row {
   display: flex;
   align-items: center;
-  gap: 0;
-  padding: 0;
-  min-width: 580px;
-  overflow: hidden;
+  justify-content: space-between;
+  margin-bottom: 14px;
 }
 
-.team-name {
-  font-family: 'Inter', sans-serif;
-  font-weight: 900;
-  font-size: 20px;
-  text-transform: uppercase;
-  letter-spacing: 1.5px;
-  padding: 16px 28px;
-  min-width: 180px;
-  text-align: center;
-  white-space: nowrap;
-}
-.team-name.home { border-radius: 12px 0 0 12px; }
-.team-name.away { border-radius: 0 12px 12px 0; }
-
-.score-display {
-  display: flex;
+#status-chip,
+#round-chip {
+  display: inline-flex;
   align-items: center;
-  gap: 0;
-  background: rgba(255, 255, 255, 0.04);
-  border-left: 1px solid rgba(255, 255, 255, 0.06);
-  border-right: 1px solid rgba(255, 255, 255, 0.06);
-}
-
-.score-num {
-  font-family: 'JetBrains Mono', monospace;
+  min-height: 34px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 12px;
   font-weight: 700;
-  font-size: 34px;
-  padding: 10px 18px;
-  min-width: 56px;
-  text-align: center;
-  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  letter-spacing: 1px;
+  text-transform: uppercase;
 }
-.score-num.pop {
-  transform: scale(1.35);
+
+#status-chip {
+  background: rgba(0, 230, 118, 0.12);
   color: #00e676;
 }
 
-.score-sep {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 26px;
-  color: rgba(255, 255, 255, 0.3);
-  padding: 0 2px;
+#status-chip.settled {
+  background: rgba(255, 215, 64, 0.12);
+  color: #ffd740;
 }
 
-.minute-badge {
-  font-family: 'JetBrains Mono', monospace;
-  font-weight: 700;
-  font-size: 14px;
-  padding: 6px 14px;
-  border-radius: 0 12px 12px 0;
+#status-chip.waiting {
+  background: rgba(255, 255, 255, 0.08);
   color: rgba(255, 255, 255, 0.7);
-  letter-spacing: 1px;
-  white-space: nowrap;
 }
-.minute-badge.live { color: #ff1744; }
-.minute-badge.ft { color: #00e676; }
 
-/* ── League Table ───────────────────────────────────────── */
+#round-chip {
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.62);
+}
+
+#scoreboard {
+  display: grid;
+  grid-template-columns: minmax(210px, 1fr) 180px minmax(210px, 1fr);
+  gap: 14px;
+  align-items: stretch;
+}
+
+.team-block,
+.score-core {
+  min-height: 118px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.team-block {
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
+}
+
+.team-block.home {
+  background:
+    linear-gradient(135deg, rgba(0, 176, 255, 0.18), rgba(255, 255, 255, 0.02)),
+    rgba(255, 255, 255, 0.03);
+}
+
+.team-block.away {
+  background:
+    linear-gradient(135deg, rgba(255, 215, 64, 0.18), rgba(255, 255, 255, 0.02)),
+    rgba(255, 255, 255, 0.03);
+}
+
+.team-role {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.5);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.team-name {
+  font-size: 30px;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+
+.score-core {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03)),
+    rgba(255, 255, 255, 0.04);
+}
+
+#score-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 64px;
+  font-weight: 800;
+  letter-spacing: -0.08em;
+}
+
+#score-line .divider {
+  color: rgba(255, 255, 255, 0.22);
+}
+
+.score-num.pop {
+  transform: scale(1.22);
+  color: #00e676;
+  transition: transform 0.35s ease, color 0.35s ease;
+}
+
+#clock {
+  margin-top: 8px;
+  font-family: "Press Start 2P", monospace;
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: #00e676;
+}
+
+#story-ribbon {
+  position: absolute;
+  top: 188px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 760px;
+  display: grid;
+  grid-template-columns: 150px 1fr;
+  gap: 14px;
+  align-items: center;
+  padding: 14px 18px;
+}
+
+#story-label {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1.6px;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+#story-text {
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.92);
+}
+
 #table-panel {
   position: absolute;
-  top: 100px; right: 36px;
-  width: 400px;
-  max-height: 620px;
-  overflow: hidden;
-  padding: 18px 20px 14px;
+  top: 108px;
+  right: 34px;
+  width: 390px;
+  padding: 18px 18px 16px;
 }
 
-#table-panel .panel-title {
-  font-family: 'Press Start 2P', monospace;
-  font-size: 10px;
-  color: rgba(255, 255, 255, 0.45);
-  letter-spacing: 3px;
+.panel-title {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 12px;
   text-transform: uppercase;
+  letter-spacing: 2px;
+  color: rgba(255, 255, 255, 0.48);
   margin-bottom: 14px;
 }
 
 #table-panel table {
   width: 100%;
   border-collapse: collapse;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: "JetBrains Mono", monospace;
   font-size: 13px;
 }
+
 #table-panel th {
-  font-size: 10px;
-  font-weight: 700;
-  color: rgba(255, 255, 255, 0.35);
-  text-transform: uppercase;
-  padding: 4px 6px 8px;
+  padding: 6px 4px 10px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 10px;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.38);
   text-align: right;
 }
+
 #table-panel th:first-child,
-#table-panel th:nth-child(2) { text-align: left; }
+#table-panel th:nth-child(2) {
+  text-align: left;
+}
 
 #table-panel td {
-  padding: 7px 6px;
-  text-align: right;
+  padding: 8px 4px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.03);
   color: rgba(255, 255, 255, 0.75);
-  transition: background 0.3s;
+  text-align: right;
 }
-#table-panel td:first-child { text-align: center; width: 28px; }
+
+#table-panel td:first-child {
+  text-align: left;
+  width: 22px;
+}
+
 #table-panel td:nth-child(2) {
   text-align: left;
   font-weight: 700;
   color: #fff;
-  max-width: 130px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 #table-panel tr.pos-1 td:nth-child(2) { color: #ffd740; }
-#table-panel tr.pos-champion td { background: rgba(255, 215, 64, 0.06); }
-#table-panel tr.pos-relegate td:nth-child(2) { color: #ff5252; }
+#table-panel tr.pos-champion td { background: rgba(255, 215, 64, 0.05); }
 #table-panel tr.pos-relegate td { background: rgba(255, 82, 82, 0.04); }
+#table-panel tr.pos-relegate td:nth-child(2) { color: #ff7676; }
 
-/* ── Commentary ─────────────────────────────────────────── */
-#commentary {
+#summary-panel {
   position: absolute;
-  bottom: 36px; left: 36px;
-  width: 680px;
-  max-height: 300px;
-  padding: 18px 22px;
-  overflow: hidden;
+  top: 570px;
+  right: 34px;
+  width: 390px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
-#commentary .panel-title {
-  font-family: 'Press Start 2P', monospace;
-  font-size: 10px;
-  color: rgba(255, 255, 255, 0.45);
-  letter-spacing: 3px;
-  text-transform: uppercase;
-  margin-bottom: 12px;
+.summary-chip {
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+#commentary {
+  position: absolute;
+  left: 34px;
+  bottom: 110px;
+  width: 760px;
+  min-height: 320px;
+  padding: 18px;
+}
+
+#event-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .event-line {
-  font-family: 'Inter', sans-serif;
+  display: grid;
+  grid-template-columns: 72px 1fr;
+  gap: 12px;
+  align-items: start;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.event-line.goal {
+  background: rgba(255, 215, 64, 0.08);
+  border-color: rgba(255, 215, 64, 0.28);
+}
+
+.event-line.card {
+  background: rgba(255, 82, 82, 0.08);
+  border-color: rgba(255, 82, 82, 0.28);
+}
+
+.event-line.injury {
+  background: rgba(255, 109, 0, 0.08);
+  border-color: rgba(255, 109, 0, 0.28);
+}
+
+.event-minute {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.event-text {
   font-size: 14px;
   line-height: 1.65;
-  color: rgba(255, 255, 255, 0.78);
-  padding: 3px 0;
-  animation: fadeSlideIn 0.4s ease-out;
-  border-left: 3px solid transparent;
-  padding-left: 12px;
+  color: rgba(255, 255, 255, 0.82);
 }
-.event-line:first-child {
+
+#ticker {
+  position: absolute;
+  left: 34px;
+  right: 34px;
+  bottom: 28px;
+  padding: 12px 18px;
+  display: grid;
+  grid-template-columns: 150px 1fr;
+  gap: 14px;
+  align-items: center;
+}
+
+#ticker-label {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+#ticker-track {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.ticker-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.ticker-item strong {
   color: #fff;
-  font-weight: 600;
-  border-left-color: #00e676;
-}
-.event-line.goal { border-left-color: #ffd740; }
-.event-line.card { border-left-color: #ff5252; }
-.event-line.injury { border-left-color: #ff6d00; }
-
-@keyframes fadeSlideIn {
-  from { opacity: 0; transform: translateY(12px); }
-  to   { opacity: 1; transform: translateY(0); }
 }
 
-/* ── Match Info Bar ─────────────────────────────────────── */
 #match-info {
   position: absolute;
-  bottom: 36px; right: 36px;
-  width: 400px;
-  padding: 16px 20px;
-  font-family: 'JetBrains Mono', monospace;
+  right: 34px;
+  bottom: 118px;
+  width: 390px;
+  padding: 16px 18px;
+  font-family: "JetBrains Mono", monospace;
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.45);
-  text-align: center;
-}
-#match-info .season-id {
-  font-family: 'Press Start 2P', monospace;
-  font-size: 9px;
-  letter-spacing: 2px;
-  color: rgba(255, 255, 255, 0.3);
+  line-height: 1.7;
+  color: rgba(255, 255, 255, 0.6);
 }
 
-/* ── Loading State ──────────────────────────────────────── */
+#match-info strong {
+  display: block;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.88);
+  margin-bottom: 4px;
+}
+
 .waiting {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: 'Press Start 2P', monospace;
-  font-size: 14px;
-  color: rgba(255, 255, 255, 0.2);
-  letter-spacing: 3px;
-  height: 100%;
+  min-height: 160px;
+  color: rgba(255, 255, 255, 0.28);
+  font-family: "Press Start 2P", monospace;
+  font-size: 12px;
+  letter-spacing: 2px;
 }
-
 </style>
 </head>
 <body>
+<div id="overlay-container">
+  <canvas id="pitch" width="1920" height="1080"></canvas>
+  <div id="atmosphere"></div>
+  <script src="assets/engine.js"></script>
 
-<!-- Branding -->
-<div id="brand">
-  <span class="logo">SWOS420</span>
-  <span class="badge">Autonomous League</span>
-</div>
-
-<!-- Live Indicator -->
-<div id="live-dot" class="dormant">
-  <span class="dot"></span>
-  <span id="live-text">WAITING</span>
-</div>
-
-<!-- Scoreboard -->
-<div id="scoreboard" class="glass" style="opacity: 0;">
-  <div class="team-name home" id="home-name">HOME</div>
-  <div class="score-display">
-    <span class="score-num" id="home-score">0</span>
-    <span class="score-sep">—</span>
-    <span class="score-num" id="away-score">0</span>
+  <div id="brand">
+    <span class="eyebrow">Autonomous Football Broadcast</span>
+    <span class="logo">SWOS420</span>
   </div>
-  <div class="team-name away" id="away-name">AWAY</div>
-  <div class="minute-badge" id="minute-badge">0'</div>
-</div>
 
-<!-- League Table -->
-<div id="table-panel" class="glass">
-  <div class="panel-title">League Table</div>
-  <div id="table-body"><div class="waiting">AWAITING DATA</div></div>
-</div>
+  <div id="live-indicator" class="dormant">
+    <span class="dot"></span>
+    <span id="live-text">Waiting</span>
+  </div>
 
-<!-- Commentary -->
-<div id="commentary" class="glass">
-  <div class="panel-title">Commentary</div>
-  <div id="event-lines"><div class="waiting">⚽</div></div>
-</div>
+  <div id="scoreboard-shell" class="glass">
+    <div id="status-row">
+      <div id="status-chip" class="waiting">Awaiting Feed</div>
+      <div id="round-chip">Match Centre</div>
+    </div>
+    <div id="scoreboard">
+      <div class="team-block home">
+        <span class="team-role">Home</span>
+        <span class="team-name" id="home-name">Home</span>
+      </div>
+      <div class="score-core">
+        <div id="score-line">
+          <span class="score-num" id="home-score">0</span>
+          <span class="divider">:</span>
+          <span class="score-num" id="away-score">0</span>
+        </div>
+        <div id="clock">PRE</div>
+      </div>
+      <div class="team-block away">
+        <span class="team-role">Away</span>
+        <span class="team-name" id="away-name">Away</span>
+      </div>
+    </div>
+  </div>
 
-<!-- Match Info -->
-<div id="match-info" class="glass" style="opacity: 0;">
-  <div class="season-id" id="season-label">SWOS420 LEAGUE</div>
+  <div id="story-ribbon" class="glass">
+    <div id="story-label">Key Story</div>
+    <div id="story-text">The stream is idle. Start the runner to begin the matchday narrative.</div>
+  </div>
+
+  <div id="table-panel" class="glass">
+    <div class="panel-title">Table Pulse</div>
+    <div id="table-body"><div class="waiting">Awaiting Table</div></div>
+  </div>
+
+  <div id="summary-panel" class="glass">
+    <div class="panel-title">Summary</div>
+    <div class="summary-chip" id="summary-xg">xG will appear after the match summary lands.</div>
+    <div class="summary-chip" id="summary-motm">Man of the match will lock in at full time.</div>
+  </div>
+
+  <div id="commentary" class="glass">
+    <div class="panel-title">Commentary Feed</div>
+    <div id="event-lines"><div class="waiting">Awaiting Commentary</div></div>
+  </div>
+
+  <div id="match-info" class="glass">
+    <strong id="match-heading">Watch the autonomous league breathe.</strong>
+    <span id="match-meta">The overlay reacts to scoreboard, table, and event JSON updates.</span>
+  </div>
+
+  <div id="ticker" class="glass">
+    <div id="ticker-label">Standings</div>
+    <div id="ticker-track">
+      <span class="ticker-item">Waiting for streamed fixtures</span>
+    </div>
+  </div>
 </div>
 
 <script>
-/* ── Config ───────────────────────────────────────────── */
-const POLL_MS   = 1000;
-const MAX_LINES = 8;
-const BASE_URL  = window.location.origin;
+function resizeOverlay() {
+  const scale = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
+  document.getElementById("overlay-container").style.transform = `scale(${scale})`;
+}
 
-/* ── State ────────────────────────────────────────────── */
+window.addEventListener("resize", resizeOverlay);
+resizeOverlay();
+
+const POLL_MS = 1000;
+const MAX_LINES = 8;
+const BASE_URL = window.location.origin;
+
 let prevHomeGoals = -1;
 let prevAwayGoals = -1;
 let lastEventCount = 0;
+let scoreboardState = null;
+let commentaryState = null;
 
-/* ── Fetch JSON helper ────────────────────────────────── */
-async function fetchJSON(path) {
-  try {
-    const res = await fetch(`${BASE_URL}/${path}?_=${Date.now()}`);
-    if (!res.ok) return null;
-    return await res.json();
-  } catch { return null; }
+function classifyLine(line) {
+  const lower = line.toLowerCase();
+  if (lower.includes("goal") || lower.includes("it's in") || lower.includes("⚽")) return "goal";
+  if (lower.includes("card") || lower.includes("booked") || lower.includes("🟨") || lower.includes("🟥")) return "card";
+  if (lower.includes("injur") || lower.includes("🏥")) return "injury";
+  return "";
 }
 
-/* ── Scoreboard ───────────────────────────────────────── */
+function extractMinute(line) {
+  const match = line.match(/(\d{1,3})'\)?/);
+  return match ? `${match[1]}'` : null;
+}
+
+function latestStory(lines) {
+  return [...lines].reverse().find((line) => !line.startsWith("xG:") && !line.startsWith("⭐")) || null;
+}
+
+async function fetchJSON(path) {
+  try {
+    const response = await fetch(`${BASE_URL}/${path}?_=${Date.now()}`);
+    if (!response.ok) return null;
+    return await response.json();
+  } catch {
+    return null;
+  }
+}
+
+function currentLatestEvent(data = commentaryState) {
+  if (!data) return null;
+  if (data.latest) return data.latest;
+
+  if (Array.isArray(data.events) && data.events.length > 0) {
+    return data.events[data.events.length - 1];
+  }
+
+  const lines = Array.isArray(data.lines) ? data.lines.filter((line) => line.trim()) : [];
+  if (lines.length === 0) return null;
+
+  const lastLine = lines[lines.length - 1];
+  return {
+    minute: scoreboardState?.minute ?? 0,
+    event_type: classifyLine(lastLine) || "line",
+    team: null,
+    text: lastLine,
+  };
+}
+
+function buildEventKey(event) {
+  if (!event) return "";
+  return [
+    commentaryState?.count ?? 0,
+    event.minute ?? "x",
+    event.event_type || "line",
+    event.team || "na",
+    event.text || "",
+  ].join(":");
+}
+
+function syncEngine(extra = {}) {
+  if (!window.swosEngine || !scoreboardState) return;
+
+  const latestEvent = extra.latestEvent || currentLatestEvent();
+  window.swosEngine.syncBroadcast({
+    status: (scoreboardState.status || "").toLowerCase(),
+    minute: scoreboardState.minute || 0,
+    homeGoals: scoreboardState.home_goals ?? 0,
+    awayGoals: scoreboardState.away_goals ?? 0,
+    homeTeam: scoreboardState.home_team || "Home",
+    awayTeam: scoreboardState.away_team || "Away",
+    weather: scoreboardState.weather || commentaryState?.summary?.weather || "dry",
+    story: scoreboardState.story || latestEvent?.text || "",
+    latestEvent,
+    eventKey: extra.eventKey || buildEventKey(latestEvent),
+  });
+}
+
+function setStatus(status) {
+  const statusChip = document.getElementById("status-chip");
+  const liveIndicator = document.getElementById("live-indicator");
+  const liveText = document.getElementById("live-text");
+  const clock = document.getElementById("clock");
+
+  statusChip.className = "";
+  statusChip.id = "status-chip";
+
+  if (status === "live") {
+    statusChip.textContent = "Live Match";
+    liveIndicator.classList.remove("dormant");
+    liveText.textContent = "Live";
+    clock.style.color = "#00e676";
+  } else if (status === "prematch") {
+    statusChip.textContent = "Kickoff Soon";
+    statusChip.classList.add("waiting");
+    liveIndicator.classList.add("dormant");
+    liveText.textContent = "Pre-Match";
+    clock.style.color = "#ffd740";
+  } else if (status === "fulltime" || status === "ft") {
+    statusChip.textContent = "Full Time";
+    statusChip.classList.add("settled");
+    liveIndicator.classList.add("dormant");
+    liveText.textContent = "Settled";
+    clock.style.color = "#ffd740";
+  } else if (status === "halftime" || status === "ht") {
+    statusChip.textContent = "Half Time";
+    statusChip.classList.add("settled");
+    liveIndicator.classList.add("dormant");
+    liveText.textContent = "Interval";
+    clock.style.color = "#ffd740";
+  } else {
+    statusChip.textContent = "Awaiting Feed";
+    statusChip.classList.add("waiting");
+    liveIndicator.classList.add("dormant");
+    liveText.textContent = "Waiting";
+    clock.style.color = "rgba(255,255,255,0.7)";
+  }
+}
+
 async function updateScoreboard() {
-  const data = await fetchJSON('scoreboard.json');
+  const data = await fetchJSON("scoreboard.json");
   if (!data) return;
+  scoreboardState = data;
 
-  const board = document.getElementById('scoreboard');
-  board.style.opacity = '1';
+  document.getElementById("home-name").textContent = data.home_team || "Home";
+  document.getElementById("away-name").textContent = data.away_team || "Away";
+  document.getElementById("match-heading").textContent = `${data.home_team || "Home"} vs ${data.away_team || "Away"}`;
 
-  document.getElementById('home-name').textContent = data.home_team || 'HOME';
-  document.getElementById('away-name').textContent = data.away_team || 'AWAY';
+  const homeScore = document.getElementById("home-score");
+  const awayScore = document.getElementById("away-score");
 
-  const homeEl = document.getElementById('home-score');
-  const awayEl = document.getElementById('away-score');
-
-  // Animate goal flash
   if (prevHomeGoals >= 0 && data.home_goals > prevHomeGoals) {
-    homeEl.classList.add('pop');
-    setTimeout(() => homeEl.classList.remove('pop'), 600);
+    homeScore.classList.add("pop");
+    setTimeout(() => homeScore.classList.remove("pop"), 600);
+    if (window.swosEngine) window.swosEngine.triggerGoalSequence("home");
   }
   if (prevAwayGoals >= 0 && data.away_goals > prevAwayGoals) {
-    awayEl.classList.add('pop');
-    setTimeout(() => awayEl.classList.remove('pop'), 600);
+    awayScore.classList.add("pop");
+    setTimeout(() => awayScore.classList.remove("pop"), 600);
+    if (window.swosEngine) window.swosEngine.triggerGoalSequence("away");
   }
 
-  homeEl.textContent = data.home_goals ?? 0;
-  awayEl.textContent = data.away_goals ?? 0;
+  homeScore.textContent = data.home_goals ?? 0;
+  awayScore.textContent = data.away_goals ?? 0;
   prevHomeGoals = data.home_goals;
   prevAwayGoals = data.away_goals;
 
-  // Minute badge
-  const badge = document.getElementById('minute-badge');
-  const status = (data.status || '').toLowerCase();
-  badge.className = 'minute-badge';
+  const status = (data.status || "").toLowerCase();
+  const clock = document.getElementById("clock");
+  if (status === "prematch") clock.textContent = "PRE";
+  else if (status === "fulltime" || status === "ft") clock.textContent = "FT";
+  else if (status === "halftime" || status === "ht") clock.textContent = "HT";
+  else clock.textContent = `${data.minute || 0}'`;
 
-  if (status === 'prematch') {
-    badge.textContent = 'PRE';
-    badge.classList.add('ft');
-  } else if (status === 'fulltime' || status === 'ft') {
-    badge.textContent = 'FT';
-    badge.classList.add('ft');
-  } else if (status === 'halftime' || status === 'ht') {
-    badge.textContent = 'HT';
-  } else {
-    badge.textContent = `${data.minute || 0}'`;
-    badge.classList.add('live');
+  document.getElementById("round-chip").textContent = `Minute ${data.minute || 0}`;
+  document.getElementById("match-meta").textContent = `${data.home_team || "Home"} ${data.home_goals ?? 0} - ${data.away_goals ?? 0} ${data.away_team || "Away"} · ${data.weather || "dry"} conditions`;
+  if (data.story) {
+    document.getElementById("story-text").textContent = data.story;
   }
-
-  // Live dot
-  const liveDot = document.getElementById('live-dot');
-  const liveText = document.getElementById('live-text');
-  if (status === 'live') {
-    liveDot.classList.remove('dormant');
-    liveText.textContent = 'LIVE';
-  } else if (status === 'prematch') {
-    liveDot.classList.add('dormant');
-    liveText.textContent = 'PRE-MATCH';
-  } else if (status === 'fulltime') {
-    liveDot.classList.add('dormant');
-    liveText.textContent = 'FULL TIME';
-  } else {
-    liveDot.classList.remove('dormant');
-    liveText.textContent = 'STREAMING';
-  }
+  setStatus(status);
+  syncEngine();
 }
 
-/* ── League Table ─────────────────────────────────────── */
 async function updateTable() {
-  const data = await fetchJSON('table.json');
-  if (!data || !Array.isArray(data) || data.length === 0) return;
+  const data = await fetchJSON("table.json");
+  const rows = Array.isArray(data) ? data : data?.rows;
+  if (!rows || !Array.isArray(rows) || rows.length === 0) return;
 
-  const numTeams = data.length;
+  let html = "<table><tr><th>#</th><th>Team</th><th>P</th><th>W</th><th>D</th><th>L</th><th>GD</th><th>Pts</th></tr>";
 
-  let html = `<table>
-    <tr><th>#</th><th>Team</th><th>P</th><th>W</th><th>D</th><th>L</th><th>GD</th><th>Pts</th></tr>`;
+  rows.forEach((team, index) => {
+    const pos = index + 1;
+    let rowClass = "";
+    if (pos === 1) rowClass = "pos-1 pos-champion";
+    else if (pos >= rows.length - 1) rowClass = "pos-relegate";
 
-  data.forEach((t, i) => {
-    const pos = i + 1;
-    let cls = '';
-    if (pos === 1) cls = 'pos-1 pos-champion';
-    else if (pos > numTeams - 3) cls = 'pos-relegate';
-
-    const gd = t.gd > 0 ? `+${t.gd}` : t.gd;
-    const name = (t.team || '').length > 14 ? (t.team || '').slice(0, 13) + '…' : t.team;
-
-    html += `<tr class="${cls}">
+    html += `<tr class="${rowClass}">
       <td>${pos}</td>
-      <td>${name}</td>
-      <td>${t.played ?? 0}</td>
-      <td>${t.wins ?? 0}</td>
-      <td>${t.draws ?? 0}</td>
-      <td>${t.losses ?? 0}</td>
-      <td>${gd}</td>
-      <td style="font-weight:700;color:#fff">${t.points ?? 0}</td>
+      <td>${team.team}</td>
+      <td>${team.played ?? 0}</td>
+      <td>${team.wins ?? 0}</td>
+      <td>${team.draws ?? 0}</td>
+      <td>${team.losses ?? 0}</td>
+      <td>${team.gd > 0 ? `+${team.gd}` : team.gd}</td>
+      <td>${team.points ?? 0}</td>
     </tr>`;
   });
 
-  html += '</table>';
-  document.getElementById('table-body').innerHTML = html;
-}
+  html += "</table>";
+  document.getElementById("table-body").innerHTML = html;
 
-/* ── Commentary ───────────────────────────────────────── */
-async function updateCommentary() {
-  const data = await fetchJSON('events.json');
-  if (!data || !data.lines || data.lines.length === 0) return;
-
-  // Only update if new lines arrived
-  if (data.count === lastEventCount) return;
-  lastEventCount = data.count;
-
-  // Filter out empty lines, take last MAX_LINES, reverse (newest first)
-  const lines = data.lines.filter(l => l.trim()).slice(-MAX_LINES).reverse();
-
-  const container = document.getElementById('event-lines');
-  container.innerHTML = '';
-
-  lines.forEach((line, i) => {
-    const div = document.createElement('div');
-    div.className = 'event-line';
-    div.style.animationDelay = `${i * 0.05}s`;
-
-    // Classify line type for border color
-    const lower = line.toLowerCase();
-    if (lower.includes('⚽') || lower.includes('goal')) div.classList.add('goal');
-    else if (lower.includes('🟨') || lower.includes('🟥') || lower.includes('card') || lower.includes('booked')) div.classList.add('card');
-    else if (lower.includes('🏥') || lower.includes('injur')) div.classList.add('injury');
-
-    div.textContent = line;
-    container.appendChild(div);
+  const ticker = document.getElementById("ticker-track");
+  ticker.innerHTML = "";
+  rows.slice(0, 4).forEach((team, index) => {
+    const item = document.createElement("span");
+    item.className = "ticker-item";
+    item.innerHTML = `<strong>${index + 1}</strong> ${team.team} <span>${team.points} pts</span>`;
+    ticker.appendChild(item);
   });
 }
 
-/* ── Poll Loop ────────────────────────────────────────── */
+async function updateCommentary() {
+  const data = await fetchJSON("events.json");
+  if (!data) return;
+  commentaryState = data;
+  if (!Array.isArray(data.lines) || data.lines.length === 0) {
+    syncEngine();
+    return;
+  }
+
+  if (data.count === lastEventCount) {
+    syncEngine();
+    return;
+  }
+  lastEventCount = data.count;
+
+  const lines = data.lines.filter((line) => line.trim());
+  const story = data.latest?.text || latestStory(lines);
+  document.getElementById("story-text").textContent = story || "The commentary feed is warming up.";
+
+  const xgLine = data.summary?.xg || [...lines].reverse().find((line) => line.startsWith("xG:"));
+  const motmLine = data.summary?.motm || [...lines].reverse().find((line) => line.startsWith("⭐"));
+  document.getElementById("summary-xg").textContent = xgLine || "xG will appear after the match summary lands.";
+  document.getElementById("summary-motm").textContent = motmLine || "Man of the match will lock in at full time.";
+
+  const container = document.getElementById("event-lines");
+  container.innerHTML = "";
+
+  const renderedEvents = Array.isArray(data.events) && data.events.length > 0
+    ? data.events.slice(-MAX_LINES).reverse()
+    : lines.slice(-MAX_LINES).reverse().map((line) => ({ text: line, event_type: classifyLine(line), minute: extractMinute(line) }));
+
+  renderedEvents.forEach((entry, index) => {
+    const article = document.createElement("article");
+    article.className = `event-line ${classifyLine(entry.text || "") || entry.event_type || ""}`.trim();
+
+    const badge = document.createElement("span");
+    badge.className = "event-minute";
+    const eventMinute = typeof entry.minute === "number" ? `${entry.minute}'` : extractMinute(entry.text || "");
+    badge.textContent = eventMinute || (index === 0 ? "Now" : "Note");
+
+    const text = document.createElement("span");
+    text.className = "event-text";
+    text.textContent = entry.text;
+
+    article.appendChild(badge);
+    article.appendChild(text);
+    container.appendChild(article);
+  });
+
+  syncEngine();
+}
+
 async function poll() {
   await Promise.all([
     updateScoreboard(),
@@ -490,15 +856,8 @@ async function poll() {
   ]);
 }
 
-// Initial poll + interval
 poll();
 setInterval(poll, POLL_MS);
-
-/* ── Match info fade in ───────────────────────────────── */
-setTimeout(() => {
-  document.getElementById('match-info').style.opacity = '1';
-  document.getElementById('match-info').style.transition = 'opacity 1s';
-}, 2000);
 </script>
 </body>
 </html>

@@ -44,8 +44,13 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 # ── Start overlay server ──────────────────────────────────────
+PYTHON_BIN="python3"
+if [ -f ".venv/bin/python" ]; then
+    PYTHON_BIN=".venv/bin/python"
+fi
+
 echo "🖥️  Starting overlay server on port ${PORT}..."
-python scripts/serve_overlay.py --port "${PORT}" &
+$PYTHON_BIN scripts/serve_overlay.py --port "${PORT}" &
 SERVER_PID=$!
 sleep 1
 
@@ -63,7 +68,7 @@ echo "   JSON state → streaming/*.json"
 echo "   OBS overlay → http://localhost:${PORT}/overlay.html"
 echo ""
 
-python scripts/stream_league.py \
+$PYTHON_BIN scripts/stream_league.py \
     --seasons "${SEASONS}" \
     --num-teams "${NUM_TEAMS}" \
     --pace "${PACE}" \

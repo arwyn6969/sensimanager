@@ -10,6 +10,7 @@ Template-driven with randomized phrasing for variety.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 import random
 from typing import Sequence
 
@@ -96,6 +97,19 @@ PREMATCH_TEMPLATES = [
 ]
 
 
+@dataclass
+class CommentaryBeat:
+    """Structured commentary beat for live overlays and stream timelines."""
+
+    minute: int
+    phase: str
+    text: str
+    event_type: str = ""
+    team: str | None = None
+    home_goals: int = 0
+    away_goals: int = 0
+
+
 # ── Core Generator ───────────────────────────────────────────────────────
 
 
@@ -108,6 +122,40 @@ def _referee_category(strictness: float) -> str:
     return "normal"
 
 
+def _event_sort_key(event: MatchEvent) -> tuple[int, int]:
+    order = {
+        EventType.GOAL: 0,
+        EventType.ASSIST: 1,
+        EventType.INJURY: 2,
+        EventType.YELLOW_CARD: 3,
+        EventType.RED_CARD: 4,
+        EventType.SUBSTITUTION: 5,
+    }
+    return event.minute, order.get(event.event_type, 99)
+
+
+def _running_score(
+    events: Sequence[MatchEvent],
+    up_to_minute: int,
+) -> tuple[int, int]:
+    """Calculate the running score at a given minute."""
+    home_goals = sum(
+        1
+        for event in events
+        if event.event_type == EventType.GOAL
+        and event.team == "home"
+        and event.minute <= up_to_minute
+    )
+    away_goals = sum(
+        1
+        for event in events
+        if event.event_type == EventType.GOAL
+        and event.team == "away"
+        and event.minute <= up_to_minute
+    )
+    return home_goals, away_goals
+
+
 def _running_scoreline(
     home_team: str,
     away_team: str,
@@ -115,21 +163,145 @@ def _running_scoreline(
     up_to_minute: int,
 ) -> str:
     """Calculate the running scoreline at a given minute."""
-    home_goals = sum(
-        1
-        for e in events
-        if e.event_type == EventType.GOAL
-        and e.team == "home"
-        and e.minute <= up_to_minute
-    )
-    away_goals = sum(
-        1
-        for e in events
-        if e.event_type == EventType.GOAL
-        and e.team == "away"
-        and e.minute <= up_to_minute
-    )
+    home_goals, away_goals = _running_score(events, up_to_minute)
     return f"{home_team} {home_goals} - {away_goals} {away_team}"
+
+
+def generate_commentary_timeline(result: MatchResult) -> list[CommentaryBeat]:
+    """Generate structured commentary beats for a full match timeline."""
+    beats: list[CommentaryBeat] = []
+
+    beats.append(
+        CommentaryBeat(
+            minute=0,
+            phase="prematch",
+            event_type="prematch",
+            text=random.choice(PREMATCH_TEMPLATES).format(
+                home=result.home_team,
+                away=result.away_team,
+            ),
+        )
+    )
+
+    weather_text = WEATHER_FLAVOR.get(result.weather, "")
+    if weather_text:
+        beats.append(
+            CommentaryBeat(
+                minute=0,
+                phase="context",
+                event_type="weather",
+                text=weather_text,
+            )
+        )
+
+    ref_cat = _referee_category(result.referee_strictness)
+    ref_text = REFEREE_FLAVOR.get(ref_cat, "")
+    if ref_text:
+        beats.append(
+            CommentaryBeat(
+                minute=0,
+                phase="context",
+                event_type="referee",
+                text=ref_text,
+            )
+        )
+
+    sorted_events = sorted(result.events, key=_event_sort_key)
+    first_half_events = [event for event in sorted_events if event.minute <= 45]
+    second_half_events = [event for event in sorted_events if event.minute > 45]
+
+    for event in first_half_events:
+        line = _narrate_event(event, result, sorted_events)
+        if not line:
+            continue
+        home_goals, away_goals = _running_score(sorted_events, event.minute)
+        beats.append(
+            CommentaryBeat(
+                minute=event.minute,
+                phase="event",
+                event_type=event.event_type.value,
+                team=event.team,
+                text=line,
+                home_goals=home_goals,
+                away_goals=away_goals,
+            )
+        )
+
+    halftime_home, halftime_away = _running_score(sorted_events, 45)
+    beats.append(
+        CommentaryBeat(
+            minute=45,
+            phase="halftime",
+            event_type="halftime",
+            text=random.choice(HALFTIME_TEMPLATES).format(
+                scoreline=_running_scoreline(result.home_team, result.away_team, list(sorted_events), 45)
+            ),
+            home_goals=halftime_home,
+            away_goals=halftime_away,
+        )
+    )
+
+    for event in second_half_events:
+        line = _narrate_event(event, result, sorted_events)
+        if not line:
+            continue
+        home_goals, away_goals = _running_score(sorted_events, event.minute)
+        beats.append(
+            CommentaryBeat(
+                minute=event.minute,
+                phase="event",
+                event_type=event.event_type.value,
+                team=event.team,
+                text=line,
+                home_goals=home_goals,
+                away_goals=away_goals,
+            )
+        )
+
+    beats.append(
+        CommentaryBeat(
+            minute=90,
+            phase="fulltime",
+            event_type="fulltime",
+            text=(
+                random.choice(FULLTIME_TEMPLATES_DRAW).format(scoreline=result.scoreline())
+                if result.winner == "draw"
+                else random.choice(FULLTIME_TEMPLATES_WIN).format(
+                    winner=result.home_team if result.winner == "home" else result.away_team,
+                    scoreline=result.scoreline(),
+                )
+            ),
+            home_goals=result.home_goals,
+            away_goals=result.away_goals,
+        )
+    )
+
+    beats.append(
+        CommentaryBeat(
+            minute=90,
+            phase="summary",
+            event_type="xg",
+            text=f"xG: {result.home_team} {result.home_xg} - {result.away_xg} {result.away_team}",
+            home_goals=result.home_goals,
+            away_goals=result.away_goals,
+        )
+    )
+
+    all_stats = result.home_player_stats + result.away_player_stats
+    if all_stats:
+        motm = max(all_stats, key=lambda stat: stat.rating)
+        beats.append(
+            CommentaryBeat(
+                minute=90,
+                phase="summary",
+                event_type="motm",
+                text=f"⭐ Man of the Match: {motm.display_name} ({motm.rating:.1f})",
+                home_goals=result.home_goals,
+                away_goals=result.away_goals,
+            )
+        )
+
+    return beats
 
 
 def generate_commentary(result: MatchResult) -> list[str]:
@@ -164,7 +336,7 @@ def generate_commentary(result: MatchResult) -> list[str]:
     lines.append("")  # Visual separator
 
     # ── Sort events by minute ────────────────────────────────────────
-    sorted_events = sorted(result.events, key=lambda e: (e.minute, e.event_type.value))
+    sorted_events = sorted(result.events, key=_event_sort_key)
 
     first_half_events: list[MatchEvent] = []
     second_half_events: list[MatchEvent] = []

@@ -36,7 +36,14 @@ export const SKILL_FULL_NAMES = [
 // ── Season State Enum ──────────────────────────────────────────────────
 export const SEASON_STATES = ["Registration", "Active", "Settled"] as const;
 
-// ── Commentary Endpoint ────────────────────────────────────────────────
-export const COMMENTARY_URL = process.env.NEXT_PUBLIC_COMMENTARY_URL ?? "http://localhost:8420";
+// ── Stream Endpoint ────────────────────────────────────────────────────
+export const STREAM_URL = (
+  process.env.NEXT_PUBLIC_STREAM_URL ??
+  process.env.NEXT_PUBLIC_COMMENTARY_URL ??
+  "http://localhost:8420"
+).replace(/\/$/, "");
+
+// Backwards-compatible alias for older commentary-only consumers.
+export const COMMENTARY_URL = STREAM_URL;
 
 export { SWOSPlayerNFTABI, SENSITokenABI, TransferMarketABI, LeagueManagerABI };

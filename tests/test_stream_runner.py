@@ -80,6 +80,19 @@ class TestEventsJSON:
         data = json.loads(events_path.read_text())
         assert data["count"] == 0
 
+    def test_write_events_supports_structured_payload(self, tmp_path):
+        events_path = tmp_path / "events.json"
+        payload = [{"minute": 12, "phase": "event", "text": "GOAL!", "event_type": "goal"}]
+        summary = {"xg": "xG: Home 1.2 - 0.8 Away"}
+
+        with patch.object(stream_league, "EVENTS_PATH", events_path), \
+             patch.object(stream_league, "STREAMING_DIR", tmp_path):
+            stream_league.write_events(["GOAL!"], events=payload, summary=summary)
+
+        data = json.loads(events_path.read_text())
+        assert data["events"][0]["event_type"] == "goal"
+        assert data["summary"]["xg"].startswith("xG:")
+
 
 class TestTableJSON:
     def test_write_table_sorted_by_points(self, tmp_path):
@@ -99,6 +112,19 @@ class TestTableJSON:
         data = json.loads(table_path.read_text())
         assert data[0]["team"] == "Arsenal"
         assert data[1]["team"] == "Man City"
+
+    def test_write_table_with_meta_wraps_rows(self, tmp_path):
+        table_path = tmp_path / "table.json"
+        standings = {
+            "Arsenal": {"team": "Arsenal", "points": 3, "gd": 1, "gf": 2, "played": 1, "wins": 1, "draws": 0, "losses": 0, "ga": 1},
+        }
+        with patch.object(stream_league, "TABLE_PATH", table_path), \
+             patch.object(stream_league, "STREAMING_DIR", tmp_path):
+            stream_league.write_table(standings, meta={"season_id": "25/26"})
+
+        data = json.loads(table_path.read_text())
+        assert data["rows"][0]["team"] == "Arsenal"
+        assert data["meta"]["season_id"] == "25/26"
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -199,3 +225,19 @@ class TestRunStream:
         for r in results:
             assert r.home_goals >= 0
             assert r.away_goals >= 0
+
+    def test_auto_source_falls_back_to_demo_when_db_missing(self, tmp_path):
+        with patch.object(stream_league, "STREAMING_DIR", tmp_path), \
+             patch.object(stream_league, "SCOREBOARD_PATH", tmp_path / "scoreboard.json"), \
+             patch.object(stream_league, "EVENTS_PATH", tmp_path / "events.json"), \
+             patch.object(stream_league, "TABLE_PATH", tmp_path / "table.json"):
+            results = stream_league.run_stream(
+                seasons=1,
+                num_teams=4,
+                pace=0,
+                dry_run=True,
+                source="auto",
+                db_path=str(tmp_path / "missing.db"),
+            )
+
+        assert len(results) == 12

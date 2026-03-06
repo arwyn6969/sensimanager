@@ -25,9 +25,14 @@ from __future__ import annotations
 import json
 import logging
 import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
-from swos420.engine.commentary import generate_commentary, format_for_stream
+from swos420.engine.commentary import (
+    CommentaryBeat,
+    format_for_stream,
+    generate_commentary,
+    generate_commentary_timeline,
+)
 from swos420.engine.match_result import MatchResult
 
 logger = logging.getLogger(__name__)
@@ -135,7 +140,19 @@ class LLMCommentaryGenerator:
         if not self.enabled:
             return template_lines
 
-        return self._enhance_with_llm(template_lines, result)
+        return self.enhance_lines(template_lines, result)
+
+    def generate_timeline(self, result: MatchResult) -> list[CommentaryBeat]:
+        """Generate structured commentary beats, optionally LLM-enhanced."""
+        timeline = generate_commentary_timeline(result)
+        if not self.enabled:
+            return timeline
+
+        enhanced_lines = self.enhance_lines([beat.text for beat in timeline], result)
+        return [
+            replace(beat, text=enhanced_lines[index] if index < len(enhanced_lines) else beat.text)
+            for index, beat in enumerate(timeline)
+        ]
 
     def generate_stream(self, result: MatchResult) -> str:
         """Generate stream-formatted commentary.
@@ -147,6 +164,12 @@ class LLMCommentaryGenerator:
             return format_for_stream(result)
         lines = self.generate(result)
         return "\n".join(lines)
+
+    def enhance_lines(self, lines: list[str], result: MatchResult) -> list[str]:
+        """Enhance an arbitrary list of commentary lines with the configured LLM."""
+        if not self.enabled:
+            return lines
+        return self._enhance_with_llm(lines, result)
 
     def _enhance_with_llm(
         self, template_lines: list[str], result: MatchResult

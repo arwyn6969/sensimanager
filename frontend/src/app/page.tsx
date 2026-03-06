@@ -1,213 +1,122 @@
 "use client";
 
-import { useReadContract } from "wagmi";
-import { formatEther } from "viem";
-import { CONTRACTS, SEASON_STATES } from "@/lib/contracts";
-import { CommentaryFeed } from "@/components/CommentaryFeed";
+import Link from "next/link";
+
+import { MatchCentre } from "@/components/MatchCentre";
+import { StreamCommentaryPanel } from "@/components/StreamCommentaryPanel";
+import { StreamLeagueTable } from "@/components/StreamLeagueTable";
+import { useStreamState } from "@/hooks/useStreamState";
+import { STREAM_URL } from "@/lib/contracts";
+import {
+  classifyEventLine,
+  findSummaryLine,
+  latestNarrativeLine,
+  makeStreamUrl,
+  normalizeEventLines,
+} from "@/lib/stream";
 
 export default function DashboardPage() {
-  // ── Read chain data ──────────────────────────────────────────────────
-  const { data: totalSupply } = useReadContract({
-    ...CONTRACTS.sensiToken,
-    functionName: "totalSupply",
-  });
+  const { scoreboard, events, table, connection, lastUpdated } = useStreamState();
+  const lines = normalizeEventLines(events?.lines ?? []);
+  const latestEvent = scoreboard?.story ?? events?.latest?.text ?? latestNarrativeLine(lines);
+  const xgLine = events?.summary?.xg ?? findSummaryLine(lines, "xG:");
+  const motmLine = events?.summary?.motm ?? findSummaryLine(lines, "⭐");
 
-  const { data: genesisSupply } = useReadContract({
-    ...CONTRACTS.sensiToken,
-    functionName: "GENESIS_SUPPLY",
-  });
-
-  const { data: nftSupply } = useReadContract({
-    ...CONTRACTS.playerNFT,
-    functionName: "totalSupply",
-  });
-
-  const { data: currentSeason } = useReadContract({
-    ...CONTRACTS.leagueManager,
-    functionName: "currentSeason",
-  });
-
-  const { data: seasonState } = useReadContract({
-    ...CONTRACTS.leagueManager,
-    functionName: "seasonState",
-  });
-
-  const { data: matchday } = useReadContract({
-    ...CONTRACTS.leagueManager,
-    functionName: "matchday",
-  });
-
-  const { data: nextListingId } = useReadContract({
-    ...CONTRACTS.transferMarket,
-    functionName: "nextListingId",
-  });
-
-  // ── Format values ────────────────────────────────────────────────────
-  const totalSensi = totalSupply ? formatEther(totalSupply) : "—";
-  const genesisSensi = genesisSupply ? formatEther(genesisSupply) : "—";
-  const burned =
-    totalSupply && genesisSupply && totalSupply < genesisSupply
-      ? formatEther(genesisSupply - totalSupply)
-      : "0";
-
-  const formatBigNumber = (n: string) => {
-    const num = parseFloat(n);
-    if (isNaN(num)) return "—";
-    if (num >= 1_000_000_000) return `${(num / 1_000_000_000).toFixed(2)}B`;
-    if (num >= 1_000_000) return `${(num / 1_000_000).toFixed(2)}M`;
-    if (num >= 1_000) return `${(num / 1_000).toFixed(1)}K`;
-    return num.toFixed(0);
-  };
-
-  const stateIndex = seasonState !== undefined ? Number(seasonState) : 0;
-  const stateLabel = SEASON_STATES[stateIndex] ?? "Unknown";
-  const stateClass = stateLabel.toLowerCase();
+  const leader = table[0];
+  const titleRace = table.slice(0, 4);
+  const goals = lines.filter((line) => classifyEventLine(line) === "goal").length;
+  const cards = lines.filter((line) => classifyEventLine(line) === "card").length;
+  const injuries = lines.filter((line) => classifyEventLine(line) === "injury").length;
 
   return (
     <>
-      {/* ── Hero ──────────────────────────────────────────────────────── */}
-      <div className="hero glass-card">
-        <div className="hero-title">SWOS420</div>
-        <div className="hero-subtitle">
-          The most addictive football experience onchain. Own players as NFTs,
-          earn $SENSI from wages &amp; match rewards, trade on the decentralized
-          transfer market. Built on Base.
+      <div className="page-header watch-header">
+        <div>
+          <div className="page-title">Live Match Centre</div>
+          <div className="page-subtitle watch-subtitle">
+            The homepage is now the show itself: live fixture, commentary pulse,
+            standings pressure, and a direct path into the broadcast overlay.
+          </div>
         </div>
-        <div style={{ marginTop: 20, display: "flex", gap: 12, alignItems: "center" }}>
-          <span className={`season-badge ${stateClass}`}>
-            {stateClass === "active" && <span className="live-dot" />}
-            Season {currentSeason?.toString() ?? "—"} · {stateLabel}
+        <div className="watch-header-chips">
+          <span className={`season-badge ${connection === "live" ? "active" : "registration"}`}>
+            {connection === "live" && <span className="live-dot" />}
+            {connection === "live" ? "Feed Connected" : "Feed Offline"}
           </span>
-          <span
-            style={{
-              fontFamily: "var(--font-mono)",
-              fontSize: 13,
-              color: "var(--text-secondary)",
-            }}
-          >
-            Matchday {matchday?.toString() ?? "0"}
+          <span className="header-pill">
+            {leader ? `Leader ${leader.team} • ${leader.points} pts` : "Standings waiting"}
           </span>
         </div>
       </div>
 
-      {/* ── Stats Grid ────────────────────────────────────────────────── */}
-      <div className="stat-grid">
-        <div className="stat-card glass-card">
-          <div className="stat-label">$SENSI Supply</div>
-          <div className="stat-value green">{formatBigNumber(totalSensi)}</div>
-        </div>
-        <div className="stat-card glass-card">
-          <div className="stat-label">Genesis Minted</div>
-          <div className="stat-value blue">{formatBigNumber(genesisSensi)}</div>
-        </div>
-        <div className="stat-card glass-card">
-          <div className="stat-label">$SENSI Burned</div>
-          <div className="stat-value" style={{ color: "var(--accent-red)" }}>
-            {formatBigNumber(burned)}
-          </div>
-        </div>
-        <div className="stat-card glass-card">
-          <div className="stat-label">Player NFTs</div>
-          <div className="stat-value gold">{nftSupply?.toString() ?? "—"}</div>
-        </div>
-        <div className="stat-card glass-card">
-          <div className="stat-label">Market Listings</div>
-          <div className="stat-value">
-            {nextListingId ? (Number(nextListingId) - 1).toString() : "0"}
+      <div className="broadcast-home-grid">
+        <MatchCentre
+          scoreboard={scoreboard}
+          latestEvent={latestEvent}
+          xgLine={xgLine}
+          motmLine={motmLine}
+          lastUpdated={lastUpdated}
+        />
+
+        <div className="broadcast-side-stack">
+          <section className="glass-card broadcast-panel preview-panel">
+            <div className="panel-header">
+              <div>
+                <div className="panel-kicker">Broadcast Preview</div>
+                <h2 className="panel-title-lg">Overlay Window</h2>
+                <p className="panel-copy">
+                  Keep the overlay visible while tuning the stream runner and OBS scene.
+                </p>
+              </div>
+            </div>
+
+            {connection === "live" ? (
+              <iframe
+                className="watch-frame"
+                src={makeStreamUrl(STREAM_URL, "overlay.html")}
+                title="SWOS420 broadcast overlay preview"
+              />
+            ) : (
+              <div className="watch-frame-fallback">
+                <p>Overlay preview appears here when the local stream server is running.</p>
+                <code>python scripts/serve_overlay.py</code>
+              </div>
+            )}
+          </section>
+
+          <div className="story-card-grid">
+            <article className="glass-card story-card">
+              <span className="story-card-label">Match Texture</span>
+              <strong>{goals} goals</strong>
+              <p>{cards} cards and {injuries} injuries have shaped the current feed.</p>
+            </article>
+
+            <article className="glass-card story-card">
+              <span className="story-card-label">Title Race</span>
+              <strong>{titleRace.map((team) => team.team).join(" · ") || "Waiting"}</strong>
+              <p>
+                The front of the table should feel like a chase, not just a spreadsheet.
+              </p>
+            </article>
+
+            <article className="glass-card story-card">
+              <span className="story-card-label">Next Move</span>
+              <strong>Keep the viewer in the match</strong>
+              <p>
+                <Link href="/league">Open the full league table</Link> or jump straight into the
+                overlay for the best watch view.
+              </p>
+            </article>
           </div>
         </div>
       </div>
 
-      {/* ── Two Column: Commentary + Economy Info ──────────────────────── */}
-      <div className="two-col">
-        <CommentaryFeed />
-
-        <div className="glass-card" style={{ padding: "20px 24px" }}>
-          <div className="section-title">💎 Economy Rules</div>
-          <div
-            style={{
-              display: "grid",
-              gap: 12,
-              fontSize: 13,
-              lineHeight: 1.8,
-              color: "var(--text-secondary)",
-            }}
-          >
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span>Win Reward</span>
-              <span style={{ fontFamily: "var(--font-mono)", color: "var(--accent-green)" }}>
-                100 $SENSI
-              </span>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span>Draw Reward</span>
-              <span style={{ fontFamily: "var(--font-mono)", color: "var(--accent-blue)" }}>
-                50 $SENSI
-              </span>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span>League Winner Bonus</span>
-              <span style={{ fontFamily: "var(--font-mono)", color: "var(--accent-gold)" }}>
-                100,000 $SENSI
-              </span>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span>Top Scorer Bonus</span>
-              <span style={{ fontFamily: "var(--font-mono)", color: "var(--accent-gold)" }}>
-                10,000 $SENSI
-              </span>
-            </div>
-            <div
-              style={{
-                borderTop: "1px solid var(--glass-border)",
-                paddingTop: 12,
-                marginTop: 4,
-              }}
-            >
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span>Wage Split (Owner)</span>
-                <span style={{ fontFamily: "var(--font-mono)", fontWeight: 700 }}>90%</span>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span>Burn Rate</span>
-                <span
-                  style={{
-                    fontFamily: "var(--font-mono)",
-                    color: "var(--accent-red)",
-                    fontWeight: 700,
-                  }}
-                >
-                  5%
-                </span>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span>Treasury</span>
-                <span style={{ fontFamily: "var(--font-mono)", fontWeight: 700 }}>5%</span>
-              </div>
-            </div>
-            <div
-              style={{
-                borderTop: "1px solid var(--glass-border)",
-                paddingTop: 12,
-                marginTop: 4,
-              }}
-            >
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span>Transfer Fee</span>
-                <span style={{ fontFamily: "var(--font-mono)", fontWeight: 700 }}>10%</span>
-              </div>
-              <div
-                style={{
-                  fontSize: 11,
-                  color: "var(--text-muted)",
-                  marginTop: 4,
-                }}
-              >
-                5% burned + 5% treasury on every trade
-              </div>
-            </div>
-          </div>
-        </div>
+      <div className="watch-grid">
+        <StreamCommentaryPanel
+          lines={lines}
+          summary={[xgLine, motmLine].filter((value): value is string => Boolean(value))}
+        />
+        <StreamLeagueTable rows={table} />
       </div>
     </>
   );

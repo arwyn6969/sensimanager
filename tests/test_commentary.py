@@ -12,9 +12,11 @@ import numpy as np
 import pytest
 
 from swos420.engine.commentary import (
+    CommentaryBeat,
     format_for_stream,
     format_season_summary,
     generate_commentary,
+    generate_commentary_timeline,
     _running_scoreline,
     _referee_category,
 )
@@ -319,6 +321,33 @@ class TestCommentaryEdgeCases:
         lines = generate_commentary(result)
         text = "\n".join(lines).lower()
         assert "half time" in text or "break" in text
+
+
+class TestCommentaryTimeline:
+    def test_timeline_has_key_phases(self):
+        events = [_goal_event(12, "HAALAND"), _goal_event(73, "SAKA", "away")]
+        result = _make_result(home_goals=1, away_goals=1, events=events)
+
+        timeline = generate_commentary_timeline(result)
+
+        assert isinstance(timeline[0], CommentaryBeat)
+        assert timeline[0].phase == "prematch"
+        assert any(beat.phase == "halftime" for beat in timeline)
+        assert any(beat.phase == "fulltime" for beat in timeline)
+        assert any(beat.event_type == "xg" for beat in timeline)
+
+    def test_goal_precedes_assist_at_same_minute(self):
+        events = [
+            _goal_event(30, "HAALAND", "home"),
+            _assist_event(30, "DE BRUYNE", "home"),
+        ]
+        result = _make_result(home_goals=1, away_goals=0, events=events)
+
+        timeline = generate_commentary_timeline(result)
+        minute_30 = [beat for beat in timeline if beat.minute == 30]
+
+        assert minute_30[0].event_type == "goal"
+        assert minute_30[1].event_type == "assist"
 
     def test_all_events_in_second_half(self):
         events = [_goal_event(60, "LATE"), _goal_event(80, "LATER")]
