@@ -406,6 +406,11 @@ body {
   border-color: rgba(255, 109, 0, 0.28);
 }
 
+.event-line.chance {
+  background: rgba(0, 176, 255, 0.08);
+  border-color: rgba(0, 176, 255, 0.28);
+}
+
 .event-minute {
   display: inline-flex;
   align-items: center;
@@ -602,6 +607,18 @@ function classifyLine(line) {
   if (lower.includes("goal") || lower.includes("it's in") || lower.includes("⚽")) return "goal";
   if (lower.includes("card") || lower.includes("booked") || lower.includes("🟨") || lower.includes("🟥")) return "card";
   if (lower.includes("injur") || lower.includes("🏥")) return "injury";
+  if (
+    lower.includes("chance") ||
+    lower.includes("save") ||
+    lower.includes("denied") ||
+    lower.includes("wide") ||
+    lower.includes("bar") ||
+    lower.includes("post") ||
+    lower.includes("wasteful") ||
+    lower.includes("opening") ||
+    lower.includes("threatens") ||
+    lower.includes("🧤")
+  ) return "chance";
   return "";
 }
 

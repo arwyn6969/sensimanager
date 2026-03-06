@@ -515,6 +515,7 @@ a:hover { text-decoration: underline; }
 .event-line.goal { border-left-color: var(--accent-gold); }
 .event-line.card { border-left-color: var(--accent-red); }
 .event-line.injury { border-left-color: var(--accent-orange); }
+.event-line.chance { border-left-color: var(--accent-blue); }
 
 @keyframes fadeSlideIn {
   from { opacity: 0; transform: translateY(8px); }
@@ -1123,6 +1124,11 @@ a:hover { text-decoration: underline; }
 .broadcast-event-card.tone-injury {
   border-color: rgba(255, 109, 0, 0.3);
   background: rgba(255, 109, 0, 0.08);
+}
+
+.broadcast-event-card.tone-chance {
+  border-color: rgba(0, 176, 255, 0.28);
+  background: rgba(0, 176, 255, 0.08);
 }
 
 .broadcast-event-card.tone-summary {

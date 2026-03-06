@@ -38,6 +38,18 @@ ASSIST_TEMPLATES = [
     "Set up beautifully by {player}.",
 ]
 
+SAVE_TEMPLATES = [
+    "🧤 {player} is denied — {detail}. ({minute}')",
+    "🧤 Chance for {player}, but the keeper stands tall. ({minute}')",
+    "🧤 {player} tests the goalkeeper — {detail}. ({minute}')",
+]
+
+MISS_TEMPLATES = [
+    "{player} gets a look at goal, but {detail}. ({minute}')",
+    "Half a chance for {player} — {detail}. ({minute}')",
+    "{player} threatens, yet {detail}. ({minute}')",
+]
+
 INJURY_TEMPLATES = [
     "🏥 Bad news — {player} goes down injured. {detail}. ({minute}')",
     "🏥 {player} is stretchered off. {detail}. ({minute}')",
@@ -126,10 +138,12 @@ def _event_sort_key(event: MatchEvent) -> tuple[int, int]:
     order = {
         EventType.GOAL: 0,
         EventType.ASSIST: 1,
-        EventType.INJURY: 2,
-        EventType.YELLOW_CARD: 3,
-        EventType.RED_CARD: 4,
-        EventType.SUBSTITUTION: 5,
+        EventType.SAVE: 2,
+        EventType.MISS: 3,
+        EventType.INJURY: 4,
+        EventType.YELLOW_CARD: 5,
+        EventType.RED_CARD: 6,
+        EventType.SUBSTITUTION: 7,
     }
     return event.minute, order.get(event.event_type, 99)
 
@@ -421,6 +435,20 @@ def _narrate_event(
         return random.choice(ASSIST_TEMPLATES).format(
             player=event.player_name,
             detail=event.detail,
+            minute=event.minute,
+        )
+
+    elif event.event_type == EventType.SAVE:
+        return random.choice(SAVE_TEMPLATES).format(
+            player=event.player_name,
+            detail=event.detail or "Saved well",
+            minute=event.minute,
+        )
+
+    elif event.event_type == EventType.MISS:
+        return random.choice(MISS_TEMPLATES).format(
+            player=event.player_name,
+            detail=event.detail or "puts it wide",
             minute=event.minute,
         )
 

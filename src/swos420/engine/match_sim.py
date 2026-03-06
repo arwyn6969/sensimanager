@@ -124,13 +124,14 @@ class MatchSimulator:
         """
         self.tactics_matrix = dict(DEFAULT_TACTICS_MATRIX)
         self.weather_mult = dict(DEFAULT_WEATHER_MULT)
-        self.home_advantage = 0.25  # ICP bonus for home team
-        self.xg_base = 2.85  # Poisson scaling constant
+        self.home_advantage = 0.5  # ICP bonus for home team
+        self.xg_base = 2.65  # Poisson scaling constant
         self.xg_defense_offset = 16.5  # Calibrated for SWOS effective skill range (8-15)
-        self.injury_match_base_rate = 0.035  # Per-player per-match injury chance
+        self.injury_match_base_rate = 0.015  # Per-player per-match injury chance
         self.card_base_rate = 0.12  # Yellow card chance per player per match
         self.random_form_range = 0.35  # Max ± random form noise per team per match
         self.gk_defense_weight = 12.0  # How much GK value-tier contributes to defense
+        self.key_chance_scale = 2.15  # Converts xG into visible non-goal chance events
 
         if rules_path is not None:
             self._load_rules(rules_path)
@@ -255,10 +256,34 @@ class MatchSimulator:
         self._attribute_goals(home_xi, home_goals, "home", events, home_team_name, home_stats)
         self._attribute_goals(away_xi, away_goals, "away", events, away_team_name, away_stats)
 
-        # 10. Sort events chronologically
+        # 10. Surface key non-goal chances so matches feel alive between goals.
+        self._generate_key_chances(
+            squad=home_xi,
+            opponents=away_xi,
+            num_goals=home_goals,
+            team_xg=home_lambda,
+            side="home",
+            events=events,
+            team_name=home_team_name,
+            attacking_stats=home_stats,
+            defending_stats=away_stats,
+        )
+        self._generate_key_chances(
+            squad=away_xi,
+            opponents=home_xi,
+            num_goals=away_goals,
+            team_xg=away_lambda,
+            side="away",
+            events=events,
+            team_name=away_team_name,
+            attacking_stats=away_stats,
+            defending_stats=home_stats,
+        )
+
+        # 11. Sort events chronologically
         events.sort(key=lambda e: e.minute)
 
-        # 11. Post-match updates: form, fatigue, appearances, clean sheets
+        # 12. Post-match updates: form, fatigue, appearances, clean sheets
         home_result_bonus = self._result_bonus(home_goals, away_goals)
         away_result_bonus = self._result_bonus(away_goals, home_goals)
 
@@ -270,6 +295,7 @@ class MatchSimulator:
                 player.fatigue = min(100.0, player.fatigue + random.uniform(5.0, 15.0))
                 if away_goals == 0 and player.position.value in DEFENSIVE_POSITIONS | GOALKEEPER_POSITIONS:
                     player.clean_sheets_season += 1
+                    stat.rating = round(min(10.0, stat.rating + 0.35), 1)
 
         for stat in away_stats:
             player = self._find_player(away_xi, stat.player_id)
@@ -279,6 +305,7 @@ class MatchSimulator:
                 player.fatigue = min(100.0, player.fatigue + random.uniform(5.0, 15.0))
                 if home_goals == 0 and player.position.value in DEFENSIVE_POSITIONS | GOALKEEPER_POSITIONS:
                     player.clean_sheets_season += 1
+                    stat.rating = round(min(10.0, stat.rating + 0.35), 1)
 
         result = MatchResult(
             home_team=home_team_name,
@@ -391,22 +418,20 @@ class MatchSimulator:
 
         for player in squad:
             # Base rating from skill contribution
-            skill_contrib = (
-                player.effective_skill("finishing") * 0.20
-                + player.effective_skill("passing") * 0.20
-                + player.effective_skill("tackling") * 0.15
-                + player.effective_skill("control") * 0.15
-                + player.effective_skill("speed") * 0.15
-                + player.effective_skill("heading") * 0.10
-                + player.effective_skill("velocity") * 0.05
-            )
-
-            # Rating: 6.0 base + skill contribution + noise
-            rating = 6.0 + (skill_contrib * 0.4) + random.gauss(0, 1.0)
-
-            # Bonus for team winning
-            if team_goals > 0:
-                rating += 0.3
+            if player.position.value in GOALKEEPER_POSITIONS:
+                skill_contrib = 10.5 + player.gk_save_ability * 3.0
+                rating = 5.8 + ((skill_contrib - 11.0) * 0.3) + random.gauss(0, 0.45)
+            else:
+                skill_contrib = (
+                    player.effective_skill("finishing") * 0.20
+                    + player.effective_skill("passing") * 0.20
+                    + player.effective_skill("tackling") * 0.15
+                    + player.effective_skill("control") * 0.15
+                    + player.effective_skill("speed") * 0.15
+                    + player.effective_skill("heading") * 0.10
+                    + player.effective_skill("velocity") * 0.05
+                )
+                rating = 5.8 + ((skill_contrib - 11.0) * 0.26) + random.gauss(0, 0.6)
 
             rating = max(4.0, min(10.0, rating))
 
@@ -425,13 +450,14 @@ class MatchSimulator:
                 stat.injured = True
                 stat.injury_days = injury_days
                 player.injury_days = injury_days
+                injury_label = "day" if injury_days == 1 else "days"
                 events.append(MatchEvent(
                     minute=random.randint(1, 90),
                     event_type=EventType.INJURY,
                     player_id=player.base_id,
                     player_name=player.display_name,
                     team=side,
-                    detail=f"Out for {injury_days} days",
+                    detail=f"Out for {injury_days} {injury_label}",
                 ))
                 stat.rating = max(4.0, stat.rating - 1.5)
 
@@ -466,6 +492,28 @@ class MatchSimulator:
 
         return stats
 
+    def _attacking_weights(self, squad: list[SWOSPlayer]) -> list[float]:
+        """Goal/chance involvement weights by role and attacking skill mix."""
+        weights = []
+        for player in squad:
+            pos = player.position.value
+            finishing = player.effective_skill("finishing")
+            velocity = player.effective_skill("velocity")
+            speed = player.effective_skill("speed")
+
+            if pos in ATTACKING_POSITIONS:
+                weight = finishing * 3.0 + speed * 0.5 + velocity * 0.2
+            elif pos in MIDFIELD_POSITIONS:
+                weight = velocity * 1.8 + finishing * 1.0 + speed * 0.3
+            elif pos in DEFENSIVE_POSITIONS:
+                weight = player.effective_skill("heading") * 0.8 + velocity * 0.4
+            else:
+                weight = 0.1
+
+            weights.append(max(0.1, weight))
+
+        return weights
+
     def _attribute_goals(
         self,
         squad: list[SWOSPlayer],
@@ -479,28 +527,7 @@ class MatchSimulator:
         if num_goals == 0 or not squad:
             return
 
-        # Build weights: VE/FI split — FI for attackers, VE for midfield long-range
-        weights = []
-        for player in squad:
-            pos = player.position.value
-            finishing = player.effective_skill("finishing")   # close-range
-            velocity = player.effective_skill("velocity")     # long-range
-            speed = player.effective_skill("speed")
-
-            if pos in ATTACKING_POSITIONS:
-                # Attackers score via FI (inside box) primarily
-                w = finishing * 3.0 + speed * 0.5 + velocity * 0.2
-            elif pos in MIDFIELD_POSITIONS:
-                # Midfielders score via VE (long-range) or FI (runs into box)
-                w = velocity * 1.8 + finishing * 1.0 + speed * 0.3
-            elif pos in DEFENSIVE_POSITIONS:
-                # Defenders score via HE (set pieces) or rare VE thunderbolts
-                w = player.effective_skill("heading") * 0.8 + velocity * 0.4
-            else:
-                w = 0.1  # GK
-
-            weights.append(max(0.1, w))
-
+        weights = self._attacking_weights(squad)
         total_w = sum(weights)
         probs = [w / total_w for w in weights]
 
@@ -524,7 +551,7 @@ class MatchSimulator:
             for stat in stats:
                 if stat.player_id == scorer.base_id:
                     stat.goals += 1
-                    stat.rating = min(10.0, stat.rating + 0.8)
+                    stat.rating = round(min(10.0, stat.rating + 1.1), 1)
                     break
 
             # Attribute assist (different player, weighted by passing)
@@ -557,8 +584,126 @@ class MatchSimulator:
                     for stat in stats:
                         if stat.player_id == assister.base_id:
                             stat.assists += 1
-                            stat.rating = min(10.0, stat.rating + 0.4)
+                            stat.rating = round(min(10.0, stat.rating + 0.6), 1)
                             break
+
+    @staticmethod
+    def _roll_event_minute() -> int:
+        """Bias notable events slightly toward the later stages of each half."""
+        minute = int(round(np.random.triangular(1, 56, 90)))
+        return max(1, min(90, minute))
+
+    def _roll_chance_quality(self, player: SWOSPlayer, team_xg: float) -> float:
+        """Approximate the quality of a visible chance on an xG-like scale."""
+        pos = player.position.value
+        if pos in ATTACKING_POSITIONS:
+            base = 0.18
+        elif pos in MIDFIELD_POSITIONS:
+            base = 0.12
+        elif pos in DEFENSIVE_POSITIONS:
+            base = 0.08
+        else:
+            base = 0.03
+
+        skill_factor = (
+            0.8
+            + player.effective_skill("finishing") / 20
+            + player.effective_skill("control") / 40
+        )
+        form_factor = 1.0 + max(-0.08, min(0.16, player.form / 200))
+        team_factor = 0.9 + min(team_xg, 2.6) / 5
+        quality = random.gauss(base, 0.04) * skill_factor * form_factor * team_factor
+        return max(0.05, min(0.42, quality))
+
+    def _save_probability(self, goalkeeper: SWOSPlayer | None, chance_quality: float) -> float:
+        """Estimate whether a non-goal chance is saved instead of missed."""
+        keeper_factor = 0.15
+        if goalkeeper:
+            keeper_factor += goalkeeper.gk_save_ability / 35
+        probability = 0.72 - chance_quality + keeper_factor
+        return max(0.28, min(0.82, probability))
+
+    def _generate_key_chances(
+        self,
+        squad: list[SWOSPlayer],
+        opponents: list[SWOSPlayer],
+        num_goals: int,
+        team_xg: float,
+        side: str,
+        events: list[MatchEvent],
+        team_name: str,
+        attacking_stats: list[PlayerMatchStats],
+        defending_stats: list[PlayerMatchStats],
+    ) -> None:
+        """Generate visible non-goal chances so the timeline has real texture."""
+        if not squad:
+            return
+
+        weights = self._attacking_weights(squad)
+        total_weight = sum(weights)
+        probs = [weight / total_weight for weight in weights]
+        raw_chances = int(np.random.poisson(max(0.45, team_xg * self.key_chance_scale)))
+        non_goal_chances = max(0, min(6, raw_chances - num_goals + np.random.binomial(1, 0.55)))
+        if non_goal_chances == 0:
+            return
+
+        goalkeeper = next(
+            (player for player in opponents if player.position.value in GOALKEEPER_POSITIONS),
+            opponents[0] if opponents else None,
+        )
+        keeper_stat = next(
+            (stat for stat in defending_stats if stat.position in GOALKEEPER_POSITIONS),
+            None,
+        )
+
+        save_details = [
+            "big save by the keeper",
+            "turned behind by the goalkeeper",
+            "brilliant stop at full stretch",
+            "denied from close range",
+        ]
+        miss_details = [
+            "drags wide from a promising opening",
+            "clips the outside of the post",
+            "can't keep the effort down",
+            "wastes a decent opening",
+        ]
+        big_miss_details = [
+            "huge chance missed",
+            "lets a glorious opening go begging",
+            "should have done better with that one",
+            "rattles the bar and stays out",
+        ]
+
+        for _ in range(non_goal_chances):
+            shooter_idx = int(np.random.choice(len(squad), p=probs))
+            shooter = squad[shooter_idx]
+            minute = self._roll_event_minute()
+            chance_quality = self._roll_chance_quality(shooter, team_xg)
+            is_saved = random.random() < self._save_probability(goalkeeper, chance_quality)
+            detail_pool = save_details if is_saved else (big_miss_details if chance_quality >= 0.22 else miss_details)
+            event_type = EventType.SAVE if is_saved else EventType.MISS
+
+            events.append(
+                MatchEvent(
+                    minute=minute,
+                    event_type=event_type,
+                    player_id=shooter.base_id,
+                    player_name=shooter.display_name,
+                    team=side,
+                    detail=random.choice(detail_pool),
+                )
+            )
+
+            shooter.goals_scored_season += 0
+            for stat in attacking_stats:
+                if stat.player_id == shooter.base_id:
+                    rating_delta = 0.15 if is_saved else (-0.15 if chance_quality >= 0.22 else -0.05)
+                    stat.rating = round(max(4.0, min(10.0, stat.rating + rating_delta)), 1)
+                    break
+
+            if is_saved and keeper_stat is not None:
+                keeper_stat.rating = round(min(10.0, keeper_stat.rating + 0.1), 1)
 
     # ── Helpers ──────────────────────────────────────────────────────────
 
@@ -706,4 +851,3 @@ class ArcadeMatchSimulator:
             home_xg=0.0,
             away_xg=0.0,
         )
-

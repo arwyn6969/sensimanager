@@ -14,6 +14,8 @@ class EventType(str, Enum):
     """Types of match events."""
     GOAL = "goal"
     ASSIST = "assist"
+    SAVE = "save"
+    MISS = "miss"
     INJURY = "injury"
     YELLOW_CARD = "yellow_card"
     RED_CARD = "red_card"

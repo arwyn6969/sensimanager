@@ -25,6 +25,7 @@ export default function DashboardPage() {
   const leader = table[0];
   const titleRace = table.slice(0, 4);
   const goals = lines.filter((line) => classifyEventLine(line) === "goal").length;
+  const chances = lines.filter((line) => classifyEventLine(line) === "chance").length;
   const cards = lines.filter((line) => classifyEventLine(line) === "card").length;
   const injuries = lines.filter((line) => classifyEventLine(line) === "injury").length;
 
@@ -88,7 +89,9 @@ export default function DashboardPage() {
             <article className="glass-card story-card">
               <span className="story-card-label">Match Texture</span>
               <strong>{goals} goals</strong>
-              <p>{cards} cards and {injuries} injuries have shaped the current feed.</p>
+              <p>
+                {chances} key chances, {cards} cards, and {injuries} injuries have shaped the current feed.
+              </p>
             </article>
 
             <article className="glass-card story-card">

@@ -114,6 +114,28 @@ def _injury_event(minute: int, player: str, team: str = "home") -> MatchEvent:
     )
 
 
+def _save_event(minute: int, player: str, team: str = "home") -> MatchEvent:
+    return MatchEvent(
+        minute=minute,
+        event_type=EventType.SAVE,
+        player_id=f"p_{player}",
+        player_name=player,
+        team=team,
+        detail="Denied from close range",
+    )
+
+
+def _miss_event(minute: int, player: str, team: str = "home") -> MatchEvent:
+    return MatchEvent(
+        minute=minute,
+        event_type=EventType.MISS,
+        player_id=f"p_{player}",
+        player_name=player,
+        team=team,
+        detail="Drags it wide",
+    )
+
+
 # ═══════════════════════════════════════════════════════════════════════
 # Basic Commentary Tests
 # ═══════════════════════════════════════════════════════════════════════
@@ -188,6 +210,24 @@ class TestGenerateCommentary:
         text = "\n".join(lines)
         assert "RODRI" in text
         assert "\U0001f3e5" in text
+
+    def test_save_narrated(self):
+        """Saved chances should appear in commentary."""
+        events = [_save_event(28, "SALAH", "away")]
+        result = _make_result(home_goals=0, away_goals=0, events=events)
+        lines = generate_commentary(result)
+        text = "\n".join(lines)
+        assert "SALAH" in text
+        assert "\U0001f9e4" in text
+
+    def test_miss_narrated(self):
+        """Missed chances should appear in commentary."""
+        events = [_miss_event(64, "SAKA", "away")]
+        result = _make_result(home_goals=0, away_goals=0, events=events)
+        lines = generate_commentary(result)
+        text = "\n".join(lines)
+        assert "SAKA" in text
+        assert "wide" in text.lower() or "chance" in text.lower()
 
     def test_halftime_present(self):
         """Commentary should include a half-time summary."""

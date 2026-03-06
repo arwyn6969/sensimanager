@@ -267,6 +267,11 @@ class SWOSEngine {
       return;
     }
 
+    if (type === "save" || type === "miss") {
+      this.startStoppage("chance", team || this.possessionTeam || "home", 1400);
+      return;
+    }
+
     if (type === "injury") {
       this.startStoppage("injury", this.otherTeam(team || this.possessionTeam || "home"), 2300);
       return;

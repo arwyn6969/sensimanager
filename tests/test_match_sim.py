@@ -221,6 +221,22 @@ class TestMatchSimulator:
                 break
         assert events_found
 
+    def test_non_goal_chances_generated(self, sim):
+        """Saved or missed chances should appear across a short run of matches."""
+        np.random.seed(7)
+        random.seed(7)
+        chance_events = 0
+
+        for _ in range(12):
+            result = sim.simulate_match(_make_squad("HOME", skill_level=5), _make_squad("AWAY", skill_level=5))
+            chance_events += sum(
+                1
+                for event in result.events
+                if event.event_type in {EventType.SAVE, EventType.MISS}
+            )
+
+        assert chance_events > 0
+
     def test_appearances_updated(self, sim):
         """Player appearances should increment after a match."""
         home = _make_squad("HOME")
@@ -355,6 +371,31 @@ class TestMatchBalance:
 
         avg = haaland_goals / n
         assert 0.3 <= avg <= 1.5, f"Haaland avg {avg:.2f} goals/game — outside expected range"
+
+    def test_injury_rate_not_excessive(self, sim):
+        """Average injuries per match should stay below the old chaos level."""
+        injuries = 0
+        n = 300
+
+        for _ in range(n):
+            result = sim.simulate_match(_make_squad("H"), _make_squad("A"))
+            injuries += len(result.injury_events())
+
+        avg_injuries = injuries / n
+        assert avg_injuries < 0.7, f"Average injuries {avg_injuries:.2f} per match is too high"
+
+    def test_goalkeeper_not_default_motm(self, sim):
+        """MOTM should not collapse into an almost-always-goalkeeper outcome."""
+        gk_motm = 0
+        n = 150
+
+        for _ in range(n):
+            result = sim.simulate_match(_make_squad("H"), _make_squad("A"))
+            motm = max(result.home_player_stats + result.away_player_stats, key=lambda stat: stat.rating)
+            if motm.position == "GK":
+                gk_motm += 1
+
+        assert gk_motm < n * 0.5, f"Goalkeepers dominated MOTM too often: {gk_motm}/{n}"
 
 
 # ═══════════════════════════════════════════════════════════════════════

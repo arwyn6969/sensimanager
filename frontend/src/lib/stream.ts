@@ -71,7 +71,7 @@ export function normalizeEventLines(lines: string[]): string[] {
   return lines.filter((line) => line.trim());
 }
 
-export function classifyEventLine(line: string): "goal" | "card" | "injury" | "summary" | "note" {
+export function classifyEventLine(line: string): "goal" | "card" | "injury" | "chance" | "summary" | "note" {
   const lower = line.toLowerCase();
   if (lower.includes("goal") || lower.includes("it's in") || lower.includes("⚽")) {
     return "goal";
@@ -86,6 +86,20 @@ export function classifyEventLine(line: string): "goal" | "card" | "injury" | "s
   }
   if (lower.includes("injur") || lower.includes("🏥")) {
     return "injury";
+  }
+  if (
+    lower.includes("chance") ||
+    lower.includes("save") ||
+    lower.includes("denied") ||
+    lower.includes("wide") ||
+    lower.includes("bar") ||
+    lower.includes("post") ||
+    lower.includes("wasteful") ||
+    lower.includes("opening") ||
+    lower.includes("threatens") ||
+    lower.includes("🧤")
+  ) {
+    return "chance";
   }
   if (
     lower.startsWith("xg:") ||
