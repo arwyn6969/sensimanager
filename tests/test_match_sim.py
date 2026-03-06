@@ -27,6 +27,7 @@ from swos420.engine.match_sim import (
     ArcadeMatchSimulator,
     MatchSimulator,
     DEFAULT_TACTICS_MATRIX,
+    STYLE_PROFILES,
 )
 from swos420.models.player import Position, Skills, SWOSPlayer, generate_base_id
 
@@ -143,6 +144,19 @@ def _make_compact_squad() -> list[SWOSPlayer]:
         elif player.position == Position.ST:
             player.skills.finishing = 5
             player.skills.speed = 4
+    return squad
+
+
+def _make_balanced_squad() -> list[SWOSPlayer]:
+    squad = _make_squad("BAL", skill_level=5)
+    for player in squad:
+        player.skills.passing = 5
+        player.skills.velocity = 5
+        player.skills.heading = 5
+        player.skills.tackling = 5
+        player.skills.control = 5
+        player.skills.speed = 5
+        player.skills.finishing = 5
     return squad
 
 
@@ -292,6 +306,14 @@ class TestMatchSimulator:
             home_formation="5-4-1",
         )
         assert result.home_style == "compact defending"
+
+    def test_detects_balanced_style(self, sim):
+        result = sim.simulate_match(
+            _make_balanced_squad(),
+            _make_squad("AWAY"),
+            home_formation="4-2-3-1",
+        )
+        assert result.home_style == "balanced shape"
 
     def test_appearances_updated(self, sim):
         """Player appearances should increment after a match."""
@@ -647,6 +669,32 @@ class TestInjuries:
         # Allow generous margins for Monte Carlo
         assert counts["minor"] / total > 0.35, f"Too few minor injuries: {counts['minor']/total:.1%}"
         assert counts["season_ending"] / total < 0.15, f"Too many season-ending: {counts['season_ending']/total:.1%}"
+
+
+class TestCards:
+    def test_second_yellow_upgrade_emits_red_only(self):
+        sim = MatchSimulator()
+        sim.injury_match_base_rate = 0.0
+        sim.card_base_rate = 1.0
+        player = _make_player(position=Position.CB)
+        events: list[MatchEvent] = []
+
+        with pytest.MonkeyPatch.context() as monkeypatch:
+            rolls = iter([0.5, 0.0, 0.0])
+            monkeypatch.setattr(random, "random", lambda: next(rolls))
+            stats = sim._generate_player_stats(
+                [player],
+                team_goals=0,
+                side="home",
+                events=events,
+                referee_strictness=1.0,
+                team_name="HOME",
+                style_profile=STYLE_PROFILES["balanced"],
+            )
+
+        assert stats[0].red_card is True
+        assert stats[0].yellow_card is False
+        assert [event.event_type for event in events] == [EventType.RED_CARD]
 
 
 # ═══════════════════════════════════════════════════════════════════════

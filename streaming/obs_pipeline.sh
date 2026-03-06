@@ -21,6 +21,11 @@ PERSONALITY="${SWOS420_PERSONALITY:-dramatic}"
 SEASONS="${SWOS420_SEASONS:-99}"
 NUM_TEAMS="${SWOS420_NUM_TEAMS:-8}"
 PACE="${SWOS420_PACE:-2.0}"
+MATCH_SECONDS="${SWOS420_MATCH_SECONDS:-24}"
+SOURCE="${SWOS420_SOURCE:-demo}"
+DB_PATH="${SWOS420_DB_PATH:-data/leagues.db}"
+MATCHDAYS="${SWOS420_MATCHDAYS:-}"
+SEED="${SWOS420_SEED:-}"
 PORT="${SWOS420_OVERLAY_PORT:-8420}"
 
 echo "⚽ SWOS420 — 24/7 Autonomous League Stream"
@@ -29,6 +34,14 @@ echo "Personality: ${PERSONALITY}"
 echo "Seasons:     ${SEASONS}"
 echo "Teams:       ${NUM_TEAMS}"
 echo "Pace:        ${PACE}s"
+echo "Source:      ${SOURCE}"
+echo "Match Time:  ${MATCH_SECONDS}s"
+if [ -n "${MATCHDAYS}" ]; then
+  echo "Matchdays:   ${MATCHDAYS}"
+fi
+if [ -n "${SEED}" ]; then
+  echo "Seed:        ${SEED}"
+fi
 echo "Overlay:     http://localhost:${PORT}/overlay.html"
 echo ""
 
@@ -68,11 +81,26 @@ echo "   JSON state → streaming/runtime/*.json"
 echo "   OBS overlay → http://localhost:${PORT}/overlay.html"
 echo ""
 
-$PYTHON_BIN scripts/stream_league.py \
-    --seasons "${SEASONS}" \
-    --num-teams "${NUM_TEAMS}" \
-    --pace "${PACE}" \
-    --personality "${PERSONALITY}" &
+STREAM_CMD=(
+    "$PYTHON_BIN" scripts/stream_league.py
+    --seasons "${SEASONS}"
+    --num-teams "${NUM_TEAMS}"
+    --pace "${PACE}"
+    --match-seconds "${MATCH_SECONDS}"
+    --personality "${PERSONALITY}"
+    --source "${SOURCE}"
+    --db-path "${DB_PATH}"
+)
+
+if [ -n "${MATCHDAYS}" ]; then
+  STREAM_CMD+=(--matchdays "${MATCHDAYS}")
+fi
+
+if [ -n "${SEED}" ]; then
+  STREAM_CMD+=(--seed "${SEED}")
+fi
+
+"${STREAM_CMD[@]}" &
 STREAM_PID=$!
 
 # Wait for stream to finish (or be interrupted)

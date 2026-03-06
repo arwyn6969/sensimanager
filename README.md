@@ -1,182 +1,124 @@
-# SWOS420 ⚽️🚀
+# SWOS420
 
 [![CI](https://github.com/arwyn6969/swos420/actions/workflows/swos420-ci.yml/badge.svg)](https://github.com/arwyn6969/swos420/actions)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-blue.svg)](https://python.org)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-**AI Sensible World of Soccer League with NFT Ownership & $SENSI Economy**
+**Autonomous football league you can watch live.**
 
-The most authentic SWOS player simulation ever built — real names, real stats, real form dynamics, powered by AI managers and on-chain ownership.
+The active product on this branch is the spectator loop: seeded match simulation, live commentary, standings pressure, a watch-first web app, and an OBS/browser overlay. The Python engine is the source of truth. The frontend and overlay exist to make that engine watchable.
+
+This repo still contains ownership, academy, and other experimental work, but those threads are parked while the watch product is hardened.
+
+## Current Product
+
+- Run deterministic live league sessions from Python.
+- Watch matches in the frontend or the OBS/browser overlay.
+- See tactical identity, commentary beats, pressure notes, and table movement.
+- Validate the watch contract quickly with a dedicated smoke command.
+
+## Active Branches
+
+- `codex/watch-experience`: active spectator mainline for the current MVP.
+- `codex/academy-web3-staging`: parked side thread for academy/web3/Farcaster work.
+
+Do not mix the parked branch back into the watch-first path until the spectator MVP gates in [`docs/NEXT_STEPS_MASTER_PLAN.md`](/Users/arwynhughes/Documents/Sensible%20Manager/docs/NEXT_STEPS_MASTER_PLAN.md) are met.
 
 ## Quick Start
 
+Use the project virtualenv for every Python command in this repo.
+
 ```bash
-# Install (requires Python 3.12+)
 python3.12 -m venv .venv
 ./.venv/bin/python -m pip install -e ".[dev]"
-
-# Import players using bundled fixture data
-./.venv/bin/python scripts/update_db.py --season 25/26 --sofifa-csv tests/fixtures/sample_sofifa.csv
-
-# Run deterministic smoke pipeline
-./.venv/bin/python scripts/smoke_pipeline.py
-
-# Run full season (demo mode for small squads)
-./.venv/bin/python scripts/run_full_season.py --season 25/26 --min-squad-size 1
-
-# Run a single match
-./.venv/bin/python scripts/run_match.py
-
-# Start AI manager training
-./.venv/bin/python scripts/train_managers.py --timesteps 50000 --num-teams 4
-
-# Run all tests (473 Python + 75 Forge = 548 total)
-./.venv/bin/python -m pytest -q
-cd contracts && forge test -vvv && cd ..
 ```
 
-For production-like runs on full datasets, use the default `--min-squad-size 11`.
+### Canonical Local Run Sequence
 
-### Docker
+Terminal 1: serve the overlay assets
 
 ```bash
-docker build -t swos420 .
-docker run --rm swos420                    # run test suite
-docker compose run swos420 python scripts/run_full_season.py --season 25/26 --min-squad-size 1
+./.venv/bin/python scripts/serve_overlay.py
 ```
 
-## Architecture
-
-```
-src/swos420/
-├── models/              # Pydantic data models
-│   ├── player.py        # SWOSPlayer with 7 skills, form, economy, NFT metadata
-│   ├── team.py          # Team, TeamFinances, League, PromotionRelegation
-│   └── league.py        # LeagueRuntime facade for AI/scripts
-├── engine/              # Match simulation & season orchestration
-│   ├── match_sim.py     # ICP match engine (Invisible Computer Points, GK tiers, form)
-│   ├── season_runner.py # Full season with fixtures, decay, aging, retirement
-│   ├── fixture_generator.py
-│   ├── match_result.py  # MatchResult + MatchEvent + PlayerMatchStats
-│   ├── commentary.py    # Template-based match narration + stream formatter
-│   ├── transfer_market.py  # Sealed-bid auction system
-│   └── scouting.py      # Tiered skill reveal for transfer targets
-├── ai/                  # AI Manager system
-│   ├── env.py           # PettingZoo ParallelEnv (SWOSManagerEnv)
-│   ├── actions.py       # Action space definitions
-│   ├── obs.py           # Observation builders
-│   ├── rewards.py       # Reward functions
-│   └── baseline_agents.py  # Heuristic baselines
-├── importers/           # BaseImporter + adapters (Sofifa, SWOS, TM, Hybrid)
-├── mapping/             # Sofifa → SWOS 0-7 scale attribute mapping
-├── normalization/       # UTF-8 name normalization + transliteration
-├── db/                  # SQLAlchemy models + repository layer
-└── utils/               # Helpers
-
-scripts/                 # CLI tools
-├── smoke_pipeline.py    # Deterministic end-to-end smoke check
-├── run_full_season.py   # Full season CLI with league table output
-├── run_match.py         # Single match simulation CLI
-├── train_managers.py    # PPO training with Gym wrapper + curriculum
-├── update_db.py         # Import players from Sofifa CSV → SQLite
-├── mint_from_db.py      # Batch-mint Player NFTs from DB → chain
-├── update_form_batch.py # Push matchday form updates on-chain
-├── settle_season.py     # Season settlement (bonuses, resets)
-├── distribute_wages.py  # $SENSI wage distribution
-└── export_to_ag_swsedt.py  # Export to AG-SWSEDT format
-
-config/
-├── rules.json           # Match engine tuning constants
-└── league_structure.json # 4-tier league pyramid definition
-
-contracts/src/           # On-chain economy (Foundry / Solidity 0.8.28)
-├── SWOSPlayerNFT.sol    # ERC-721 with 7-skill struct, form, batch ops
-├── SENSIToken.sol       # ERC-20 economy token (wages, bonuses, burn)
-├── TransferMarket.sol   # Sealed-bid auctions + release clauses + loans
-├── LeagueManager.sol    # Season lifecycle, matchdays, wage distribution
-├── PlayerNFT.sol        # Alternate NFT with on-chain wage claims
-└── LeagueRewards.sol    # Lightweight match/season reward settlement
-
-streaming/obs_pipeline.sh # OBS overlay pipeline
-tests/                   # 473 Python tests + 75 Forge tests = 548 total
-```
-
-## Player Model (7 Skills — Canonical SWOS)
-
-| Skill | Full Name | What it does |
-|-------|-----------|-------------|
-| PA | Passing | Pass accuracy, range, through-balls |
-| VE | Velocity | Long-range shot power & swerve |
-| HE | Heading | Aerial duels, corners, crosses |
-| TA | Tackling | Slide tackles, challenges, foul risk |
-| CO | Control | First touch, dribbling, turning |
-| SP | Speed | Top speed, acceleration |
-| FI | Finishing | Close-range shot accuracy & power |
-
-Scale: **0-7 stored** (database) → **8-15 effective** (runtime, add +8 offset)
-
-## Key Formulas
-
-```python
-effective_skill = stored_skill + 8  # range 8-15
-weekly_wage = current_value * 0.0018 * league_multiplier
-current_value = base_value * (0.6 + form/100 + goals*0.01) * age_factor
-```
-
-## Data Sources
-
-1. **Sofifa / EA FC 26** — Primary (real names, 60+ attributes)
-2. **SWOS Community 25/26 Mod** — League/team structure
-3. **Transfermarkt** — Market values, contracts (planned)
-
-## Roadmap
-
-| Phase | Status | Description |
-|-------|--------|-------------|
-| P0 — Data Layer | ✅ Complete | Importers, mapping, normalization, DB |
-| P1 — Match Engine | ✅ Complete | ICP match sim, season runner, commentary |
-| P2 — AI Managers | ✅ Complete | PettingZoo env, PPO training, transfers, scouting |
-| P2.5 — SWOS Port | ✅ Complete | EDT binary I/O + DOSBox-X runner + ArcadeMatchSimulator |
-| P3 — NFTs + $SENSI | ✅ Complete | 6 contracts, 75 Forge tests, deploy script, web3 scripts |
-| P4 — Streaming | ✅ Complete | OBS pipeline, stream_league runner, JSON overlays |
-| P5 — Frontend | ✅ Complete | Next.js 15 + wagmi v2 + RainbowKit dashboard |
-
-See [NEXT_STEPS_MASTER_PLAN.md](docs/NEXT_STEPS_MASTER_PLAN.md) for the living roadmap.
-
-## Frontend Dashboard
-
-Next.js 15 app with wagmi v2 + RainbowKit v2, targeting Base (Sepolia + mainnet).
+Terminal 2: run a seeded watch session
 
 ```bash
-# Install
-cd frontend && npm install
+./.venv/bin/python scripts/stream_league.py --source demo --num-teams 4 --matchdays 2 --seed 420
+```
 
-# Configure (copy and edit contract addresses)
-cp .env.example .env.local
+Terminal 3: run the fast watch smoke check
 
-# Run dev server
+```bash
+./.venv/bin/python scripts/smoke_watch_stream.py --source demo --num-teams 4 --matchdays 2 --seed 420
+```
+
+Terminal 4: launch the watch UI
+
+```bash
+cd frontend
+npm install
 npm run dev
-# → http://localhost:3000
 ```
 
-**Pages:**
-- `/` — Dashboard (economy stats, commentary feed, tokenomics)
-- `/gallery` — NFT Gallery (player cards with radar charts, form bars)
-- `/market` — Transfer Market (bid, cancel, resolve listings + loans)
-- `/league` — League Table (standings, commentary, manager cards)
+Open:
 
-**Stack:** Next.js 15, React 19, wagmi v2, viem v2, RainbowKit v2, TypeScript
+- Frontend preview: [http://localhost:3000](http://localhost:3000)
+- Overlay preview: [http://localhost:8000/overlay.html](http://localhost:8000/overlay.html)
 
-## Documentation
+Runtime payloads are written under `streaming/runtime/`. They are generated state, not source files, and should not be committed.
 
-- `docs/PRD.md` — product requirements and phased roadmap
-- `docs/SWOS420_MASTER_BLUEPRINT.md` — architecture/deployment blueprint
-- `docs/SWOS420_GROK420_MASTER.md` — execution plan for Codex + Antigravity
-- `docs/NEXT_STEPS_MASTER_PLAN.md` — living north-star plan
-- `docs/DEPLOYMENT_STATUS_2026-02-18.md` — latest deployment verification
-- `docs/LAUNCH_CHECKLIST.md` — **Base mainnet launch checklist**
-- `docs/x-threads.md` — **3 viral X/Twitter threads ready to post**
+## What Matters In The Repo Right Now
+
+- [`scripts/stream_league.py`](/Users/arwynhughes/Documents/Sensible%20Manager/scripts/stream_league.py): live league runner, runtime contract writer
+- [`scripts/smoke_watch_stream.py`](/Users/arwynhughes/Documents/Sensible%20Manager/scripts/smoke_watch_stream.py): fast contract smoke check
+- [`src/swos420/engine/match_sim.py`](/Users/arwynhughes/Documents/Sensible%20Manager/src/swos420/engine/match_sim.py): match sim, style identity, event generation
+- [`src/swos420/engine/commentary.py`](/Users/arwynhughes/Documents/Sensible%20Manager/src/swos420/engine/commentary.py): commentary beats and stream narrative
+- [`streaming/overlay.html`](/Users/arwynhughes/Documents/Sensible%20Manager/streaming/overlay.html): OBS/browser overlay
+- [`streaming/assets/engine.js`](/Users/arwynhughes/Documents/Sensible%20Manager/streaming/assets/engine.js): tactical pitch visualizer
+- [`frontend/src/app/page.tsx`](/Users/arwynhughes/Documents/Sensible%20Manager/frontend/src/app/page.tsx): watch-first homepage
+- [`frontend/src/app/league/page.tsx`](/Users/arwynhughes/Documents/Sensible%20Manager/frontend/src/app/league/page.tsx): season desk
+
+## Watch Testing
+
+Fast path:
+
+```bash
+./.venv/bin/python scripts/smoke_watch_stream.py --source demo --num-teams 4 --matchdays 2 --seed 420
+```
+
+Full Python suite:
+
+```bash
+./.venv/bin/pytest -q
+```
+
+Frontend production build:
+
+```bash
+cd frontend
+npm run build
+```
+
+Deterministic review runs and manual acceptance criteria live in [`docs/WATCH_TEST_PROTOCOL.md`](/Users/arwynhughes/Documents/Sensible%20Manager/docs/WATCH_TEST_PROTOCOL.md).
+
+## Docs
+
+- [`docs/NEXT_STEPS_MASTER_PLAN.md`](/Users/arwynhughes/Documents/Sensible%20Manager/docs/NEXT_STEPS_MASTER_PLAN.md): current watch-first roadmap and decision gates
+- [`docs/WATCH_OPERATOR_GUIDE.md`](/Users/arwynhughes/Documents/Sensible%20Manager/docs/WATCH_OPERATOR_GUIDE.md): how to run local watch sessions cleanly
+- [`docs/WATCH_TEST_PROTOCOL.md`](/Users/arwynhughes/Documents/Sensible%20Manager/docs/WATCH_TEST_PROTOCOL.md): deterministic test matrix, review checklist, and triage format
+
+Older ownership/dashboard/web3 docs remain in the repo for reference, but they are not the source of truth for the current MVP.
+
+## Parked For Now
+
+- wallet-first dashboard framing
+- NFT gallery and market as primary product surfaces
+- academy/web3/Farcaster reintegration
+- broader ownership economy work
+
+Those threads can come back only after the watch-first MVP is clearly watchable, testable, and honestly documented.
 
 ## License
 
-Community data only — see DISCLAIMER.md for details.
+Community data only. See [`DISCLAIMER.md`](/Users/arwynhughes/Documents/Sensible%20Manager/DISCLAIMER.md) for details.

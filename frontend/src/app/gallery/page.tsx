@@ -105,9 +105,9 @@ export default function GalleryPage() {
   return (
     <>
       <div className="page-header">
-        <div className="page-title">⚽ NFT Gallery</div>
+        <div className="page-title">⚽ Experimental Gallery</div>
         <div className="page-subtitle">
-          {total} players minted on Base · Page {page + 1} of {totalPages || 1}
+          Parked ownership surface while the watch-first MVP is being tuned. {total} minted players · Page {page + 1} of {totalPages || 1}
         </div>
       </div>
 

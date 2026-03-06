@@ -23,10 +23,9 @@ export default function LeaguePage() {
   return (
     <>
       <div className="page-header">
-        <div className="page-title">League Table</div>
+        <div className="page-title">Season Desk</div>
         <div className="page-subtitle watch-subtitle">
-          The standings page now reads like a season desk: leader, pressure line, and the
-          matchday notes feeding the table.
+          Watch the title race, danger zone, and current matchday notes without leaving the spectator loop.
         </div>
         <div className="watch-header-chips">
           <span className={`season-badge ${connectionClass}`}>

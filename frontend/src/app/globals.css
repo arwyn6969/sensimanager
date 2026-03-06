@@ -108,10 +108,27 @@ a:hover { text-decoration: underline; }
   margin-bottom: 24px;
 }
 
+.sidebar-section-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin: 2px 0 8px;
+}
+
+.sidebar-section-secondary {
+  margin-top: 12px;
+}
+
 .sidebar-nav {
   display: flex;
   flex-direction: column;
   gap: 4px;
+}
+
+.sidebar-nav-primary {
   flex: 1;
 }
 
@@ -138,16 +155,50 @@ a:hover { text-decoration: underline; }
   font-weight: 600;
 }
 
+.sidebar-link.parked {
+  color: rgba(255, 255, 255, 0.56);
+}
+
 .sidebar-link .icon {
   font-size: 18px;
   width: 24px;
   text-align: center;
 }
 
+.sidebar-pill {
+  margin-left: auto;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(255, 215, 64, 0.08);
+  color: var(--accent-gold);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
+
 .sidebar-wallet {
+  padding-top: 20px;
+  border-top: 1px solid var(--glass-border);
+}
+
+.sidebar-wallet-label {
+  margin-bottom: 12px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+}
+
+.sidebar-note {
   margin-top: auto;
   padding-top: 20px;
   border-top: 1px solid var(--glass-border);
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.6;
 }
 
 .main-content {
@@ -1067,16 +1118,20 @@ a:hover { text-decoration: underline; }
   padding: 24px;
   color: var(--text-secondary);
   line-height: 1.7;
+  text-align: center;
 }
 
 .watch-frame-fallback code {
   display: inline-flex;
-  align-self: flex-start;
+  align-self: center;
+  max-width: 100%;
   padding: 8px 12px;
   border-radius: 10px;
   background: rgba(255, 255, 255, 0.06);
   color: var(--text-primary);
   font-family: var(--font-mono);
+  white-space: normal;
+  word-break: break-word;
 }
 
 .story-card-grid {

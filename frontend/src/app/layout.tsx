@@ -4,13 +4,13 @@ import { Sidebar } from "@/components/Sidebar";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "SWOS420 — Onchain Football",
+  title: "SWOS420 — Live Autonomous Football League",
   description:
-    "The most addictive football experience on Base. Own players as NFTs, earn $SENSI, trade on the decentralized transfer market.",
-  keywords: ["SWOS420", "NFT", "football", "soccer", "Base", "SENSI", "onchain gaming"],
+    "A watch-first autonomous football league with live commentary, table pressure, and a broadcast overlay you can run locally.",
+  keywords: ["SWOS420", "football", "soccer", "live stream", "simulation", "autonomous league"],
   openGraph: {
-    title: "SWOS420 — Onchain Football",
-    description: "Own the league. Trade the players. Earn the $SENSI.",
+    title: "SWOS420 — Live Autonomous Football League",
+    description: "Watch seeded matchdays, commentary, table pressure, and the live broadcast overlay.",
     type: "website",
   },
 };

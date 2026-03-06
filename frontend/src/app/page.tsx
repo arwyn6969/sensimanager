@@ -48,8 +48,8 @@ export default function DashboardPage() {
         <div>
           <div className="page-title">Live Match Centre</div>
           <div className="page-subtitle watch-subtitle">
-            The homepage is now the show itself: live fixture, commentary pulse,
-            standings pressure, and a direct path into the broadcast overlay.
+            Watch-first mainline: live fixture, commentary pulse, standings pressure,
+            and the direct path into the local broadcast overlay.
           </div>
         </div>
         <div className="watch-header-chips">
@@ -95,8 +95,9 @@ export default function DashboardPage() {
               />
             ) : (
               <div className="watch-frame-fallback">
-                <p>Overlay preview appears here when the local stream server is running.</p>
-                <code>python scripts/serve_overlay.py</code>
+                <p>Start the local watch loop to preview the overlay and session feed.</p>
+                <code>./.venv/bin/python scripts/serve_overlay.py</code>
+                <code>./.venv/bin/python scripts/stream_league.py --source demo --num-teams 4 --matchdays 2 --seed 420</code>
               </div>
             )}
           </section>

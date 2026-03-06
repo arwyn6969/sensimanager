@@ -163,7 +163,7 @@ def _demo_skill_profile(position: Position, archetype_key: str) -> Skills:
             base["heading"] += 1
     elif archetype_key == "balanced":
         for skill_name in base:
-            base[skill_name] += 1 if skill_name in {"passing", "control", "speed"} else 0
+            base[skill_name] += 1
 
     return Skills(**{skill: _clamp_skill(value) for skill, value in base.items()})
 

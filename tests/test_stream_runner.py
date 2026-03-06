@@ -548,3 +548,24 @@ class TestRunStream:
         }
 
         assert len(identity_combos) >= 3
+
+    def test_seeded_six_team_review_matrix_includes_balanced_and_avoids_runaway_scores(self, tmp_path):
+        with patch.object(stream_league, "STREAMING_DIR", tmp_path), \
+             patch.object(stream_league, "SCOREBOARD_PATH", tmp_path / "scoreboard.json"), \
+             patch.object(stream_league, "EVENTS_PATH", tmp_path / "events.json"), \
+             patch.object(stream_league, "TABLE_PATH", tmp_path / "table.json"):
+            results = stream_league.run_stream(
+                seasons=1,
+                num_teams=6,
+                matchdays=2,
+                pace=0,
+                dry_run=True,
+                source="demo",
+                seed=421,
+            )
+
+        styles = {result.home_style for result in results} | {result.away_style for result in results}
+        max_team_goals = max(max(result.home_goals, result.away_goals) for result in results)
+
+        assert "balanced shape" in styles
+        assert max_team_goals <= 4

@@ -133,42 +133,42 @@ STYLE_PROFILES: dict[str, TeamStyleProfile] = {
     "possession": TeamStyleProfile(
         key="possession",
         label="patient possession",
-        attack_mult=1.03,
-        defense_mult=1.02,
-        chance_volume_mult=0.95,
-        chance_quality_mult=1.08,
-        card_mult=0.92,
-        event_peak_minute=60.0,
+        attack_mult=1.02,
+        defense_mult=1.03,
+        chance_volume_mult=0.92,
+        chance_quality_mult=1.10,
+        card_mult=0.90,
+        event_peak_minute=61.0,
     ),
     "direct": TeamStyleProfile(
         key="direct",
         label="direct transition",
-        attack_mult=1.05,
-        defense_mult=0.98,
-        chance_volume_mult=1.15,
-        chance_quality_mult=0.97,
-        card_mult=1.04,
-        event_peak_minute=48.0,
+        attack_mult=1.04,
+        defense_mult=0.97,
+        chance_volume_mult=1.12,
+        chance_quality_mult=0.96,
+        card_mult=1.02,
+        event_peak_minute=46.0,
     ),
     "wide": TeamStyleProfile(
         key="wide",
         label="wing-heavy attacks",
-        attack_mult=1.02,
-        defense_mult=0.99,
-        chance_volume_mult=1.10,
-        chance_quality_mult=0.99,
+        attack_mult=1.03,
+        defense_mult=0.98,
+        chance_volume_mult=1.14,
+        chance_quality_mult=1.00,
         card_mult=1.00,
-        event_peak_minute=54.0,
+        event_peak_minute=53.0,
     ),
     "compact": TeamStyleProfile(
         key="compact",
         label="compact defending",
-        attack_mult=0.95,
-        defense_mult=1.08,
-        chance_volume_mult=0.84,
-        chance_quality_mult=0.95,
-        card_mult=1.12,
-        event_peak_minute=63.0,
+        attack_mult=0.91,
+        defense_mult=1.10,
+        chance_volume_mult=0.72,
+        chance_quality_mult=0.94,
+        card_mult=1.08,
+        event_peak_minute=64.0,
     ),
 }
 
@@ -189,13 +189,13 @@ class MatchSimulator:
         self.tactics_matrix = dict(DEFAULT_TACTICS_MATRIX)
         self.weather_mult = dict(DEFAULT_WEATHER_MULT)
         self.home_advantage = 0.5  # ICP bonus for home team
-        self.xg_base = 2.65  # Poisson scaling constant
+        self.xg_base = 2.58  # Poisson scaling constant
         self.xg_defense_offset = 16.5  # Calibrated for SWOS effective skill range (8-15)
-        self.injury_match_base_rate = 0.015  # Per-player per-match injury chance
-        self.card_base_rate = 0.12  # Yellow card chance per player per match
-        self.random_form_range = 0.35  # Max ± random form noise per team per match
+        self.injury_match_base_rate = 0.013  # Per-player per-match injury chance
+        self.card_base_rate = 0.10  # Yellow card chance per player per match
+        self.random_form_range = 0.25  # Max ± random form noise per team per match
         self.gk_defense_weight = 12.0  # How much GK value-tier contributes to defense
-        self.key_chance_scale = 2.15  # Converts xG into visible non-goal chance events
+        self.key_chance_scale = 1.95  # Converts xG into visible non-goal chance events
 
         if rules_path is not None:
             self._load_rules(rules_path)
@@ -267,6 +267,13 @@ class MatchSimulator:
         direct_score = self._mean_combo(attackers or squad, ("speed", "finishing", "velocity"))
         wide_score = self._mean_combo(wide_players or squad, ("speed", "control", "passing"))
         compact_score = self._mean_combo(defenders or squad, ("tackling", "heading", "passing"))
+        raw_style_scores = {
+            "possession": control_score,
+            "direct": direct_score,
+            "wide": wide_score,
+            "compact": compact_score,
+        }
+        raw_style_spread = max(raw_style_scores.values()) - min(raw_style_scores.values())
 
         formation_bonus = {
             "possession": 0.85 if formation in {"4-3-3", "4-2-3-1", "4-3-2-1"} else 0.0,
@@ -286,7 +293,11 @@ class MatchSimulator:
         top_key, top_score = ordered[0]
         second_score = ordered[1][1] if len(ordered) > 1 else top_score
 
-        if top_score - second_score < 0.30:
+        if formation in {"4-2-3-1", "4-1-4-1"} and raw_style_spread < 0.95 and top_score - second_score < 1.05:
+            return STYLE_PROFILES["balanced"]
+        if formation in {"4-2-3-1", "4-1-4-1"} and top_score - second_score < 0.55:
+            return STYLE_PROFILES["balanced"]
+        if top_score - second_score < 0.36:
             return STYLE_PROFILES["balanced"]
         return STYLE_PROFILES[top_key]
 
@@ -404,8 +415,8 @@ class MatchSimulator:
         away_lambda = max(0.3, away_attack / (home_defense + self.xg_defense_offset) * self.xg_base)
 
         # 7. Generate goals
-        home_goals = int(np.random.poisson(home_lambda))
-        away_goals = int(np.random.poisson(away_lambda))
+        home_goals = self._stabilize_goal_total(int(np.random.poisson(home_lambda)), home_lambda, home_style)
+        away_goals = self._stabilize_goal_total(int(np.random.poisson(away_lambda)), away_lambda, away_style)
 
         # 8. Per-player ratings + live events
         home_stats = self._generate_player_stats(
@@ -622,8 +633,9 @@ class MatchSimulator:
                 stat.injury_days = injury_days
                 player.injury_days = injury_days
                 injury_label = "day" if injury_days == 1 else "days"
+                minute = self._roll_spaced_event_minute(events, 58.0, min_gap=1)
                 events.append(MatchEvent(
-                    minute=random.randint(1, 90),
+                    minute=minute,
                     event_type=EventType.INJURY,
                     player_id=player.base_id,
                     player_name=player.display_name,
@@ -637,26 +649,27 @@ class MatchSimulator:
             if player.position.value in DEFENSIVE_POSITIONS | MIDFIELD_POSITIONS:
                 card_prob *= 1.3  # defenders/midfielders foul more
             if random.random() < card_prob:
-                stat.yellow_card = True
-                events.append(MatchEvent(
-                    minute=random.randint(1, 90),
-                    event_type=EventType.YELLOW_CARD,
-                    player_id=player.base_id,
-                    player_name=player.display_name,
-                    team=side,
-                    detail="Foul",
-                ))
+                minute = self._roll_spaced_event_minute(events, 57.0, min_gap=1)
                 # Second yellow → red (5% chance if already booked)
                 if random.random() < 0.05:
                     stat.red_card = True
-                    stat.yellow_card = False  # upgraded
                     events.append(MatchEvent(
-                        minute=random.randint(60, 90),
+                        minute=minute,
                         event_type=EventType.RED_CARD,
                         player_id=player.base_id,
                         player_name=player.display_name,
                         team=side,
                         detail="Second yellow",
+                    ))
+                else:
+                    stat.yellow_card = True
+                    events.append(MatchEvent(
+                        minute=minute,
+                        event_type=EventType.YELLOW_CARD,
+                        player_id=player.base_id,
+                        player_name=player.display_name,
+                        team=side,
+                        detail="Foul",
                     ))
 
             stats.append(stat)
@@ -739,7 +752,7 @@ class MatchSimulator:
             # Pick scorer
             scorer_idx = np.random.choice(len(squad), p=probs)
             scorer = squad[scorer_idx]
-            minute = self._roll_event_minute(style_profile.event_peak_minute)
+            minute = self._roll_spaced_event_minute(events, style_profile.event_peak_minute)
 
             events.append(MatchEvent(
                 minute=minute,
@@ -802,6 +815,45 @@ class MatchSimulator:
         """Bias notable events around a style-dependent peak minute."""
         minute = int(round(np.random.triangular(1, peak_minute, 90)))
         return max(1, min(90, minute))
+
+    @classmethod
+    def _roll_spaced_event_minute(
+        cls,
+        existing_events: list[MatchEvent],
+        peak_minute: float = 56.0,
+        min_gap: int = 2,
+    ) -> int:
+        """Prefer event minutes that do not stack major beats into one instant."""
+        blocked_minutes = [
+            event.minute
+            for event in existing_events
+            if event.event_type != EventType.ASSIST
+        ]
+
+        minute = cls._roll_event_minute(peak_minute)
+        for _ in range(8):
+            if all(abs(minute - blocked) >= min_gap for blocked in blocked_minutes):
+                return minute
+            minute = cls._roll_event_minute(peak_minute)
+        return minute
+
+    @staticmethod
+    def _stabilize_goal_total(
+        raw_goals: int,
+        team_lambda: float,
+        style_profile: TeamStyleProfile,
+    ) -> int:
+        """Soft-cap rare scorelines that wildly outrun the xG signal."""
+        if raw_goals <= 3:
+            return raw_goals
+
+        style_allowance = 1 if style_profile.key in {"direct", "wide"} else 0
+        hard_cap = max(3, int(np.ceil(team_lambda * 1.9 + 0.75)) + style_allowance)
+        if raw_goals <= hard_cap:
+            return raw_goals
+
+        overflow = raw_goals - hard_cap
+        return hard_cap + int(np.random.binomial(overflow, 0.2))
 
     def _roll_chance_quality(
         self,
@@ -977,7 +1029,7 @@ class MatchSimulator:
         for _ in range(non_goal_chances):
             shooter_idx = int(np.random.choice(len(squad), p=probs))
             shooter = squad[shooter_idx]
-            minute = self._roll_event_minute(style_profile.event_peak_minute)
+            minute = self._roll_spaced_event_minute(events, style_profile.event_peak_minute)
             chance_quality = self._roll_chance_quality(shooter, team_xg, style_profile)
             is_saved = random.random() < self._save_probability(goalkeeper, chance_quality)
             detail_pool = save_details if is_saved else (big_miss_details if chance_quality >= 0.22 else miss_details)
