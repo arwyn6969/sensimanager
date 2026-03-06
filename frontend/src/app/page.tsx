@@ -28,6 +28,8 @@ export default function DashboardPage() {
   const chances = lines.filter((line) => classifyEventLine(line) === "chance").length;
   const cards = lines.filter((line) => classifyEventLine(line) === "card").length;
   const injuries = lines.filter((line) => classifyEventLine(line) === "injury").length;
+  const matchNarrative =
+    scoreboard?.match_narrative ?? "The stream needs distinct identities, not the same match wearing new badges.";
 
   return (
     <>
@@ -95,19 +97,23 @@ export default function DashboardPage() {
             </article>
 
             <article className="glass-card story-card">
-              <span className="story-card-label">Title Race</span>
-              <strong>{titleRace.map((team) => team.team).join(" · ") || "Waiting"}</strong>
+              <span className="story-card-label">Identity Clash</span>
+              <strong>
+                {scoreboard
+                  ? `${scoreboard.home_style ?? "balanced shape"} vs ${scoreboard.away_style ?? "balanced shape"}`
+                  : "Waiting for the next style clash"}
+              </strong>
               <p>
-                The front of the table should feel like a chase, not just a spreadsheet.
+                {matchNarrative}
               </p>
             </article>
 
             <article className="glass-card story-card">
-              <span className="story-card-label">Next Move</span>
-              <strong>Keep the viewer in the match</strong>
+              <span className="story-card-label">Title Race</span>
+              <strong>{titleRace.map((team) => team.team).join(" · ") || "Waiting"}</strong>
               <p>
-                <Link href="/league">Open the full league table</Link> or jump straight into the
-                overlay for the best watch view.
+                <Link href="/league">Open the full league table</Link> to follow the pressure building
+                above and below the line.
               </p>
             </article>
           </div>

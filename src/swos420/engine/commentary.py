@@ -108,6 +108,12 @@ PREMATCH_TEMPLATES = [
     "⚽ Kick-off approaches — {home} take on {away}.",
 ]
 
+STYLE_CONTEXT_TEMPLATES = [
+    "Style clash: {narrative}",
+    "Identity check: {narrative}",
+    "Tactical backdrop: {narrative}",
+]
+
 
 @dataclass
 class CommentaryBeat:
@@ -217,6 +223,18 @@ def generate_commentary_timeline(result: MatchResult) -> list[CommentaryBeat]:
                 phase="context",
                 event_type="referee",
                 text=ref_text,
+            )
+        )
+
+    if result.match_narrative:
+        beats.append(
+            CommentaryBeat(
+                minute=0,
+                phase="context",
+                event_type="style",
+                text=random.choice(STYLE_CONTEXT_TEMPLATES).format(
+                    narrative=result.match_narrative
+                ),
             )
         )
 
@@ -346,6 +364,13 @@ def generate_commentary(result: MatchResult) -> list[str]:
     ref_text = REFEREE_FLAVOR.get(ref_cat, "")
     if ref_text:
         lines.append(ref_text)
+
+    if result.match_narrative:
+        lines.append(
+            random.choice(STYLE_CONTEXT_TEMPLATES).format(
+                narrative=result.match_narrative
+            )
+        )
 
     lines.append("")  # Visual separator
 

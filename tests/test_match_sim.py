@@ -106,6 +106,46 @@ def _make_haaland_squad() -> list[SWOSPlayer]:
     return squad
 
 
+def _make_possession_squad() -> list[SWOSPlayer]:
+    squad = _make_squad("POS", skill_level=4)
+    for player in squad:
+        if player.position in {Position.CM, Position.LM, Position.RM}:
+            player.skills.passing = 7
+            player.skills.control = 7
+            player.skills.velocity = 5
+        elif player.position in {Position.RB, Position.LB, Position.CB}:
+            player.skills.passing = 6
+            player.skills.control = 5
+    return squad
+
+
+def _make_direct_squad() -> list[SWOSPlayer]:
+    squad = _make_squad("DIR", skill_level=4)
+    for player in squad:
+        if player.position in {Position.ST, Position.LM, Position.RM}:
+            player.skills.speed = 7
+            player.skills.finishing = 7
+            player.skills.velocity = 7
+        elif player.position == Position.CM:
+            player.skills.velocity = 6
+            player.skills.passing = 5
+    return squad
+
+
+def _make_compact_squad() -> list[SWOSPlayer]:
+    squad = _make_squad("COM", skill_level=4)
+    for player in squad:
+        if player.position in {Position.RB, Position.CB, Position.LB, Position.CM}:
+            player.skills.tackling = 7
+            player.skills.heading = 7
+            player.skills.passing = 6
+            player.skills.speed = 3
+        elif player.position == Position.ST:
+            player.skills.finishing = 5
+            player.skills.speed = 4
+    return squad
+
+
 # ═══════════════════════════════════════════════════════════════════════
 # MatchResult Tests
 # ═══════════════════════════════════════════════════════════════════════
@@ -236,6 +276,22 @@ class TestMatchSimulator:
             )
 
         assert chance_events > 0
+
+    def test_detects_possession_style(self, sim):
+        result = sim.simulate_match(
+            _make_possession_squad(),
+            _make_squad("AWAY"),
+            home_formation="4-3-3",
+        )
+        assert result.home_style == "patient possession"
+
+    def test_detects_compact_style(self, sim):
+        result = sim.simulate_match(
+            _make_compact_squad(),
+            _make_squad("AWAY"),
+            home_formation="5-4-1",
+        )
+        assert result.home_style == "compact defending"
 
     def test_appearances_updated(self, sim):
         """Player appearances should increment after a match."""
@@ -396,6 +452,38 @@ class TestMatchBalance:
                 gk_motm += 1
 
         assert gk_motm < n * 0.5, f"Goalkeepers dominated MOTM too often: {gk_motm}/{n}"
+
+    def test_direct_style_creates_more_visible_chances_than_compact(self, sim):
+        """Direct sides should create a busier timeline than compact ones."""
+        direct_chances = 0
+        compact_chances = 0
+        n = 120
+
+        for _ in range(n):
+            direct = sim.simulate_match(
+                _make_direct_squad(),
+                _make_squad("OPP", skill_level=4),
+                home_formation="4-4-2",
+            )
+            compact = sim.simulate_match(
+                _make_compact_squad(),
+                _make_squad("OPP", skill_level=4),
+                home_formation="5-4-1",
+            )
+            direct_chances += sum(
+                1
+                for event in direct.events
+                if event.team == "home" and event.event_type in {EventType.SAVE, EventType.MISS}
+            )
+            compact_chances += sum(
+                1
+                for event in compact.events
+                if event.team == "home" and event.event_type in {EventType.SAVE, EventType.MISS}
+            )
+
+        assert direct_chances > compact_chances, (
+            f"Direct style should create more visible chances: direct={direct_chances}, compact={compact_chances}"
+        )
 
 
 # ═══════════════════════════════════════════════════════════════════════

@@ -44,6 +44,11 @@ SCOREBOARD_PATH = RUNTIME_DIR / "scoreboard.json"
 EVENTS_PATH = RUNTIME_DIR / "events.json"
 TABLE_PATH = RUNTIME_DIR / "table.json"
 
+ATTACKING_POSITIONS = {"ST", "CF", "SS", "LW", "RW"}
+MIDFIELD_POSITIONS = {"CM", "CAM", "AM", "RM", "LM", "CDM"}
+DEFENSIVE_POSITIONS = {"CB", "RB", "LB", "RWB", "LWB", "SW"}
+WIDE_POSITIONS = {"RM", "LM", "RW", "LW", "RB", "LB", "RWB", "LWB"}
+
 
 def _generate_demo_teams(num_teams: int = 8) -> dict[str, list[SWOSPlayer]]:
     """Generate demo teams with random players for streaming demo."""
@@ -168,6 +173,36 @@ def _initialize_standings(team_names: list[str]) -> dict[str, dict]:
         }
         for name in team_names
     }
+
+
+def _mean_combo(players: list[SWOSPlayer], skills: tuple[str, ...]) -> float:
+    if not players:
+        return 0.0
+    return sum(
+        sum(player.effective_skill(skill) for skill in skills) / len(skills)
+        for player in players
+    ) / len(players)
+
+
+def _pick_stream_formation(squad: list[SWOSPlayer]) -> str:
+    """Assign a stable watchable formation from the squad's strengths."""
+    attackers = [player for player in squad if player.position.value in ATTACKING_POSITIONS]
+    midfielders = [player for player in squad if player.position.value in MIDFIELD_POSITIONS]
+    defenders = [player for player in squad if player.position.value in DEFENSIVE_POSITIONS]
+    wide_players = [player for player in squad if player.position.value in WIDE_POSITIONS]
+
+    scores = {
+        "4-3-3": _mean_combo(midfielders or squad, ("passing", "control")) + 0.35,
+        "4-4-2": _mean_combo(attackers or squad, ("speed", "finishing", "velocity")) + 0.25,
+        "3-4-3": _mean_combo(wide_players or squad, ("speed", "control", "passing")) + 0.30,
+        "5-4-1": _mean_combo(defenders or squad, ("tackling", "heading", "passing")) + 0.40,
+        "4-2-3-1": _mean_combo(squad, ("passing", "control", "tackling")),
+    }
+    best_formation, best_score = max(scores.items(), key=lambda item: item[1])
+    second_score = sorted(scores.values(), reverse=True)[1]
+    if best_score - second_score < 0.22:
+        return "4-2-3-1"
+    return best_formation
 
 
 def _write_runtime_json(path: Path, payload: Any) -> None:
@@ -302,6 +337,9 @@ def _persist_live_state(
             "matchday": matchday_idx,
             "weather": result.weather,
             "referee_strictness": result.referee_strictness,
+            "home_style": result.home_style,
+            "away_style": result.away_style,
+            "match_narrative": result.match_narrative,
             "home_xg": round(result.home_xg, 2),
             "away_xg": round(result.away_xg, 2),
             "story": latest_story,
@@ -420,6 +458,10 @@ def run_stream(
             min_squad_size=min_squad_size,
         )
         team_names = list(teams.keys())
+        team_formations = {
+            name: _pick_stream_formation(squad)
+            for name, squad in teams.items()
+        }
 
         print(f"\n{'=' * 60}")
         print(f"🏆 SWOS420 LEAGUE — SEASON {season_id}")
@@ -442,6 +484,8 @@ def run_stream(
                 result = sim.simulate_match(
                     home_squad=teams[home_name],
                     away_squad=teams[away_name],
+                    home_formation=team_formations.get(home_name, "4-4-2"),
+                    away_formation=team_formations.get(away_name, "4-4-2"),
                     home_team_name=home_name,
                     away_team_name=away_name,
                 )

@@ -48,6 +48,10 @@ export function MatchCentre({
   const awayTeam = scoreboard?.away_team ?? "Away";
   const homeGoals = scoreboard?.home_goals ?? 0;
   const awayGoals = scoreboard?.away_goals ?? 0;
+  const homeStyle = scoreboard?.home_style ?? "balanced shape";
+  const awayStyle = scoreboard?.away_style ?? "balanced shape";
+  const matchNarrative =
+    scoreboard?.match_narrative ?? "The next job is making every fixture feel tactically distinct.";
   const scoreTilt = Math.max(-12, Math.min(12, (homeGoals - awayGoals) * 4));
   const minuteDrift = scoreboard ? (scoreboard.minute % 15) - 7 : 0;
 
@@ -81,6 +85,12 @@ export function MatchCentre({
           <span className="club-panel-label">Away</span>
           <span className="club-panel-name">{awayTeam}</span>
         </div>
+      </div>
+
+      <div className="match-style-strip">
+        <span className="match-style-chip home">{homeTeam}: {homeStyle}</span>
+        <span className="match-style-chip narrative">{matchNarrative}</span>
+        <span className="match-style-chip away">{awayTeam}: {awayStyle}</span>
       </div>
 
       <div className="pitch-board">

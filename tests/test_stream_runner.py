@@ -25,6 +25,70 @@ if _scripts_dir not in sys.path:
 import stream_league  # noqa: E402
 
 
+def _make_stream_squad(
+    prefix: str,
+    *,
+    control: int = 4,
+    pace: int = 4,
+    physical: int = 4,
+) -> list[stream_league.SWOSPlayer]:
+    positions = [
+        stream_league.Position.GK,
+        stream_league.Position.RB,
+        stream_league.Position.CB,
+        stream_league.Position.CB,
+        stream_league.Position.LB,
+        stream_league.Position.RM,
+        stream_league.Position.CM,
+        stream_league.Position.CM,
+        stream_league.Position.LM,
+        stream_league.Position.ST,
+        stream_league.Position.ST,
+    ]
+    squad: list[stream_league.SWOSPlayer] = []
+
+    for index, position in enumerate(positions):
+        passing = control
+        velocity = pace
+        heading = physical
+        tackling = physical
+        control_skill = control
+        speed = pace
+        finishing = pace
+
+        if position in {stream_league.Position.CM, stream_league.Position.LM, stream_league.Position.RM}:
+            passing = max(passing, control)
+            control_skill = max(control_skill, control)
+        if position in {stream_league.Position.RB, stream_league.Position.CB, stream_league.Position.LB}:
+            heading = max(heading, physical)
+            tackling = max(tackling, physical)
+        if position == stream_league.Position.ST:
+            finishing = max(finishing, pace)
+            speed = max(speed, pace)
+
+        squad.append(
+            stream_league.SWOSPlayer(
+                base_id=stream_league.generate_base_id(f"{prefix}_{index}", "25/26"),
+                full_name=f"{prefix} Player {index + 1}",
+                display_name=f"{prefix}{index + 1:02d}",
+                position=position,
+                skills=stream_league.Skills(
+                    passing=passing,
+                    velocity=velocity,
+                    heading=heading,
+                    tackling=tackling,
+                    control=control_skill,
+                    speed=speed,
+                    finishing=finishing,
+                ),
+                club_name=prefix,
+                club_code=prefix[:3].upper(),
+            )
+        )
+
+    return squad
+
+
 # ═══════════════════════════════════════════════════════════════════════
 # JSON Output Tests
 # ═══════════════════════════════════════════════════════════════════════
@@ -173,6 +237,18 @@ class TestDemoTeams:
         names = list(teams.keys())
         assert "Man City" in names
         assert "Arsenal" in names
+
+    def test_pick_stream_formation_prefers_control_midfield(self):
+        formation = stream_league._pick_stream_formation(
+            _make_stream_squad("POS", control=7, pace=4, physical=4)
+        )
+        assert formation == "4-3-3"
+
+    def test_pick_stream_formation_prefers_compact_block(self):
+        formation = stream_league._pick_stream_formation(
+            _make_stream_squad("COM", control=5, pace=3, physical=7)
+        )
+        assert formation == "5-4-1"
 
 
 # ═══════════════════════════════════════════════════════════════════════

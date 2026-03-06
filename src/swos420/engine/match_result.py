@@ -63,6 +63,9 @@ class MatchResult:
     away_xg: float
     weather: str = "dry"
     referee_strictness: float = 1.0
+    home_style: str = "balanced shape"
+    away_style: str = "balanced shape"
+    match_narrative: str = ""
 
     # Per-player stats
     home_player_stats: list[PlayerMatchStats] = field(default_factory=list)
@@ -108,6 +111,9 @@ class MatchResult:
             "away_xg": round(self.away_xg, 2),
             "weather": self.weather,
             "referee_strictness": self.referee_strictness,
+            "home_style": self.home_style,
+            "away_style": self.away_style,
+            "match_narrative": self.match_narrative,
             "winner": self.winner,
             "home_ratings": {
                 s.display_name: round(s.rating, 1) for s in self.home_player_stats

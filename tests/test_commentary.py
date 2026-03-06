@@ -39,6 +39,9 @@ def _make_result(
     events: list[MatchEvent] | None = None,
     home_team: str = "Man City",
     away_team: str = "Arsenal",
+    home_style: str = "balanced shape",
+    away_style: str = "balanced shape",
+    match_narrative: str = "",
 ) -> MatchResult:
     """Build a MatchResult with optional event list."""
     if events is None:
@@ -52,6 +55,9 @@ def _make_result(
         away_xg=1.2,
         weather=weather,
         referee_strictness=referee_strictness,
+        home_style=home_style,
+        away_style=away_style,
+        match_narrative=match_narrative,
         events=events,
         home_player_stats=[
             PlayerMatchStats(
@@ -301,6 +307,17 @@ class TestWeatherRefereeCommentary:
         assert "strict" not in text
         assert "let the game flow" not in text
 
+    def test_style_context_flavor(self):
+        result = _make_result(
+            home_style="patient possession",
+            away_style="direct transition",
+            match_narrative="Man City bring patient possession; Arsenal answer with direct transition.",
+        )
+        lines = generate_commentary(result)
+        text = "\n".join(lines).lower()
+        assert "patient possession" in text
+        assert "direct transition" in text
+
 
 # ═══════════════════════════════════════════════════════════════════════
 # Draw vs Win Commentary Tests
@@ -395,6 +412,13 @@ class TestCommentaryTimeline:
         lines = generate_commentary(result)
         text = "\n".join(lines).lower()
         assert "half time" in text or "break" in text
+
+    def test_timeline_includes_style_context(self):
+        result = _make_result(
+            match_narrative="Man City bring patient possession; Arsenal answer with direct transition.",
+        )
+        timeline = generate_commentary_timeline(result)
+        assert any(beat.event_type == "style" for beat in timeline)
 
 
 # ═══════════════════════════════════════════════════════════════════════

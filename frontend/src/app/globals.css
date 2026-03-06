@@ -847,6 +847,42 @@ a:hover { text-decoration: underline; }
   letter-spacing: 2px;
 }
 
+.match-style-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.match-style-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 38px;
+  padding: 10px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.match-style-chip.home {
+  color: #8bdcff;
+}
+
+.match-style-chip.away {
+  color: #ffe17d;
+}
+
+.match-style-chip.narrative {
+  flex: 1 1 280px;
+  color: var(--text-primary);
+  background:
+    linear-gradient(135deg, rgba(255, 215, 64, 0.1), rgba(0, 176, 255, 0.08)),
+    rgba(255, 255, 255, 0.04);
+}
+
 .pitch-board {
   position: relative;
   height: 260px;

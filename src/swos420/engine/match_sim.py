@@ -17,6 +17,7 @@ All tuning constants are hot-reloadable from rules.json.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 import json
 import logging
 import random
@@ -107,6 +108,69 @@ ATTACKING_POSITIONS = {"ST", "CF", "SS", "LW", "RW"}
 MIDFIELD_POSITIONS = {"CM", "CAM", "AM", "RM", "LM", "CDM"}
 DEFENSIVE_POSITIONS = {"CB", "RB", "LB", "RWB", "LWB", "SW"}
 GOALKEEPER_POSITIONS = {"GK"}
+WIDE_POSITIONS = {"RM", "LM", "RW", "LW", "RB", "LB", "RWB", "LWB"}
+
+
+@dataclass(frozen=True)
+class TeamStyleProfile:
+    """Lightweight team identity profile used to shape match feel."""
+
+    key: str
+    label: str
+    attack_mult: float = 1.0
+    defense_mult: float = 1.0
+    chance_volume_mult: float = 1.0
+    chance_quality_mult: float = 1.0
+    card_mult: float = 1.0
+    event_peak_minute: float = 56.0
+
+
+STYLE_PROFILES: dict[str, TeamStyleProfile] = {
+    "balanced": TeamStyleProfile(
+        key="balanced",
+        label="balanced shape",
+    ),
+    "possession": TeamStyleProfile(
+        key="possession",
+        label="patient possession",
+        attack_mult=1.03,
+        defense_mult=1.02,
+        chance_volume_mult=0.95,
+        chance_quality_mult=1.08,
+        card_mult=0.92,
+        event_peak_minute=60.0,
+    ),
+    "direct": TeamStyleProfile(
+        key="direct",
+        label="direct transition",
+        attack_mult=1.05,
+        defense_mult=0.98,
+        chance_volume_mult=1.15,
+        chance_quality_mult=0.97,
+        card_mult=1.04,
+        event_peak_minute=48.0,
+    ),
+    "wide": TeamStyleProfile(
+        key="wide",
+        label="wing-heavy attacks",
+        attack_mult=1.02,
+        defense_mult=0.99,
+        chance_volume_mult=1.10,
+        chance_quality_mult=0.99,
+        card_mult=1.00,
+        event_peak_minute=54.0,
+    ),
+    "compact": TeamStyleProfile(
+        key="compact",
+        label="compact defending",
+        attack_mult=0.95,
+        defense_mult=1.08,
+        chance_volume_mult=0.84,
+        chance_quality_mult=0.95,
+        card_mult=1.12,
+        event_peak_minute=63.0,
+    ),
+}
 
 
 class MatchSimulator:
@@ -175,6 +239,89 @@ class MatchSimulator:
         """Hot-reload all tuning constants."""
         self._load_rules(rules_path)
 
+    @staticmethod
+    def _mean_combo(players: list[SWOSPlayer], skills: tuple[str, ...]) -> float:
+        """Average a small skill bundle across a player group."""
+        if not players:
+            return 0.0
+        return sum(
+            sum(player.effective_skill(skill) for skill in skills) / len(skills)
+            for player in players
+        ) / len(players)
+
+    def _derive_team_style(
+        self,
+        squad: list[SWOSPlayer],
+        formation: str,
+    ) -> TeamStyleProfile:
+        """Infer a simple team identity from formation and squad strengths."""
+        if not squad:
+            return STYLE_PROFILES["balanced"]
+
+        attackers = [player for player in squad if player.position.value in ATTACKING_POSITIONS]
+        midfielders = [player for player in squad if player.position.value in MIDFIELD_POSITIONS]
+        defenders = [player for player in squad if player.position.value in DEFENSIVE_POSITIONS]
+        wide_players = [player for player in squad if player.position.value in WIDE_POSITIONS]
+
+        control_score = self._mean_combo(midfielders or squad, ("passing", "control"))
+        direct_score = self._mean_combo(attackers or squad, ("speed", "finishing", "velocity"))
+        wide_score = self._mean_combo(wide_players or squad, ("speed", "control", "passing"))
+        compact_score = self._mean_combo(defenders or squad, ("tackling", "heading", "passing"))
+
+        formation_bonus = {
+            "possession": 0.85 if formation in {"4-3-3", "4-2-3-1", "4-3-2-1"} else 0.0,
+            "direct": 0.80 if formation in {"4-4-2", "3-4-3", "3-4-2-1"} else 0.0,
+            "wide": 0.90 if formation in {"4-3-3", "3-4-3"} else 0.0,
+            "compact": 1.05 if formation in {"5-4-1", "5-3-2", "4-1-4-1"} else 0.0,
+        }
+
+        style_scores = {
+            "possession": control_score + formation_bonus["possession"] + (0.18 if len(midfielders) >= 3 else 0.0),
+            "direct": direct_score + formation_bonus["direct"] + (0.18 if len(attackers) >= 2 else 0.0),
+            "wide": wide_score + formation_bonus["wide"] + (0.20 if len(wide_players) >= 4 else 0.0),
+            "compact": compact_score + formation_bonus["compact"] + (0.18 if len(defenders) >= 4 else 0.0),
+        }
+
+        ordered = sorted(style_scores.items(), key=lambda item: item[1], reverse=True)
+        top_key, top_score = ordered[0]
+        second_score = ordered[1][1] if len(ordered) > 1 else top_score
+
+        if top_score - second_score < 0.30:
+            return STYLE_PROFILES["balanced"]
+        return STYLE_PROFILES[top_key]
+
+    @staticmethod
+    def _style_matchup_delta(
+        attacking_style: TeamStyleProfile,
+        defending_style: TeamStyleProfile,
+    ) -> float:
+        """Small tactical feel adjustments between team identities."""
+        matchup = {
+            ("possession", "compact"): -0.30,
+            ("possession", "direct"): 0.10,
+            ("direct", "possession"): 0.18,
+            ("direct", "compact"): 0.14,
+            ("wide", "compact"): 0.22,
+            ("wide", "possession"): 0.08,
+            ("compact", "wide"): -0.12,
+            ("compact", "direct"): -0.08,
+        }
+        return matchup.get((attacking_style.key, defending_style.key), 0.0)
+
+    @staticmethod
+    def _build_match_narrative(
+        home_team_name: str,
+        away_team_name: str,
+        home_style: TeamStyleProfile,
+        away_style: TeamStyleProfile,
+    ) -> str:
+        """Describe the style clash for commentary and overlays."""
+        if home_style.key == away_style.key:
+            return (
+                f"Both sides lean on {home_style.label}, so control of rhythm should decide it."
+            )
+        return f"{home_team_name} bring {home_style.label}; {away_team_name} answer with {away_style.label}."
+
     # ── Main Simulation ─────────────────────────────────────────────────
 
     def simulate_match(
@@ -206,6 +353,14 @@ class MatchSimulator:
         home_xi = home_squad[:11]
         away_xi = away_squad[:11]
         events: list[MatchEvent] = []
+        home_style = self._derive_team_style(home_xi, home_formation)
+        away_style = self._derive_team_style(away_xi, away_formation)
+        match_narrative = self._build_match_narrative(
+            home_team_name,
+            away_team_name,
+            home_style,
+            away_style,
+        )
 
         # 1. Calculate ICP-based team ratings (with positional fitness)
         home_attack, home_defense = self._calculate_icp_ratings(home_xi)
@@ -236,6 +391,14 @@ class MatchSimulator:
         home_attack *= (1.0 + home_form_noise)
         away_attack *= (1.0 + away_form_noise)
 
+        # 5.5. Team identity nudges how the same raw quality manifests.
+        home_attack *= home_style.attack_mult
+        home_defense *= home_style.defense_mult
+        away_attack *= away_style.attack_mult
+        away_defense *= away_style.defense_mult
+        home_attack += self._style_matchup_delta(home_style, away_style)
+        away_attack += self._style_matchup_delta(away_style, home_style)
+
         # 6. Poisson λ for goals (from ICP differential)
         home_lambda = max(0.3, home_attack / (away_defense + self.xg_defense_offset) * self.xg_base)
         away_lambda = max(0.3, away_attack / (home_defense + self.xg_defense_offset) * self.xg_base)
@@ -246,15 +409,15 @@ class MatchSimulator:
 
         # 8. Per-player ratings + live events
         home_stats = self._generate_player_stats(
-            home_xi, home_goals, "home", events, referee_strictness, home_team_name
+            home_xi, home_goals, "home", events, referee_strictness, home_team_name, home_style
         )
         away_stats = self._generate_player_stats(
-            away_xi, away_goals, "away", events, referee_strictness, away_team_name
+            away_xi, away_goals, "away", events, referee_strictness, away_team_name, away_style
         )
 
         # 9. Attribute goals and assists (VE/FI split)
-        self._attribute_goals(home_xi, home_goals, "home", events, home_team_name, home_stats)
-        self._attribute_goals(away_xi, away_goals, "away", events, away_team_name, away_stats)
+        self._attribute_goals(home_xi, home_goals, "home", events, home_team_name, home_stats, home_style)
+        self._attribute_goals(away_xi, away_goals, "away", events, away_team_name, away_stats, away_style)
 
         # 10. Surface key non-goal chances so matches feel alive between goals.
         self._generate_key_chances(
@@ -267,6 +430,7 @@ class MatchSimulator:
             team_name=home_team_name,
             attacking_stats=home_stats,
             defending_stats=away_stats,
+            style_profile=home_style,
         )
         self._generate_key_chances(
             squad=away_xi,
@@ -278,6 +442,7 @@ class MatchSimulator:
             team_name=away_team_name,
             attacking_stats=away_stats,
             defending_stats=home_stats,
+            style_profile=away_style,
         )
 
         # 11. Sort events chronologically
@@ -316,6 +481,9 @@ class MatchSimulator:
             away_xg=round(away_lambda, 2),
             weather=weather,
             referee_strictness=referee_strictness,
+            home_style=home_style.label,
+            away_style=away_style.label,
+            match_narrative=match_narrative,
             home_player_stats=home_stats,
             away_player_stats=away_stats,
             events=events,
@@ -323,7 +491,7 @@ class MatchSimulator:
 
         logger.info(
             f"Match: {result.scoreline()} (xG: {result.home_xg}-{result.away_xg}, "
-            f"weather={weather})"
+            f"styles={home_style.key}/{away_style.key}, weather={weather})"
         )
         return result
 
@@ -412,6 +580,7 @@ class MatchSimulator:
         events: list[MatchEvent],
         referee_strictness: float,
         team_name: str,
+        style_profile: TeamStyleProfile,
     ) -> list[PlayerMatchStats]:
         """Generate individual ratings, injuries, and cards for each player."""
         stats = []
@@ -462,7 +631,7 @@ class MatchSimulator:
                 stat.rating = max(4.0, stat.rating - 1.5)
 
             # Card roll (referee strictness modifies probability)
-            card_prob = self.card_base_rate * referee_strictness
+            card_prob = self.card_base_rate * referee_strictness * style_profile.card_mult
             if player.position.value in DEFENSIVE_POSITIONS | MIDFIELD_POSITIONS:
                 card_prob *= 1.3  # defenders/midfielders foul more
             if random.random() < card_prob:
@@ -514,6 +683,38 @@ class MatchSimulator:
 
         return weights
 
+    @staticmethod
+    def _goal_detail_for_style(style_profile: TeamStyleProfile, team_name: str) -> str:
+        details = {
+            "possession": [
+                f"{team_name} finish a patient move",
+                f"{team_name} pass their way through",
+            ],
+            "direct": [
+                f"{team_name} break with real speed",
+                f"{team_name} strike from transition",
+            ],
+            "wide": [
+                f"{team_name} cash in from a wide delivery",
+                f"{team_name} turn width into a goal",
+            ],
+            "compact": [
+                f"{team_name} punish them on the counter",
+                f"{team_name} make a rare break count",
+            ],
+        }
+        return random.choice(details.get(style_profile.key, [f"Goal for {team_name}"]))
+
+    @staticmethod
+    def _assist_probability(style_profile: TeamStyleProfile) -> float:
+        return {
+            "possession": 0.84,
+            "wide": 0.82,
+            "balanced": 0.75,
+            "direct": 0.68,
+            "compact": 0.62,
+        }.get(style_profile.key, 0.75)
+
     def _attribute_goals(
         self,
         squad: list[SWOSPlayer],
@@ -522,6 +723,7 @@ class MatchSimulator:
         events: list[MatchEvent],
         team_name: str,
         stats: list[PlayerMatchStats],
+        style_profile: TeamStyleProfile,
     ) -> None:
         """Attribute goals to specific players, weighted by finishing skill."""
         if num_goals == 0 or not squad:
@@ -535,7 +737,7 @@ class MatchSimulator:
             # Pick scorer
             scorer_idx = np.random.choice(len(squad), p=probs)
             scorer = squad[scorer_idx]
-            minute = random.randint(1, 90)
+            minute = self._roll_event_minute(style_profile.event_peak_minute)
 
             events.append(MatchEvent(
                 minute=minute,
@@ -543,7 +745,7 @@ class MatchSimulator:
                 player_id=scorer.base_id,
                 player_name=scorer.display_name,
                 team=side,
-                detail=f"Goal for {team_name}",
+                detail=self._goal_detail_for_style(style_profile, team_name),
             ))
 
             # Update player stats
@@ -560,14 +762,20 @@ class MatchSimulator:
                 if i == scorer_idx:
                     assist_weights.append(0.0)
                 else:
-                    assist_weights.append(max(0.1, player.effective_skill("passing") * 1.5
-                                              + player.effective_skill("control") * 0.5))
+                    weight = (
+                        player.effective_skill("passing") * 1.5
+                        + player.effective_skill("control") * 0.5
+                    )
+                    if style_profile.key == "wide" and player.position.value in WIDE_POSITIONS:
+                        weight *= 1.25
+                    elif style_profile.key == "possession" and player.position.value in MIDFIELD_POSITIONS:
+                        weight *= 1.15
+                    assist_weights.append(max(0.1, weight))
 
             total_aw = sum(assist_weights)
             if total_aw > 0:
                 assist_probs = [w / total_aw for w in assist_weights]
-                # 75% chance each goal has a credited assist
-                if random.random() < 0.75:
+                if random.random() < self._assist_probability(style_profile):
                     assister_idx = np.random.choice(len(squad), p=assist_probs)
                     assister = squad[assister_idx]
 
@@ -588,12 +796,17 @@ class MatchSimulator:
                             break
 
     @staticmethod
-    def _roll_event_minute() -> int:
-        """Bias notable events slightly toward the later stages of each half."""
-        minute = int(round(np.random.triangular(1, 56, 90)))
+    def _roll_event_minute(peak_minute: float = 56.0) -> int:
+        """Bias notable events around a style-dependent peak minute."""
+        minute = int(round(np.random.triangular(1, peak_minute, 90)))
         return max(1, min(90, minute))
 
-    def _roll_chance_quality(self, player: SWOSPlayer, team_xg: float) -> float:
+    def _roll_chance_quality(
+        self,
+        player: SWOSPlayer,
+        team_xg: float,
+        style_profile: TeamStyleProfile,
+    ) -> float:
         """Approximate the quality of a visible chance on an xG-like scale."""
         pos = player.position.value
         if pos in ATTACKING_POSITIONS:
@@ -612,7 +825,13 @@ class MatchSimulator:
         )
         form_factor = 1.0 + max(-0.08, min(0.16, player.form / 200))
         team_factor = 0.9 + min(team_xg, 2.6) / 5
-        quality = random.gauss(base, 0.04) * skill_factor * form_factor * team_factor
+        quality = (
+            random.gauss(base, 0.04)
+            * skill_factor
+            * form_factor
+            * team_factor
+            * style_profile.chance_quality_mult
+        )
         return max(0.05, min(0.42, quality))
 
     def _save_probability(self, goalkeeper: SWOSPlayer | None, chance_quality: float) -> float:
@@ -622,6 +841,96 @@ class MatchSimulator:
             keeper_factor += goalkeeper.gk_save_ability / 35
         probability = 0.72 - chance_quality + keeper_factor
         return max(0.28, min(0.82, probability))
+
+    @staticmethod
+    def _chance_detail_pools(style_profile: TeamStyleProfile) -> tuple[list[str], list[str], list[str]]:
+        """Narrative detail pools keyed to a team's attacking identity."""
+        save_details = {
+            "balanced": [
+                "big save by the keeper",
+                "turned behind by the goalkeeper",
+                "brilliant stop at full stretch",
+                "denied from close range",
+            ],
+            "possession": [
+                "the patient move ends with a strong save",
+                "a carved opening is turned away",
+                "the goalkeeper reads the slick combination",
+            ],
+            "direct": [
+                "the keeper stops the fast break",
+                "denied after getting in behind",
+                "the breakaway ends with a sharp save",
+            ],
+            "wide": [
+                "met the delivery, but the keeper reacts",
+                "the cross finds him, but the finish is saved",
+                "the wide move creates danger, yet the keeper holds firm",
+            ],
+            "compact": [
+                "the counter is smothered by the goalkeeper",
+                "a rare break is denied by the keeper",
+                "the goalkeeper snuffs out the counterattack",
+            ],
+        }
+        miss_details = {
+            "balanced": [
+                "drags wide from a promising opening",
+                "clips the outside of the post",
+                "can't keep the effort down",
+                "wastes a decent opening",
+            ],
+            "possession": [
+                "the move deserved better than that finish",
+                "he drags the tidy move wide",
+                "the intricate build-up ends with a loose effort",
+            ],
+            "direct": [
+                "he races through but cannot hit the target",
+                "the break is on, but the finish skews wide",
+                "he gets in behind and snatches at it",
+            ],
+            "wide": [
+                "he meets the cross and guides it wide",
+                "the delivery is excellent, but the finish is not",
+                "the wide overload creates it, yet the shot drifts off target",
+            ],
+            "compact": [
+                "the rare chance is hurried wide",
+                "the counter opens up, but the finish lacks composure",
+                "he cannot turn the break into a clean effort",
+            ],
+        }
+        big_miss_details = {
+            "balanced": [
+                "huge chance missed",
+                "lets a glorious opening go begging",
+                "should have done better with that one",
+                "rattles the bar and stays out",
+            ],
+            "possession": [
+                "all that passing, and somehow it stays out",
+                "the carved opening really should end in a goal",
+                "a sweeping move goes unfinished",
+            ],
+            "direct": [
+                "he is clean through and wastes it",
+                "the transition is devastating until the finish",
+                "it is a clear breakaway, but he cannot convert",
+            ],
+            "wide": [
+                "the cross is perfect, but the finish is not",
+                "he meets the delivery and leaves everyone stunned by missing",
+                "the winger does everything right except score",
+            ],
+            "compact": [
+                "the breakaway is there for them, and they waste it",
+                "a rare gilt-edged counter goes begging",
+                "they may not get a better opening than that",
+            ],
+        }
+        key = style_profile.key if style_profile.key in save_details else "balanced"
+        return save_details[key], miss_details[key], big_miss_details[key]
 
     def _generate_key_chances(
         self,
@@ -634,6 +943,7 @@ class MatchSimulator:
         team_name: str,
         attacking_stats: list[PlayerMatchStats],
         defending_stats: list[PlayerMatchStats],
+        style_profile: TeamStyleProfile,
     ) -> None:
         """Generate visible non-goal chances so the timeline has real texture."""
         if not squad:
@@ -642,7 +952,11 @@ class MatchSimulator:
         weights = self._attacking_weights(squad)
         total_weight = sum(weights)
         probs = [weight / total_weight for weight in weights]
-        raw_chances = int(np.random.poisson(max(0.45, team_xg * self.key_chance_scale)))
+        raw_chances = int(
+            np.random.poisson(
+                max(0.35, team_xg * self.key_chance_scale * style_profile.chance_volume_mult)
+            )
+        )
         non_goal_chances = max(0, min(6, raw_chances - num_goals + np.random.binomial(1, 0.55)))
         if non_goal_chances == 0:
             return
@@ -656,30 +970,13 @@ class MatchSimulator:
             None,
         )
 
-        save_details = [
-            "big save by the keeper",
-            "turned behind by the goalkeeper",
-            "brilliant stop at full stretch",
-            "denied from close range",
-        ]
-        miss_details = [
-            "drags wide from a promising opening",
-            "clips the outside of the post",
-            "can't keep the effort down",
-            "wastes a decent opening",
-        ]
-        big_miss_details = [
-            "huge chance missed",
-            "lets a glorious opening go begging",
-            "should have done better with that one",
-            "rattles the bar and stays out",
-        ]
+        save_details, miss_details, big_miss_details = self._chance_detail_pools(style_profile)
 
         for _ in range(non_goal_chances):
             shooter_idx = int(np.random.choice(len(squad), p=probs))
             shooter = squad[shooter_idx]
-            minute = self._roll_event_minute()
-            chance_quality = self._roll_chance_quality(shooter, team_xg)
+            minute = self._roll_event_minute(style_profile.event_peak_minute)
+            chance_quality = self._roll_chance_quality(shooter, team_xg, style_profile)
             is_saved = random.random() < self._save_probability(goalkeeper, chance_quality)
             detail_pool = save_details if is_saved else (big_miss_details if chance_quality >= 0.22 else miss_details)
             event_type = EventType.SAVE if is_saved else EventType.MISS
