@@ -1392,6 +1392,8 @@ class SWOSEngine {
       this.ctx.fillRect(0, 0, this.width, this.height);
     }
 
+    this.drawIdentityZones(context);
+
     this.ctx.strokeStyle = "rgba(255,255,255,0.7)";
     this.ctx.lineWidth = 4;
     this.ctx.strokeRect(20, 20, this.width - 40, this.height - 40);
@@ -1441,6 +1443,73 @@ class SWOSEngine {
       this.ctx.fillStyle = `rgba(5, 10, 16, ${dormantVeil})`;
       this.ctx.fillRect(0, 0, this.width, this.height);
     }
+  }
+
+  drawIdentityZones(context) {
+    const identities = [
+      { team: "home", identity: context.homeIdentity, tilt: context.homeTilt },
+      { team: "away", identity: context.awayIdentity, tilt: -context.homeTilt },
+    ];
+
+    identities.forEach(({ team, identity, tilt }) => {
+      const profile = identity.profile;
+      const color = team === "home" ? "0, 176, 255" : "255, 215, 64";
+      const depthShift = (profile.depth - 1) * 150 + tilt * 120;
+      const zoneX = team === "home"
+        ? this.width * 0.26 + depthShift
+        : this.width * 0.74 - depthShift;
+      const zoneY = this.height / 2;
+      const zoneWidth = 130 + profile.depth * 100 + profile.verticality * 24;
+      const zoneHeight = 88 + profile.width * 96;
+
+      this.ctx.save();
+      this.ctx.fillStyle = `rgba(${color}, 0.045)`;
+      this.ctx.beginPath();
+      this.ctx.ellipse(zoneX, zoneY, zoneWidth, zoneHeight, 0, 0, Math.PI * 2);
+      this.ctx.fill();
+
+      if (profile.wideBias > 1) {
+        const laneOffset = 145 * Math.min(profile.wideBias, 1.4);
+        this.ctx.fillStyle = `rgba(${color}, 0.03)`;
+        this.ctx.fillRect(
+          zoneX - zoneWidth * 0.42,
+          40,
+          zoneWidth * 0.84,
+          52,
+        );
+        this.ctx.fillRect(
+          zoneX - zoneWidth * 0.42,
+          this.height - 92,
+          zoneWidth * 0.84,
+          52,
+        );
+        this.ctx.beginPath();
+        this.ctx.ellipse(zoneX, zoneY - laneOffset, zoneWidth * 0.22, 26, 0, 0, Math.PI * 2);
+        this.ctx.ellipse(zoneX, zoneY + laneOffset, zoneWidth * 0.22, 26, 0, 0, Math.PI * 2);
+        this.ctx.fill();
+      }
+
+      if (profile.shortPassBias > 1.15) {
+        this.ctx.strokeStyle = `rgba(${color}, 0.18)`;
+        this.ctx.lineWidth = 2;
+        this.ctx.beginPath();
+        this.ctx.ellipse(zoneX, zoneY, zoneWidth * 0.42, zoneHeight * 0.46, 0, 0, Math.PI * 2);
+        this.ctx.stroke();
+      }
+
+      if (profile.press > 1.02) {
+        const pressX = team === "home" ? this.width * 0.58 : this.width * 0.42;
+        this.ctx.fillStyle = `rgba(${color}, 0.025)`;
+        this.ctx.fillRect(
+          team === "home" ? pressX : pressX - 84,
+          24,
+          84,
+          this.height - 48,
+        );
+      }
+
+      this.ctx.restore();
+    });
   }
 
   drawPlayer(player, timestamp) {

@@ -58,6 +58,18 @@ class TestEnvStep:
         for agent in ["club_0", "club_1", "club_2", "club_3"]:
             assert isinstance(rewards[agent], (int, float))
 
+    def test_style_action_updates_team_identity(self):
+        env = SWOSManagerEnv(num_teams=4, seed=42)
+        env.reset()
+
+        actions = {
+            agent: env.action_space(agent).sample() for agent in env.agents
+        }
+        actions["club_0"]["style"] = 3  # counter
+        env.step(actions)
+
+        assert env._agent_to_team["club_0"].team.style == "counter"
+
     def test_full_season_completes(self):
         """Run a full season with random agents — smoke test."""
         env = SWOSManagerEnv(num_teams=4, seed=42)

@@ -22,21 +22,57 @@ interface MatchCentreProps {
   sessionId: string | null;
 }
 
-const HOME_MARKERS = [
-  [16, 22],
-  [22, 38],
-  [28, 56],
-  [36, 28],
-  [40, 70],
-];
+const FORMATION_MARKERS: Record<string, Array<[number, number]>> = {
+  "4-4-2": [
+    [12, 50], [24, 18], [20, 38], [20, 62], [24, 82],
+    [36, 20], [32, 42], [32, 58], [36, 80], [50, 42], [50, 58],
+  ],
+  "4-3-3": [
+    [12, 50], [24, 20], [20, 40], [20, 60], [24, 80],
+    [34, 28], [30, 50], [34, 72], [48, 16], [54, 50], [48, 84],
+  ],
+  "4-2-3-1": [
+    [12, 50], [24, 18], [20, 38], [20, 62], [24, 82],
+    [30, 40], [30, 60], [42, 18], [44, 50], [42, 82], [56, 50],
+  ],
+  "5-4-1": [
+    [12, 50], [28, 14], [20, 30], [18, 50], [20, 70], [28, 86],
+    [38, 24], [34, 42], [34, 58], [38, 76], [52, 50],
+  ],
+  "3-4-3": [
+    [12, 50], [20, 28], [18, 50], [20, 72], [32, 14],
+    [32, 40], [32, 60], [32, 86], [48, 16], [54, 50], [48, 84],
+  ],
+};
 
-const AWAY_MARKERS = [
-  [84, 24],
-  [76, 40],
-  [70, 60],
-  [62, 30],
-  [58, 72],
-];
+const STYLE_TRAITS: Record<string, { width: number; depth: number }> = {
+  "balanced shape": { width: 1, depth: 1 },
+  "patient possession": { width: 1.16, depth: 0.96 },
+  "direct transition": { width: 0.94, depth: 1.16 },
+  "compact defending": { width: 0.76, depth: 0.82 },
+  "wing-heavy attacks": { width: 1.3, depth: 1.08 },
+};
+
+function buildMarkers(
+  team: "home" | "away",
+  formation: string,
+  style: string,
+): Array<{ left: number; top: number }> {
+  const anchors = FORMATION_MARKERS[formation] ?? FORMATION_MARKERS["4-4-2"];
+  const traits = STYLE_TRAITS[style] ?? STYLE_TRAITS["balanced shape"];
+
+  return anchors.map(([left, top]) => {
+    const lane = top - 50;
+    const shapedTop = 50 + lane * traits.width;
+    const depthShift = (traits.depth - 1) * 10;
+    const shapedLeft = team === "home" ? left + depthShift : 100 - left - depthShift;
+
+    return {
+      left: Math.max(10, Math.min(90, shapedLeft)),
+      top: Math.max(12, Math.min(88, shapedTop)),
+    };
+  });
+}
 
 function formatStatusTitle(
   scoreboard: StreamScoreboard | null,
@@ -72,6 +108,8 @@ export function MatchCentre({
     : "Formation and pressure context will appear when the live feed is active.";
   const scoreTilt = Math.max(-12, Math.min(12, (homeGoals - awayGoals) * 4));
   const minuteDrift = scoreboard ? (scoreboard.minute % 15) - 7 : 0;
+  const homeMarkers = buildMarkers("home", homeFormation, homeStyle);
+  const awayMarkers = buildMarkers("away", awayFormation, awayStyle);
   const freshness = formatFeedFreshness(lastUpdated, connection);
   const statusText = sessionId ? `${sessionId} · ${freshness}` : freshness;
 
@@ -113,31 +151,31 @@ export function MatchCentre({
         <span className="match-style-chip away">{awayTeam}: {awayFormation} · {awayStyle}</span>
       </div>
 
-      <div className="pitch-board">
-        <div className="pitch-board-lines" />
-        <div className="pitch-board-circle" />
-        {HOME_MARKERS.map(([left, top], index) => (
+        <div className="pitch-board">
+          <div className="pitch-board-lines" />
+          <div className="pitch-board-circle" />
+          {homeMarkers.map(({ left, top }, index) => (
+            <span
+              key={`home-${index}`}
+              className="pitch-marker home"
+              style={{ left: `${left}%`, top: `${top}%` }}
+            />
+          ))}
+          {awayMarkers.map(({ left, top }, index) => (
+            <span
+              key={`away-${index}`}
+              className="pitch-marker away"
+              style={{ left: `${left}%`, top: `${top}%` }}
+            />
+          ))}
           <span
-            key={`home-${index}`}
-            className="pitch-marker home"
-            style={{ left: `${left}%`, top: `${top}%` }}
+            className="pitch-ball"
+            style={{
+              left: `${50 + scoreTilt}%`,
+              top: `${48 + minuteDrift}%`,
+            }}
           />
-        ))}
-        {AWAY_MARKERS.map(([left, top], index) => (
-          <span
-            key={`away-${index}`}
-            className="pitch-marker away"
-            style={{ left: `${left}%`, top: `${top}%` }}
-          />
-        ))}
-        <span
-          className="pitch-ball"
-          style={{
-            left: `${50 + scoreTilt}%`,
-            top: `${48 + minuteDrift}%`,
-          }}
-        />
-      </div>
+        </div>
 
       <div className="match-context-grid">
         <article className="match-context-card">

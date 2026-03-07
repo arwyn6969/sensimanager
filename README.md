@@ -104,6 +104,7 @@ Deterministic review runs and manual acceptance criteria live in [`docs/WATCH_TE
 
 ## Docs
 
+- [`docs/WATCH_MATCH_INTELLIGENCE_AUDIT.md`](/Users/arwynhughes/Documents/Sensible%20Manager/docs/WATCH_MATCH_INTELLIGENCE_AUDIT.md): current-state vs ideal-state explainer for the watch-first product
 - [`docs/NEXT_STEPS_MASTER_PLAN.md`](/Users/arwynhughes/Documents/Sensible%20Manager/docs/NEXT_STEPS_MASTER_PLAN.md): current watch-first roadmap and decision gates
 - [`docs/WATCH_OPERATOR_GUIDE.md`](/Users/arwynhughes/Documents/Sensible%20Manager/docs/WATCH_OPERATOR_GUIDE.md): how to run local watch sessions cleanly
 - [`docs/WATCH_TEST_PROTOCOL.md`](/Users/arwynhughes/Documents/Sensible%20Manager/docs/WATCH_TEST_PROTOCOL.md): deterministic test matrix, review checklist, and triage format

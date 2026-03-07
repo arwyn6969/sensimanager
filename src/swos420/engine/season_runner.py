@@ -44,6 +44,10 @@ class TeamSeasonState:
     def formation(self) -> str:
         return self.team.formation
 
+    @property
+    def style(self) -> str:
+        return self.team.style
+
 
 @dataclass
 class SeasonStats:
@@ -144,6 +148,8 @@ class SeasonRunner:
                 away_squad=away_state.players,
                 home_formation=home_state.formation,
                 away_formation=away_state.formation,
+                home_style=home_state.style,
+                away_style=away_state.style,
                 weather=weather,
                 referee_strictness=referee,
                 home_team_name=home_state.team.name,

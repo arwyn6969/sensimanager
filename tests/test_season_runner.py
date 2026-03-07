@@ -8,11 +8,13 @@ from __future__ import annotations
 
 import random
 import time
+from unittest.mock import Mock
 
 import numpy as np
 import pytest
 
 from swos420.engine.season_runner import SeasonRunner, TeamSeasonState
+from swos420.engine.match_result import MatchResult
 from swos420.models.player import Position, Skills, SWOSPlayer, generate_base_id
 from swos420.models.team import Team
 
@@ -137,6 +139,36 @@ class TestSeasonRunner:
         results = four_team_season.play_matchday()
         assert len(results) == 2  # 4 teams → 2 matches
         assert four_team_season.current_matchday == 1
+
+    def test_matchday_passes_team_style_to_simulator(self):
+        teams = [
+            _make_team_state("Arsenal", "ARS", formation="4-3-3"),
+            _make_team_state("Chelsea", "CHE", formation="5-4-1"),
+        ]
+        teams[0].team.style = "possession"
+        teams[1].team.style = "compact"
+
+        simulator = Mock()
+        simulator.simulate_match.return_value = MatchResult(
+            home_team="Arsenal",
+            away_team="Chelsea",
+            home_goals=1,
+            away_goals=0,
+            home_xg=1.2,
+            away_xg=0.7,
+        )
+
+        runner = SeasonRunner(teams=teams, simulator=simulator)
+        runner.play_matchday()
+
+        simulator.simulate_match.assert_called_once()
+        kwargs = simulator.simulate_match.call_args.kwargs
+        style_by_team = {
+            kwargs["home_team_name"]: kwargs["home_style"],
+            kwargs["away_team_name"]: kwargs["away_style"],
+        }
+        assert style_by_team["Arsenal"] == "possession"
+        assert style_by_team["Chelsea"] == "compact"
 
     def test_end_of_season(self, four_team_season):
         """End-of-season should produce a summary dict."""

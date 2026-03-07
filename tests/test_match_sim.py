@@ -244,6 +244,25 @@ class TestMatchSimulator:
         assert result.away_goals >= 0
         assert result.winner in ("home", "away", "draw")
 
+    def test_explicit_style_override_is_preserved(self, sim):
+        home = _make_possession_squad()
+        away = _make_direct_squad()
+
+        result = sim.simulate_match(
+            home,
+            away,
+            home_formation="4-3-3",
+            away_formation="4-4-2",
+            home_style="compact",
+            away_style="wide",
+            home_team_name="Home",
+            away_team_name="Away",
+        )
+
+        assert result.home_style == "compact defending"
+        assert result.away_style == "wing-heavy attacks"
+        assert "compact defending" in result.match_narrative
+
     def test_result_has_player_stats(self, sim):
         """Each starting player should appear in the ratings."""
         home = _make_squad("HOME")

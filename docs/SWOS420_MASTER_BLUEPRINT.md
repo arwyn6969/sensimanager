@@ -1,5 +1,7 @@
 # SWOS420 — AI Sensible World of Soccer League Master Blueprint v1.0
 
+> Archival note: this blueprint reflects the earlier broad autonomy/ownership roadmap, not the current watch-first branch remit. For active implementation truth, use [`WATCH_MATCH_INTELLIGENCE_AUDIT.md`](/Users/arwynhughes/Documents/Sensible%20Manager/docs/WATCH_MATCH_INTELLIGENCE_AUDIT.md) and [`NEXT_STEPS_MASTER_PLAN.md`](/Users/arwynhughes/Documents/Sensible%20Manager/docs/NEXT_STEPS_MASTER_PLAN.md).
+
 **Date:** February 18, 2026
 **Repo:** https://github.com/arwyn6969/sensimanager (v0.1.0 — commit `7f02483` base, branch `codex/parallel-ops-lane` active)
 **Author:** Grok420 (co-founder)

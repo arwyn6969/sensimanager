@@ -59,6 +59,7 @@ def main() -> int:
     scoreboard = _load_json(stream_league.SCOREBOARD_PATH)
     events = _load_json(stream_league.EVENTS_PATH)
     table = _load_json(stream_league.TABLE_PATH)
+    leaders = _load_json(stream_league.LEADERS_PATH)
     failures: list[str] = []
 
     _expect("home_formation" in scoreboard and "away_formation" in scoreboard, "scoreboard missing formation metadata", failures)
@@ -68,6 +69,11 @@ def main() -> int:
 
     _expect("latest" in events, "events payload missing latest beat", failures)
     _expect("summary" in events, "events payload missing summary block", failures)
+    _expect(
+        isinstance(events.get("match_player_stats"), dict),
+        "events payload missing match_player_stats block",
+        failures,
+    )
     _expect(bool(events.get("session_id")), "events payload missing session_id", failures)
     _expect(bool(events.get("updated_at")), "events payload missing updated_at", failures)
 
@@ -75,6 +81,11 @@ def main() -> int:
     _expect(isinstance(table.get("rows"), list), "table payload missing rows", failures)
     _expect(bool(table.get("meta", {}).get("session_id")), "table payload missing session_id", failures)
     _expect(bool(table.get("meta", {}).get("updated_at")), "table payload missing updated_at", failures)
+
+    _expect(bool(leaders.get("session_id")), "leaders payload missing session_id", failures)
+    _expect(bool(leaders.get("updated_at")), "leaders payload missing updated_at", failures)
+    _expect("top_scorers" in leaders, "leaders payload missing top_scorers", failures)
+    _expect("form_leaders" in leaders, "leaders payload missing form_leaders", failures)
 
     identity_combos = {
         (result.home_formation, result.home_style)

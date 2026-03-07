@@ -27,6 +27,25 @@ export interface StreamScoreboard {
   leader_points?: number;
 }
 
+export interface StreamPlayerMatchStat {
+  player_id: string;
+  display_name: string;
+  position: string;
+  rating: number;
+  goals: number;
+  assists: number;
+  injured: boolean;
+  injury_days: number;
+  yellow_card: boolean;
+  red_card: boolean;
+  minutes_played: number;
+}
+
+export interface StreamMatchPlayerStats {
+  home: StreamPlayerMatchStat[];
+  away: StreamPlayerMatchStat[];
+}
+
 export interface StreamEvents {
   count: number;
   lines: string[];
@@ -35,6 +54,7 @@ export interface StreamEvents {
   events?: StreamEventEntry[];
   latest?: StreamEventEntry | null;
   summary?: StreamSummary;
+  match_player_stats?: StreamMatchPlayerStats;
 }
 
 export interface StreamTableRow {
@@ -73,6 +93,25 @@ export interface StreamTablePayload {
     session_id?: string;
     updated_at?: string;
   };
+}
+
+export interface StreamLeaderEntry {
+  player_name: string;
+  display_name: string;
+  team: string;
+  position: string;
+  value: number;
+}
+
+export interface StreamLeaders {
+  session_id?: string;
+  updated_at?: string;
+  season_id?: string;
+  matchday?: number;
+  top_scorers: StreamLeaderEntry[];
+  top_assists: StreamLeaderEntry[];
+  top_clean_sheets: StreamLeaderEntry[];
+  form_leaders: StreamLeaderEntry[];
 }
 
 export const STREAM_RUNTIME_DIR = "runtime";

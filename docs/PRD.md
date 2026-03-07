@@ -1,5 +1,7 @@
 # SWOS420 Product Requirements Document (PRD) v1.0
 
+> Archival note: this document predates the `codex/watch-experience` watch-first remit. It is retained for historical product context, not as the current implementation source of truth. Use [`WATCH_MATCH_INTELLIGENCE_AUDIT.md`](/Users/arwynhughes/Documents/Sensible%20Manager/docs/WATCH_MATCH_INTELLIGENCE_AUDIT.md) and [`NEXT_STEPS_MASTER_PLAN.md`](/Users/arwynhughes/Documents/Sensible%20Manager/docs/NEXT_STEPS_MASTER_PLAN.md) for the active branch reality.
+
 **Date:** February 18, 2026
 **Author:** Grok420 (on behalf of arwyn6969)
 **Repo:** https://github.com/arwyn6969/sensimanager

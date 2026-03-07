@@ -1,4 +1,4 @@
-"""SWOSManagerEnv — PettingZoo ParallelEnv for multi-agent league management.
+"""SWOSManagerEnv — PettingZoo ParallelEnv for watch-first league management.
 
 Each agent controls one club, making weekly decisions (formation, style,
 training, transfers, substitutions, scouting). The environment wraps the
@@ -6,6 +6,10 @@ existing SeasonRunner + MatchSimulator to simulate matches.
 
 One episode = one full league season.
 One step = one matchday.
+
+In the current spectator tranche, formation, style, and training are the live
+controls. Transfer, scouting, and substitution slots remain parked placeholders
+so the policy contract stays stable while the watch product is hardened.
 """
 
 from __future__ import annotations
@@ -30,6 +34,7 @@ from swos420.ai.obs import (
     build_finances_obs,
     build_meta_obs,
 )
+from swos420.ai.policy_io import MAX_SQUAD_OBS_PLAYERS
 from swos420.ai.rewards import (
     compute_matchday_reward,
     compute_season_end_reward,
@@ -47,7 +52,7 @@ from swos420.models.team import Team, TeamFinances
 # Transfer windows occur at these matchdays (configurable)
 DEFAULT_TRANSFER_MATCHDAYS = {0, 19}  # Summer + winter windows
 MAX_MARKET_TARGETS = 15
-MAX_SQUAD_DISPLAY = 16  # Authentic SWOS squad size
+MAX_SQUAD_DISPLAY = MAX_SQUAD_OBS_PLAYERS
 MAX_BENCH = 5
 
 
@@ -194,6 +199,7 @@ class SWOSManagerEnv(ParallelEnv):
                 name=f"Club {code}",
                 code=code,
                 formation="4-4-2",
+                style="balanced",
                 player_ids=[p.base_id for p in players],
                 finances=TeamFinances(
                     balance=random.randint(5_000_000, 50_000_000),
@@ -262,6 +268,7 @@ class SWOSManagerEnv(ParallelEnv):
 
             # Apply formation
             state.team.formation = decoded.formation
+            state.team.style = decoded.style
 
             # Apply training focus (simplified: rest reduces fatigue)
             if decoded.training_focus == "rest":

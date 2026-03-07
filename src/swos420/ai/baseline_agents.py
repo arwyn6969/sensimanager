@@ -1,7 +1,8 @@
 """Baseline agents for evaluation and benchmarking.
 
 RandomAgent: uniformly random valid actions.
-HeuristicAgent: simple rule-based manager (strongest XI, sensible transfers).
+HeuristicAgent: simple rule-based manager for the live controls that currently
+matter in the watch-first tranche.
 """
 
 from __future__ import annotations
@@ -30,8 +31,7 @@ class HeuristicAgent:
     Strategy:
     - Default 4-4-2, balanced style
     - Rest training when average fatigue > 60
-    - Bid on highest-skill available targets during windows
-    - Make substitutions based on fatigue
+    - Leave parked transfer/substitution/scouting fields in a stable placeholder state
     """
 
     def __init__(self, seed: int | None = None):
@@ -48,7 +48,7 @@ class HeuristicAgent:
             "scouting_level": 1,  # Basic scouting
         }
 
-        # Transfer bids (bid on top targets if window is open)
+        # Parked placeholders: keep the fields stable until that lane is reopened.
         is_window = False
         if observation is not None and "meta" in observation:
             is_window = observation["meta"][2] > 0.5

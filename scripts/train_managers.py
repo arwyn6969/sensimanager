@@ -25,6 +25,14 @@ import gymnasium
 import numpy as np
 from gymnasium import spaces
 
+from swos420.ai.policy_io import (
+    PolicyContractError,
+    decode_flat_action,
+    expected_observation_size,
+    flatten_observation,
+    validate_policy_contract,
+)
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
@@ -55,8 +63,8 @@ class SWOSGymWrapper(gymnasium.Env):
         self._seed = seed
 
         # Build flat observation space
-        # league_table: (num_teams, 6) + own_squad: (22, 12) + finances: (4,) + meta: (4,)
-        self._obs_size = num_teams * 6 + 22 * 12 + 4 + 4
+        # league_table: (num_teams, 6) + own_squad: (16, 12) + finances: (4,) + meta: (4,)
+        self._obs_size = expected_observation_size(num_teams)
         self.observation_space = spaces.Box(
             low=0.0, high=1.0, shape=(self._obs_size,), dtype=np.float32
         )
@@ -95,31 +103,11 @@ class SWOSGymWrapper(gymnasium.Env):
 
     def _flatten_obs(self, obs_dict: dict) -> np.ndarray:
         """Flatten Dict observation to a 1D float32 array."""
-        parts = [
-            obs_dict["league_table"].flatten(),
-            obs_dict["own_squad"].flatten(),
-            obs_dict["finances"].flatten(),
-            obs_dict["meta"].flatten(),
-        ]
-        return np.concatenate(parts).astype(np.float32)
+        return flatten_observation(obs_dict)
 
     def _unflatten_action(self, flat_action: np.ndarray) -> dict:
         """Convert MultiDiscrete action to the Dict format expected by PZ env."""
-        return {
-            "formation": int(flat_action[0]),
-            "style": int(flat_action[1]),
-            "training_focus": int(flat_action[2]),
-            "scouting_level": int(flat_action[3]),
-            "transfer_bid_0": int(flat_action[4]),
-            "bid_amount_0": np.float32(flat_action[5] / 9.0),
-            "transfer_bid_1": int(flat_action[6]),
-            "bid_amount_1": np.float32(flat_action[7] / 9.0),
-            "transfer_bid_2": int(flat_action[8]),
-            "bid_amount_2": np.float32(flat_action[9] / 9.0),
-            "sub_0": int(flat_action[10]),
-            "sub_1": int(flat_action[11]),
-            "sub_2": int(flat_action[12]),
-        }
+        return decode_flat_action(flat_action)
 
     def reset(self, *, seed=None, options=None):
         """Reset the environment, return first agent's observation."""
@@ -254,6 +242,15 @@ def evaluate(args: argparse.Namespace) -> None:
 
     logger.info(f"📊 Evaluating model: {model_path}")
     model = PPO.load(str(model_path))
+    try:
+        validate_policy_contract(
+            model.observation_space,
+            model.action_space,
+            num_teams=args.num_teams,
+        )
+    except PolicyContractError as exc:
+        logger.error(str(exc))
+        sys.exit(2)
 
     env = SWOSGymWrapper(num_teams=args.num_teams, seed=args.seed)
 

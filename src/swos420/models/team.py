@@ -43,6 +43,7 @@ class Team(BaseModel):
     league_name: str = Field(default="Unknown League")
     division: int = Field(default=1, ge=1, le=4)
     formation: str = Field(default="4-4-2", description="Default tactical formation")
+    style: str = Field(default="balanced", description="Watch-first tactical identity")
     player_ids: list[str] = Field(default_factory=list, description="Base_IDs of squad members")
     finances: TeamFinances = Field(default_factory=TeamFinances)
     manager_name: str = Field(default="AI Manager")

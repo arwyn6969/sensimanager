@@ -172,6 +172,21 @@ STYLE_PROFILES: dict[str, TeamStyleProfile] = {
     ),
 }
 
+STYLE_LABEL_TO_KEY = {
+    profile.label.lower(): profile.key for profile in STYLE_PROFILES.values()
+}
+STYLE_ALIASES = {
+    "attacking": "wide",
+    "defensive": "compact",
+    "balanced": "balanced",
+    "counter": "direct",
+    "balanced shape": "balanced",
+    "patient possession": "possession",
+    "direct transition": "direct",
+    "wing-heavy attacks": "wide",
+    "compact defending": "compact",
+}
+
 
 class MatchSimulator:
     """SWOS-authentic ICP-based match simulator.
@@ -301,6 +316,34 @@ class MatchSimulator:
             return STYLE_PROFILES["balanced"]
         return STYLE_PROFILES[top_key]
 
+    def resolve_team_style(
+        self,
+        style: str | TeamStyleProfile | None,
+        squad: list[SWOSPlayer],
+        formation: str,
+    ) -> TeamStyleProfile:
+        """Resolve an explicit or inferred team identity profile.
+
+        Explicit styles may be provided as canonical keys (`direct`) or display
+        labels (`direct transition`). Unknown overrides fall back to the squad-
+        derived identity so older callers stay compatible.
+        """
+        if isinstance(style, TeamStyleProfile):
+            return style
+
+        if style:
+            normalized = str(style).strip().lower()
+            profile_key = (
+                STYLE_ALIASES.get(normalized)
+                or STYLE_LABEL_TO_KEY.get(normalized)
+                or (normalized if normalized in STYLE_PROFILES else None)
+            )
+            if profile_key:
+                return STYLE_PROFILES[profile_key]
+            logger.debug("Unknown style override '%s'; deriving style from squad", style)
+
+        return self._derive_team_style(squad, formation)
+
     @staticmethod
     def _style_matchup_delta(
         attacking_style: TeamStyleProfile,
@@ -341,6 +384,8 @@ class MatchSimulator:
         away_squad: list[SWOSPlayer],
         home_formation: str = "4-4-2",
         away_formation: str = "4-4-2",
+        home_style: str | TeamStyleProfile | None = None,
+        away_style: str | TeamStyleProfile | None = None,
         weather: str = "dry",
         referee_strictness: float = 1.0,
         home_team_name: str = "Home",
@@ -353,6 +398,8 @@ class MatchSimulator:
             away_squad: Away team players (first 11 play, rest are bench).
             home_formation: Home tactical formation (e.g. "4-4-2").
             away_formation: Away tactical formation.
+            home_style: Optional explicit home style key/label.
+            away_style: Optional explicit away style key/label.
             weather: One of "dry", "wet", "muddy", "snow".
             referee_strictness: 0.6 (lenient) to 1.4 (strict).
             home_team_name: Display name for home team.
@@ -364,13 +411,13 @@ class MatchSimulator:
         home_xi = home_squad[:11]
         away_xi = away_squad[:11]
         events: list[MatchEvent] = []
-        home_style = self._derive_team_style(home_xi, home_formation)
-        away_style = self._derive_team_style(away_xi, away_formation)
+        home_style_profile = self.resolve_team_style(home_style, home_xi, home_formation)
+        away_style_profile = self.resolve_team_style(away_style, away_xi, away_formation)
         match_narrative = self._build_match_narrative(
             home_team_name,
             away_team_name,
-            home_style,
-            away_style,
+            home_style_profile,
+            away_style_profile,
         )
 
         # 1. Calculate ICP-based team ratings (with positional fitness)
@@ -403,32 +450,68 @@ class MatchSimulator:
         away_attack *= (1.0 + away_form_noise)
 
         # 5.5. Team identity nudges how the same raw quality manifests.
-        home_attack *= home_style.attack_mult
-        home_defense *= home_style.defense_mult
-        away_attack *= away_style.attack_mult
-        away_defense *= away_style.defense_mult
-        home_attack += self._style_matchup_delta(home_style, away_style)
-        away_attack += self._style_matchup_delta(away_style, home_style)
+        home_attack *= home_style_profile.attack_mult
+        home_defense *= home_style_profile.defense_mult
+        away_attack *= away_style_profile.attack_mult
+        away_defense *= away_style_profile.defense_mult
+        home_attack += self._style_matchup_delta(home_style_profile, away_style_profile)
+        away_attack += self._style_matchup_delta(away_style_profile, home_style_profile)
 
         # 6. Poisson λ for goals (from ICP differential)
         home_lambda = max(0.3, home_attack / (away_defense + self.xg_defense_offset) * self.xg_base)
         away_lambda = max(0.3, away_attack / (home_defense + self.xg_defense_offset) * self.xg_base)
 
         # 7. Generate goals
-        home_goals = self._stabilize_goal_total(int(np.random.poisson(home_lambda)), home_lambda, home_style)
-        away_goals = self._stabilize_goal_total(int(np.random.poisson(away_lambda)), away_lambda, away_style)
+        home_goals = self._stabilize_goal_total(
+            int(np.random.poisson(home_lambda)),
+            home_lambda,
+            home_style_profile,
+        )
+        away_goals = self._stabilize_goal_total(
+            int(np.random.poisson(away_lambda)),
+            away_lambda,
+            away_style_profile,
+        )
 
         # 8. Per-player ratings + live events
         home_stats = self._generate_player_stats(
-            home_xi, home_goals, "home", events, referee_strictness, home_team_name, home_style
+            home_xi,
+            home_goals,
+            "home",
+            events,
+            referee_strictness,
+            home_team_name,
+            home_style_profile,
         )
         away_stats = self._generate_player_stats(
-            away_xi, away_goals, "away", events, referee_strictness, away_team_name, away_style
+            away_xi,
+            away_goals,
+            "away",
+            events,
+            referee_strictness,
+            away_team_name,
+            away_style_profile,
         )
 
         # 9. Attribute goals and assists (VE/FI split)
-        self._attribute_goals(home_xi, home_goals, "home", events, home_team_name, home_stats, home_style)
-        self._attribute_goals(away_xi, away_goals, "away", events, away_team_name, away_stats, away_style)
+        self._attribute_goals(
+            home_xi,
+            home_goals,
+            "home",
+            events,
+            home_team_name,
+            home_stats,
+            home_style_profile,
+        )
+        self._attribute_goals(
+            away_xi,
+            away_goals,
+            "away",
+            events,
+            away_team_name,
+            away_stats,
+            away_style_profile,
+        )
 
         # 10. Surface key non-goal chances so matches feel alive between goals.
         self._generate_key_chances(
@@ -441,7 +524,7 @@ class MatchSimulator:
             team_name=home_team_name,
             attacking_stats=home_stats,
             defending_stats=away_stats,
-            style_profile=home_style,
+            style_profile=home_style_profile,
         )
         self._generate_key_chances(
             squad=away_xi,
@@ -453,7 +536,7 @@ class MatchSimulator:
             team_name=away_team_name,
             attacking_stats=away_stats,
             defending_stats=home_stats,
-            style_profile=away_style,
+            style_profile=away_style_profile,
         )
 
         # 11. Sort events chronologically
@@ -494,8 +577,8 @@ class MatchSimulator:
             referee_strictness=referee_strictness,
             home_formation=home_formation,
             away_formation=away_formation,
-            home_style=home_style.label,
-            away_style=away_style.label,
+            home_style=home_style_profile.label,
+            away_style=away_style_profile.label,
             match_narrative=match_narrative,
             home_player_stats=home_stats,
             away_player_stats=away_stats,
@@ -504,7 +587,7 @@ class MatchSimulator:
 
         logger.info(
             f"Match: {result.scoreline()} (xG: {result.home_xg}-{result.away_xg}, "
-            f"styles={home_style.key}/{away_style.key}, weather={weather})"
+            f"styles={home_style_profile.key}/{away_style_profile.key}, weather={weather})"
         )
         return result
 

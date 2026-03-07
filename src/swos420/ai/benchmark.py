@@ -19,6 +19,12 @@ import numpy as np
 
 from swos420.ai.baseline_agents import HeuristicAgent, RandomAgent
 from swos420.ai.env import SWOSManagerEnv
+from swos420.ai.policy_io import (
+    PolicyContractError,
+    decode_flat_action as shared_decode_flat_action,
+    flatten_observation,
+    validate_policy_contract,
+)
 
 VALID_POLICIES = {"random", "heuristic", "ppo"}
 
@@ -32,6 +38,7 @@ class PPOManagerAgent:
     """Adapter that lets SB3 PPO behave like a manager policy."""
 
     model_path: Path
+    num_teams: int
     deterministic: bool = True
 
     def __post_init__(self) -> None:
@@ -43,6 +50,14 @@ class PPOManagerAgent:
             ) from exc
 
         self._model = PPO.load(str(self.model_path))
+        try:
+            validate_policy_contract(
+                self._model.observation_space,
+                self._model.action_space,
+                num_teams=self.num_teams,
+            )
+        except PolicyContractError as exc:
+            raise BenchmarkError(str(exc)) from exc
 
     def act(self, observation: dict[str, np.ndarray] | None = None) -> dict[str, Any]:
         if observation is None:
@@ -53,38 +68,12 @@ class PPOManagerAgent:
         return decode_flat_action(action)
 
 
-def flatten_observation(observation: dict[str, np.ndarray]) -> np.ndarray:
-    """Flatten SWOS manager dict observation into a 1D float32 array."""
-    parts = [
-        observation["league_table"].flatten(),
-        observation["own_squad"].flatten(),
-        observation["finances"].flatten(),
-        observation["meta"].flatten(),
-    ]
-    return np.concatenate(parts).astype(np.float32)
-
-
 def decode_flat_action(flat_action: np.ndarray | list[int] | tuple[int, ...]) -> dict[str, Any]:
     """Convert PPO MultiDiscrete output into SWOSManagerEnv action dict."""
-    action_array = np.asarray(flat_action, dtype=np.int64).reshape(-1)
-    if action_array.size != 13:
-        raise BenchmarkError(f"Expected 13 action components, got {action_array.size}")
-
-    return {
-        "formation": int(action_array[0]),
-        "style": int(action_array[1]),
-        "training_focus": int(action_array[2]),
-        "scouting_level": int(action_array[3]),
-        "transfer_bid_0": int(action_array[4]),
-        "bid_amount_0": np.float32(action_array[5] / 9.0),
-        "transfer_bid_1": int(action_array[6]),
-        "bid_amount_1": np.float32(action_array[7] / 9.0),
-        "transfer_bid_2": int(action_array[8]),
-        "bid_amount_2": np.float32(action_array[9] / 9.0),
-        "sub_0": int(action_array[10]),
-        "sub_1": int(action_array[11]),
-        "sub_2": int(action_array[12]),
-    }
+    try:
+        return shared_decode_flat_action(flat_action)
+    except PolicyContractError as exc:
+        raise BenchmarkError(str(exc)) from exc
 
 
 def _build_policy_agent(
@@ -93,6 +82,7 @@ def _build_policy_agent(
     seed: int,
     model_path: Path | None,
     deterministic_model: bool,
+    num_teams: int,
 ):
     if policy == "random":
         return RandomAgent(action_space, seed=seed)
@@ -101,7 +91,11 @@ def _build_policy_agent(
     if policy == "ppo":
         if model_path is None:
             raise BenchmarkError("policy='ppo' requires --model-path")
-        return PPOManagerAgent(model_path=model_path, deterministic=deterministic_model)
+        return PPOManagerAgent(
+            model_path=model_path,
+            num_teams=num_teams,
+            deterministic=deterministic_model,
+        )
 
     raise BenchmarkError(f"Unsupported policy: {policy}")
 
@@ -145,6 +139,7 @@ def run_policy_season(
             seed=seed + i,
             model_path=model_path,
             deterministic_model=deterministic_model,
+            num_teams=num_teams,
         )
 
     cumulative_rewards = {agent_id: 0.0 for agent_id in env.possible_agents}

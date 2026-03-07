@@ -3,6 +3,8 @@
 Date: 2026-02-18
 Status: Active
 
+> Watch-first note: this training guide is a supporting engineering document, not the product mainline. Formation/style/training are the live manager controls today; transfers, scouting, and substitution intelligence remain parked until the spectator MVP gates pass.
+
 ## 1. Purpose
 
 This document defines a reproducible training and evaluation flow for SWOS420 manager policies.

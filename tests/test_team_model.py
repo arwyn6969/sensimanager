@@ -26,6 +26,7 @@ class TestTeam:
         assert t.name == "Test FC"
         assert t.code == "TST"
         assert t.formation == "4-4-2"
+        assert t.style == "balanced"
         assert t.player_ids == []
 
     def test_goal_difference(self):

@@ -3,6 +3,7 @@
 import Link from "next/link";
 
 import { MatchCentre } from "@/components/MatchCentre";
+import { MatchPlayerStatsPanel } from "@/components/MatchPlayerStatsPanel";
 import { StreamCommentaryPanel } from "@/components/StreamCommentaryPanel";
 import { StreamLeagueTable } from "@/components/StreamLeagueTable";
 import { useStreamState } from "@/hooks/useStreamState";
@@ -23,6 +24,7 @@ export default function DashboardPage() {
   const latestEvent = pressureNote ?? scoreboard?.story ?? events?.latest?.text ?? latestNarrativeLine(lines);
   const xgLine = events?.summary?.xg ?? findSummaryLine(lines, "xG:");
   const motmLine = events?.summary?.motm ?? findSummaryLine(lines, "⭐");
+  const matchPlayerStats = events?.match_player_stats ?? null;
 
   const leader = table[0];
   const titleRace = table.slice(0, 4);
@@ -143,7 +145,14 @@ export default function DashboardPage() {
           lines={lines}
           summary={[xgLine, motmLine].filter((value): value is string => Boolean(value))}
         />
-        <StreamLeagueTable rows={table} />
+        <div className="league-side-stack">
+          <MatchPlayerStatsPanel
+            stats={matchPlayerStats}
+            homeTeam={scoreboard?.home_team}
+            awayTeam={scoreboard?.away_team}
+          />
+          <StreamLeagueTable rows={table} />
+        </div>
       </div>
     </>
   );

@@ -2,6 +2,7 @@
 
 import { StreamCommentaryPanel } from "@/components/StreamCommentaryPanel";
 import { StreamLeagueTable } from "@/components/StreamLeagueTable";
+import { SeasonLeadersPanel } from "@/components/SeasonLeadersPanel";
 import { useStreamState } from "@/hooks/useStreamState";
 import {
   classifyEventLine,
@@ -11,7 +12,7 @@ import {
 } from "@/lib/stream";
 
 export default function LeaguePage() {
-  const { table, events, connection, sessionId } = useStreamState();
+  const { table, events, leaders, connection, sessionId } = useStreamState();
   const lines = normalizeEventLines(events?.lines ?? []);
   const xgLine = events?.summary?.xg ?? findSummaryLine(lines, "xG:");
   const goals = lines.filter((line) => classifyEventLine(line) === "goal").length;
@@ -65,23 +66,13 @@ export default function LeaguePage() {
         />
 
         <div className="league-side-stack">
+          <SeasonLeadersPanel leaders={leaders} />
+
           <StreamCommentaryPanel
             lines={lines}
             title="Matchday Notes"
             summary={[xgLine].filter((value): value is string => Boolean(value))}
           />
-
-          <section className="glass-card story-card emphasis-card">
-            <span className="story-card-label">What Changed</span>
-            <strong>
-              {leader
-                ? `${leader.team} are setting the pace`
-                : "The league picture will sharpen once the feed starts"}
-            </strong>
-            <p>
-              This page is meant to explain the shape of the season, not just dump rows of data.
-            </p>
-          </section>
         </div>
       </div>
     </>

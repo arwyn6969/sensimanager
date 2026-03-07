@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 
 import { STREAM_URL } from "@/lib/contracts";
 import {
+  type StreamLeaders,
   makeStreamRuntimePath,
   makeStreamUrl,
   newestStreamTimestamp,
@@ -20,6 +21,7 @@ interface StreamState {
   scoreboard: StreamScoreboard | null;
   events: StreamEvents | null;
   table: StreamTableRow[];
+  leaders: StreamLeaders | null;
   connection: StreamConnection;
   lastUpdated: number | null;
   sessionId: string | null;
@@ -29,6 +31,7 @@ const INITIAL_STATE: StreamState = {
   scoreboard: null,
   events: null,
   table: [],
+  leaders: null,
   connection: "offline",
   lastUpdated: null,
   sessionId: null,
@@ -67,10 +70,11 @@ export function useStreamState(intervalMs = 2000): StreamState {
     let cancelled = false;
 
     const poll = async () => {
-      const [scoreboard, events, table] = await Promise.all([
+      const [scoreboard, events, table, leaders] = await Promise.all([
         readJson<StreamScoreboard>(makeStreamRuntimePath("scoreboard.json")),
         readJson<StreamEvents>(makeStreamRuntimePath("events.json")),
         readJson<StreamTableRow[] | StreamTablePayload>(makeStreamRuntimePath("table.json")),
+        readJson<StreamLeaders>(makeStreamRuntimePath("leaders.json")),
       ]);
 
       if (cancelled) {
@@ -84,12 +88,16 @@ export function useStreamState(intervalMs = 2000): StreamState {
         const nextScoreboard = scoreboard ?? current.scoreboard;
         const nextEvents = events ?? current.events;
         const nextTable = normalizedTable.length > 0 ? normalizedTable : current.table;
-        const hasPayload = Boolean(nextScoreboard || nextEvents || nextTable.length > 0);
+        const nextLeaders = leaders ?? current.leaders;
+        const hasPayload = Boolean(
+          nextScoreboard || nextEvents || nextTable.length > 0 || nextLeaders
+        );
         const lastUpdated =
           newestStreamTimestamp(
             scoreboard?.updated_at,
             events?.updated_at,
             tableMeta?.updated_at,
+            leaders?.updated_at,
             current.scoreboard?.updated_at,
             current.events?.updated_at,
           ) ?? current.lastUpdated;
@@ -101,12 +109,14 @@ export function useStreamState(intervalMs = 2000): StreamState {
           scoreboard: nextScoreboard,
           events: nextEvents,
           table: nextTable,
+          leaders: nextLeaders,
           connection,
           lastUpdated: hasPayload ? lastUpdated : null,
           sessionId:
             scoreboard?.session_id ??
             events?.session_id ??
             tableMeta?.session_id ??
+            leaders?.session_id ??
             current.sessionId,
         };
       });

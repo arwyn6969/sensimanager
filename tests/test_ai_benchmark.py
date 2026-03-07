@@ -5,9 +5,11 @@ from __future__ import annotations
 import csv
 import json
 
+from gymnasium import spaces
 import numpy as np
 import pytest
 
+from swos420.ai import expected_observation_size, validate_policy_contract
 from swos420.ai.benchmark import (
     BenchmarkError,
     _build_policy_agent,
@@ -61,23 +63,56 @@ class TestBuildPolicyAgent:
         from swos420.ai.env import SWOSManagerEnv
         env = SWOSManagerEnv(num_teams=4, seed=42)
         env.reset()
-        agent = _build_policy_agent("random", env.action_space("club_0"), 42, None, True)
+        agent = _build_policy_agent("random", env.action_space("club_0"), 42, None, True, 4)
         assert agent is not None
 
     def test_heuristic_agent(self):
         from swos420.ai.env import SWOSManagerEnv
         env = SWOSManagerEnv(num_teams=4, seed=42)
         env.reset()
-        agent = _build_policy_agent("heuristic", env.action_space("club_0"), 42, None, True)
+        agent = _build_policy_agent("heuristic", env.action_space("club_0"), 42, None, True, 4)
         assert agent is not None
 
     def test_ppo_no_model_path_raises(self):
         with pytest.raises(BenchmarkError, match="requires --model-path"):
-            _build_policy_agent("ppo", None, 42, None, True)
+            _build_policy_agent("ppo", None, 42, None, True, 4)
 
     def test_unknown_policy_raises(self):
         with pytest.raises(BenchmarkError, match="Unsupported policy"):
-            _build_policy_agent("magic", None, 42, None, True)
+            _build_policy_agent("magic", None, 42, None, True, 4)
+
+
+class TestPolicyContractValidation:
+    def test_validate_policy_contract_accepts_shared_shape(self):
+        observation_space = spaces.Box(
+            low=0.0,
+            high=1.0,
+            shape=(expected_observation_size(4),),
+            dtype=np.float32,
+        )
+        action_space = spaces.MultiDiscrete([10] * 13)
+
+        validate_policy_contract(
+            observation_space,
+            action_space,
+            num_teams=4,
+        )
+
+    def test_validate_policy_contract_rejects_legacy_checkpoint_shape(self):
+        observation_space = spaces.Box(
+            low=0.0,
+            high=1.0,
+            shape=(296,),
+            dtype=np.float32,
+        )
+        action_space = spaces.MultiDiscrete([10] * 13)
+
+        with pytest.raises(RuntimeError, match="16-player watch-first observation contract"):
+            validate_policy_contract(
+                observation_space,
+                action_space,
+                num_teams=4,
+            )
 
 
 class TestRunBenchmarkValidation:
@@ -147,4 +182,3 @@ def test_write_benchmark_report_outputs_json_and_csv(tmp_path) -> None:
 
     assert len(rows) == 1
     assert rows[0]["policy"] == "random"
-

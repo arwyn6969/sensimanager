@@ -38,7 +38,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 from swos420.engine.commentary import CommentaryBeat, format_season_summary
 from swos420.engine.fixture_generator import generate_round_robin
 from swos420.engine.llm_commentary import LLMCommentaryGenerator
-from swos420.engine.match_result import MatchResult
+from swos420.engine.match_result import MatchResult, PlayerMatchStats
 from swos420.engine.match_sim import MatchSimulator
 from swos420.models.player import Position, SWOSPlayer, Skills, generate_base_id
 
@@ -49,6 +49,7 @@ RUNTIME_DIR = STREAMING_DIR / "runtime"
 SCOREBOARD_PATH = RUNTIME_DIR / "scoreboard.json"
 EVENTS_PATH = RUNTIME_DIR / "events.json"
 TABLE_PATH = RUNTIME_DIR / "table.json"
+LEADERS_PATH = RUNTIME_DIR / "leaders.json"
 
 ATTACKING_POSITIONS = {"ST", "CF", "SS", "LW", "RW"}
 MIDFIELD_POSITIONS = {"CM", "CAM", "AM", "RM", "LM", "CDM"}
@@ -329,6 +330,36 @@ def _assign_stream_formations(
     return formations
 
 
+def _pick_stream_style(
+    squad: list[SWOSPlayer],
+    formation: str,
+    simulator: MatchSimulator,
+) -> str:
+    """Assign a stable watch-first style label from the current squad profile."""
+    return simulator.resolve_team_style(None, squad, formation).key
+
+
+def _assign_stream_styles(
+    team_names: list[str],
+    teams: dict[str, list[SWOSPlayer]],
+    source_used: str,
+    formations: dict[str, str],
+    simulator: MatchSimulator,
+) -> dict[str, str]:
+    """Choose a stable style per team for the current streamed season."""
+    styles: dict[str, str] = {}
+    for index, team_name in enumerate(team_names):
+        if source_used == "demo":
+            styles[team_name] = _demo_archetype(index)["key"]
+        else:
+            styles[team_name] = _pick_stream_style(
+                teams[team_name],
+                formations[team_name],
+                simulator,
+            )
+    return styles
+
+
 def _clone_standings(standings: dict[str, dict]) -> dict[str, dict]:
     return {team_name: row.copy() for team_name, row in standings.items()}
 
@@ -531,6 +562,7 @@ def write_events(
     lines: list[str],
     events: list[dict[str, Any]] | None = None,
     summary: dict[str, Any] | None = None,
+    match_player_stats: dict[str, Any] | None = None,
     meta: dict[str, Any] | None = None,
 ) -> None:
     """Write commentary feed to JSON for OBS/frontend consumption."""
@@ -544,6 +576,8 @@ def write_events(
         data["latest"] = events[-1] if events else None
     if summary is not None:
         data["summary"] = summary
+    if match_player_stats is not None:
+        data["match_player_stats"] = match_player_stats
     if meta is not None:
         data.update(meta)
     _write_runtime_json(EVENTS_PATH, data)
@@ -555,6 +589,11 @@ def write_table(standings: dict[str, dict], meta: dict[str, Any] | None = None) 
     if meta:
         payload = {"rows": payload, "meta": {"updated_at": _utc_timestamp(), **meta}}
     _write_runtime_json(TABLE_PATH, payload)
+
+
+def write_leaders(payload: dict[str, Any]) -> None:
+    """Write season leader tables to JSON for frontend consumption."""
+    _write_runtime_json(LEADERS_PATH, payload)
 
 
 def stream_commentary(
@@ -582,6 +621,88 @@ def _summary_from_beats(result: MatchResult, beats: list[CommentaryBeat]) -> dic
         "weather": result.weather,
         "referee_strictness": result.referee_strictness,
         "winner": result.winner,
+    }
+
+
+def _match_player_stats_payload(result: MatchResult) -> dict[str, list[dict[str, Any]]]:
+    """Serialize current-match player stats into a frontend-friendly payload."""
+    return {
+        "home": [asdict(stat) for stat in result.home_player_stats],
+        "away": [asdict(stat) for stat in result.away_player_stats],
+    }
+
+
+def _leader_entry(player: SWOSPlayer, value: float | int) -> dict[str, Any]:
+    return {
+        "player_name": player.full_name,
+        "display_name": player.display_name,
+        "team": player.club_name,
+        "position": player.position.value,
+        "value": round(float(value), 1) if isinstance(value, float) else int(value),
+    }
+
+
+def _rank_players(
+    players: list[SWOSPlayer],
+    *,
+    selector,
+    minimum: float = 0,
+    limit: int = 5,
+) -> list[dict[str, Any]]:
+    ranked = sorted(
+        players,
+        key=lambda player: (
+            selector(player),
+            player.goals_scored_season,
+            player.assists_season,
+            player.display_name,
+        ),
+        reverse=True,
+    )
+    entries: list[dict[str, Any]] = []
+    for player in ranked:
+        value = selector(player)
+        if value < minimum:
+            continue
+        entries.append(_leader_entry(player, value))
+        if len(entries) >= limit:
+            break
+    return entries
+
+
+def _leaders_payload(
+    teams: dict[str, list[SWOSPlayer]],
+    *,
+    session_id: str,
+    season_id: str,
+    matchday_idx: int,
+) -> dict[str, Any]:
+    players = [player for squad in teams.values() for player in squad]
+    return {
+        "session_id": session_id,
+        "updated_at": _utc_timestamp(),
+        "season_id": season_id,
+        "matchday": matchday_idx,
+        "top_scorers": _rank_players(
+            players,
+            selector=lambda player: player.goals_scored_season,
+            minimum=1,
+        ),
+        "top_assists": _rank_players(
+            players,
+            selector=lambda player: player.assists_season,
+            minimum=1,
+        ),
+        "top_clean_sheets": _rank_players(
+            players,
+            selector=lambda player: player.clean_sheets_season,
+            minimum=1,
+        ),
+        "form_leaders": _rank_players(
+            players,
+            selector=lambda player: player.form,
+            minimum=-50,
+        ),
     }
 
 
@@ -698,6 +819,7 @@ def _persist_live_state(
         [beat.text for beat in displayed_beats],
         events=_beats_to_event_payload(displayed_beats),
         summary=_summary_from_beats(result, displayed_beats),
+        match_player_stats=_match_player_stats_payload(result),
         meta={"session_id": session_id},
     )
 
@@ -836,6 +958,7 @@ def run_stream(
         )
         team_names = list(teams.keys())
         team_formations = _assign_stream_formations(team_names, teams, source_used)
+        team_styles = _assign_stream_styles(team_names, teams, source_used, team_formations, sim)
 
         print(f"\n{'=' * 60}")
         print(f"🏆 SWOS420 LEAGUE — SEASON {season_id}")
@@ -860,6 +983,14 @@ def run_stream(
                 "session_id": session_id,
             },
         )
+        write_leaders(
+            _leaders_payload(
+                teams,
+                session_id=session_id,
+                season_id=season_id,
+                matchday_idx=0,
+            )
+        )
 
         for matchday_idx, matchday in enumerate(fixtures, 1):
             print(f"\n--- Matchday {matchday_idx} ---\n")
@@ -870,6 +1001,8 @@ def run_stream(
                     away_squad=teams[away_name],
                     home_formation=team_formations.get(home_name, "4-4-2"),
                     away_formation=team_formations.get(away_name, "4-4-2"),
+                    home_style=team_styles.get(home_name, "balanced"),
+                    away_style=team_styles.get(away_name, "balanced"),
                     home_team_name=home_name,
                     away_team_name=away_name,
                 )
@@ -916,6 +1049,14 @@ def run_stream(
                         "matchday": matchday_idx,
                         "session_id": session_id,
                     },
+                )
+                write_leaders(
+                    _leaders_payload(
+                        teams,
+                        session_id=session_id,
+                        season_id=season_id,
+                        matchday_idx=matchday_idx,
+                    )
                 )
 
                 if not dry_run and pace > 0:

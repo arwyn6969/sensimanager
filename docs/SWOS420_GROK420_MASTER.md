@@ -1,5 +1,7 @@
 # SWOS420 — Grok420 Master Blueprint & Code Arsenal v3.0
 
+> Archival note: this document predates the watch-first hardening branch and overstates subsystems that are currently parked. Treat it as historical context only. The active branch source of truth is [`WATCH_MATCH_INTELLIGENCE_AUDIT.md`](/Users/arwynhughes/Documents/Sensible%20Manager/docs/WATCH_MATCH_INTELLIGENCE_AUDIT.md) plus [`NEXT_STEPS_MASTER_PLAN.md`](/Users/arwynhughes/Documents/Sensible%20Manager/docs/NEXT_STEPS_MASTER_PLAN.md).
+
 **Date:** February 18, 2026
 **Repo:** https://github.com/arwyn6969/sensimanager
 **Author:** Grok420 (your silent co-founder)

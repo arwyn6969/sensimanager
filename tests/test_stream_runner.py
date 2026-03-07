@@ -205,6 +205,20 @@ class TestEventsJSON:
         assert data["summary"]["xg"].startswith("xG:")
         assert data["updated_at"].endswith("Z")
 
+    def test_write_events_supports_match_player_stats(self, tmp_path):
+        events_path = tmp_path / "events.json"
+        payload = {
+            "home": [{"display_name": "MAN09", "rating": 8.4}],
+            "away": [{"display_name": "ARS10", "rating": 7.8}],
+        }
+
+        with patch.object(stream_league, "EVENTS_PATH", events_path), \
+             patch.object(stream_league, "STREAMING_DIR", tmp_path):
+            stream_league.write_events(["Line"], match_player_stats=payload)
+
+        data = json.loads(events_path.read_text())
+        assert data["match_player_stats"]["home"][0]["display_name"] == "MAN09"
+
 
 class TestTableJSON:
     def test_write_table_sorted_by_points(self, tmp_path):
@@ -238,6 +252,29 @@ class TestTableJSON:
         assert data["rows"][0]["team"] == "Arsenal"
         assert data["meta"]["season_id"] == "25/26"
         assert data["meta"]["updated_at"].endswith("Z")
+
+
+class TestLeadersJSON:
+    def test_write_leaders_creates_file(self, tmp_path):
+        leaders_path = tmp_path / "leaders.json"
+        payload = {
+            "session_id": "seed-420",
+            "updated_at": "2026-03-07T00:00:00Z",
+            "season_id": "25/26",
+            "matchday": 1,
+            "top_scorers": [{"display_name": "MAN09", "team": "Man City", "position": "ST", "value": 2}],
+            "top_assists": [],
+            "top_clean_sheets": [],
+            "form_leaders": [],
+        }
+
+        with patch.object(stream_league, "LEADERS_PATH", leaders_path), \
+             patch.object(stream_league, "STREAMING_DIR", tmp_path):
+            stream_league.write_leaders(payload)
+
+        data = json.loads(leaders_path.read_text())
+        assert data["session_id"] == "seed-420"
+        assert data["top_scorers"][0]["display_name"] == "MAN09"
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -311,6 +348,26 @@ class TestDemoTeams:
         assert formations["Chelsea"] == "3-4-3"
         assert len(set(formations.values())) >= 3
 
+    def test_assign_stream_styles_demo_is_varied_and_stable(self):
+        teams = stream_league._generate_demo_teams(4)
+        team_names = list(teams.keys())
+        simulator = stream_league.MatchSimulator()
+        formations = stream_league._assign_stream_formations(team_names, teams, "demo")
+
+        styles = stream_league._assign_stream_styles(
+            team_names,
+            teams,
+            "demo",
+            formations,
+            simulator,
+        )
+
+        assert styles["Man City"] == "possession"
+        assert styles["Arsenal"] == "direct"
+        assert styles["Liverpool"] == "compact"
+        assert styles["Chelsea"] == "wide"
+        assert len(set(styles.values())) >= 3
+
 
 class TestPressureHooks:
     def test_build_pressure_context_detects_title_race(self):
@@ -357,6 +414,12 @@ class TestPressureHooks:
         scoreboard_path = tmp_path / "scoreboard.json"
         events_path = tmp_path / "events.json"
         result = _make_stream_result()
+        result.home_player_stats = [
+            stream_league.PlayerMatchStats(player_id="h1", display_name="MAN09", position="ST", rating=8.4)
+        ]
+        result.away_player_stats = [
+            stream_league.PlayerMatchStats(player_id="a1", display_name="ARS10", position="ST", rating=7.8)
+        ]
         beats = [
             stream_league.CommentaryBeat(
                 minute=0,
@@ -400,6 +463,7 @@ class TestPressureHooks:
 
         events_data = json.loads(events_path.read_text())
         assert events_data["session_id"] == "seed-420-demo"
+        assert events_data["match_player_stats"]["home"][0]["display_name"] == "MAN09"
         assert events_data["updated_at"].endswith("Z")
 
 
@@ -414,7 +478,8 @@ class TestRunStream:
         with patch.object(stream_league, "STREAMING_DIR", tmp_path), \
              patch.object(stream_league, "SCOREBOARD_PATH", tmp_path / "scoreboard.json"), \
              patch.object(stream_league, "EVENTS_PATH", tmp_path / "events.json"), \
-             patch.object(stream_league, "TABLE_PATH", tmp_path / "table.json"):
+             patch.object(stream_league, "TABLE_PATH", tmp_path / "table.json"), \
+             patch.object(stream_league, "LEADERS_PATH", tmp_path / "leaders.json"):
             results = stream_league.run_stream(
                 seasons=1,
                 num_teams=4,
@@ -431,23 +496,27 @@ class TestRunStream:
         scoreboard_path = tmp_path / "scoreboard.json"
         events_path = tmp_path / "events.json"
         table_path = tmp_path / "table.json"
+        leaders_path = tmp_path / "leaders.json"
 
         with patch.object(stream_league, "STREAMING_DIR", tmp_path), \
              patch.object(stream_league, "SCOREBOARD_PATH", scoreboard_path), \
              patch.object(stream_league, "EVENTS_PATH", events_path), \
-             patch.object(stream_league, "TABLE_PATH", table_path):
+             patch.object(stream_league, "TABLE_PATH", table_path), \
+             patch.object(stream_league, "LEADERS_PATH", leaders_path):
             stream_league.run_stream(seasons=1, num_teams=4, pace=0, dry_run=True)
 
         assert scoreboard_path.exists()
         assert events_path.exists()
         assert table_path.exists()
+        assert leaders_path.exists()
 
     def test_results_have_valid_scores(self, tmp_path):
         """All matches should have non-negative scores."""
         with patch.object(stream_league, "STREAMING_DIR", tmp_path), \
              patch.object(stream_league, "SCOREBOARD_PATH", tmp_path / "scoreboard.json"), \
              patch.object(stream_league, "EVENTS_PATH", tmp_path / "events.json"), \
-             patch.object(stream_league, "TABLE_PATH", tmp_path / "table.json"):
+             patch.object(stream_league, "TABLE_PATH", tmp_path / "table.json"), \
+             patch.object(stream_league, "LEADERS_PATH", tmp_path / "leaders.json"):
             results = stream_league.run_stream(seasons=1, num_teams=4, pace=0, dry_run=True)
 
         for r in results:
@@ -458,7 +527,8 @@ class TestRunStream:
         with patch.object(stream_league, "STREAMING_DIR", tmp_path), \
              patch.object(stream_league, "SCOREBOARD_PATH", tmp_path / "scoreboard.json"), \
              patch.object(stream_league, "EVENTS_PATH", tmp_path / "events.json"), \
-             patch.object(stream_league, "TABLE_PATH", tmp_path / "table.json"):
+             patch.object(stream_league, "TABLE_PATH", tmp_path / "table.json"), \
+             patch.object(stream_league, "LEADERS_PATH", tmp_path / "leaders.json"):
             results = stream_league.run_stream(
                 seasons=1,
                 num_teams=4,
@@ -474,7 +544,8 @@ class TestRunStream:
         with patch.object(stream_league, "STREAMING_DIR", tmp_path), \
              patch.object(stream_league, "SCOREBOARD_PATH", tmp_path / "scoreboard.json"), \
              patch.object(stream_league, "EVENTS_PATH", tmp_path / "events.json"), \
-             patch.object(stream_league, "TABLE_PATH", tmp_path / "table.json"):
+             patch.object(stream_league, "TABLE_PATH", tmp_path / "table.json"), \
+             patch.object(stream_league, "LEADERS_PATH", tmp_path / "leaders.json"):
             results = stream_league.run_stream(
                 seasons=1,
                 num_teams=4,
@@ -493,11 +564,13 @@ class TestRunStream:
             scoreboard_path = run_dir / "scoreboard.json"
             events_path = run_dir / "events.json"
             table_path = run_dir / "table.json"
+            leaders_path = run_dir / "leaders.json"
 
             with patch.object(stream_league, "STREAMING_DIR", run_dir), \
                  patch.object(stream_league, "SCOREBOARD_PATH", scoreboard_path), \
                  patch.object(stream_league, "EVENTS_PATH", events_path), \
-                 patch.object(stream_league, "TABLE_PATH", table_path):
+                 patch.object(stream_league, "TABLE_PATH", table_path), \
+                 patch.object(stream_league, "LEADERS_PATH", leaders_path):
                 results = stream_league.run_stream(
                     seasons=1,
                     num_teams=4,
@@ -530,7 +603,8 @@ class TestRunStream:
         with patch.object(stream_league, "STREAMING_DIR", tmp_path), \
              patch.object(stream_league, "SCOREBOARD_PATH", tmp_path / "scoreboard.json"), \
              patch.object(stream_league, "EVENTS_PATH", tmp_path / "events.json"), \
-             patch.object(stream_league, "TABLE_PATH", tmp_path / "table.json"):
+             patch.object(stream_league, "TABLE_PATH", tmp_path / "table.json"), \
+             patch.object(stream_league, "LEADERS_PATH", tmp_path / "leaders.json"):
             results = stream_league.run_stream(
                 seasons=1,
                 num_teams=4,
@@ -553,7 +627,8 @@ class TestRunStream:
         with patch.object(stream_league, "STREAMING_DIR", tmp_path), \
              patch.object(stream_league, "SCOREBOARD_PATH", tmp_path / "scoreboard.json"), \
              patch.object(stream_league, "EVENTS_PATH", tmp_path / "events.json"), \
-             patch.object(stream_league, "TABLE_PATH", tmp_path / "table.json"):
+             patch.object(stream_league, "TABLE_PATH", tmp_path / "table.json"), \
+             patch.object(stream_league, "LEADERS_PATH", tmp_path / "leaders.json"):
             results = stream_league.run_stream(
                 seasons=1,
                 num_teams=6,
