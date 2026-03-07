@@ -247,8 +247,15 @@ class SWOSEngine {
     const normalized = String(status || "waiting").toLowerCase();
     if (normalized === "ft") return "fulltime";
     if (normalized === "ht") return "halftime";
-    if (normalized === "stale" || normalized === "offline") return "waiting";
-    if (normalized === "live" || normalized === "prematch" || normalized === "halftime" || normalized === "fulltime") {
+    if (
+      normalized === "live"
+      || normalized === "prematch"
+      || normalized === "halftime"
+      || normalized === "fulltime"
+      || normalized === "stale"
+      || normalized === "offline"
+      || normalized === "waiting"
+    ) {
       return normalized;
     }
     return "waiting";
@@ -344,10 +351,206 @@ class SWOSEngine {
     return ["cam", "lm", "rm", "lw", "rw", "st"].includes(role);
   }
 
+  isGoalkeeperRole(role) {
+    return role === "gk";
+  }
+
+  getPlayerPalette(player) {
+    const isKeeper = this.isGoalkeeperRole(player.role);
+    if (player.team === "home") {
+      return isKeeper
+        ? {
+            primary: "#eff7ff",
+            shorts: "#11374a",
+            stripe: "#00b0ff",
+            outline: "#062232",
+            pointer: "#00e676",
+            skin: "#f5d7b5",
+            hair: "#4a311f",
+            boots: "#05080d",
+          }
+        : {
+            primary: "#17c6ff",
+            shorts: "#0b2030",
+            stripe: "#eaf8ff",
+            outline: "#062232",
+            pointer: "#6ff6ff",
+            skin: "#f5d7b5",
+            hair: "#4a311f",
+            boots: "#05080d",
+          };
+    }
+
+    return isKeeper
+      ? {
+          primary: "#fff2cc",
+          shorts: "#6b4b00",
+          stripe: "#ffd740",
+          outline: "#3f2700",
+          pointer: "#ffd740",
+          skin: "#f5d7b5",
+          hair: "#4a311f",
+          boots: "#05080d",
+        }
+      : {
+          primary: "#ffc83d",
+          shorts: "#4d2b00",
+          stripe: "#fff6d9",
+          outline: "#3f2700",
+          pointer: "#ffea8a",
+          skin: "#f5d7b5",
+          hair: "#4a311f",
+          boots: "#05080d",
+        };
+  }
+
+  spriteFacing(angle) {
+    if (angle > -Math.PI / 4 && angle <= Math.PI / 4) return "right";
+    if (angle > Math.PI / 4 && angle <= (3 * Math.PI) / 4) return "down";
+    if (angle < -Math.PI / 4 && angle >= (-3 * Math.PI) / 4) return "up";
+    return "left";
+  }
+
+  pixelSpriteTemplate(direction = "down", frame = 0) {
+    const templates = {
+      down: [
+        [
+          "..hh....",
+          ".hssh...",
+          ".ssss...",
+          ".akkkka.",
+          ".akttka.",
+          ".akkkka.",
+          "..pppp..",
+          ".pppppp.",
+          ".bb..bb.",
+          ".bb..bb.",
+          "b......b",
+          "........",
+        ],
+        [
+          "..hh....",
+          ".hssh...",
+          ".ssss...",
+          ".akkkka.",
+          ".akttka.",
+          ".akkkka.",
+          "..pppp..",
+          ".pppppp.",
+          "bb....bb",
+          ".bb..bb.",
+          "..b..b..",
+          "........",
+        ],
+      ],
+      up: [
+        [
+          "..hh....",
+          ".hhhh...",
+          ".hssh...",
+          ".kkkkkk.",
+          ".kttttk.",
+          ".kkkkkk.",
+          "..pppp..",
+          ".pppppp.",
+          ".bb..bb.",
+          ".bb..bb.",
+          "b......b",
+          "........",
+        ],
+        [
+          "..hh....",
+          ".hhhh...",
+          ".hssh...",
+          ".kkkkkk.",
+          ".kttttk.",
+          ".kkkkkk.",
+          "..pppp..",
+          ".pppppp.",
+          "bb....bb",
+          ".bb..bb.",
+          "..b..b..",
+          "........",
+        ],
+      ],
+      side: [
+        [
+          "...hh...",
+          "..hss...",
+          "..sss...",
+          "..kkkk..",
+          "..kttk..",
+          "..kkkk..",
+          "..pppp..",
+          "..pppp..",
+          "...bb...",
+          "..bb....",
+          "..bb....",
+          "........",
+        ],
+        [
+          "...hh...",
+          "..hss...",
+          "..sss...",
+          "..kkkk..",
+          "..kttk..",
+          "..kkkk..",
+          "..pppp..",
+          "..pppp..",
+          "..bb....",
+          "...bb...",
+          "..bb....",
+          "........",
+        ],
+      ],
+    };
+    const frames = templates[direction] || templates.down;
+    return frames[frame % frames.length];
+  }
+
+  paintPixelSprite(originX, originY, palette, direction, frame, mirrored, isKeeper) {
+    const template = this.pixelSpriteTemplate(direction, frame);
+    const pixel = 5;
+    const width = template[0].length;
+    const colorMap = {
+      h: palette.hair,
+      s: palette.skin,
+      a: palette.skin,
+      k: palette.primary,
+      t: palette.stripe,
+      p: palette.shorts,
+      b: palette.boots,
+      g: isKeeper ? palette.stripe : palette.skin,
+    };
+
+    const drawCell = (x, y, color, offsetX = 0, offsetY = 0) => {
+      const drawX = mirrored ? width - 1 - x : x;
+      this.ctx.fillStyle = color;
+      this.ctx.fillRect(originX + drawX * pixel + offsetX, originY + y * pixel + offsetY, pixel, pixel);
+    };
+
+    this.ctx.save();
+    this.ctx.globalAlpha = 0.22;
+    template.forEach((row, y) => {
+      [...row].forEach((cell, x) => {
+        if (!colorMap[cell]) return;
+        drawCell(x, y, palette.outline, 1, 1);
+      });
+    });
+    this.ctx.restore();
+
+    template.forEach((row, y) => {
+      [...row].forEach((cell, x) => {
+        const color = colorMap[cell];
+        if (!color) return;
+        drawCell(x, y, color);
+      });
+    });
+  }
+
   loadAssets() {
     const urls = {
       pitch: "assets/pitch_tile.png",
-      spritesheet: "assets/spritesheet.png",
       ball: "assets/ball.png",
     };
 
@@ -512,6 +715,11 @@ class SWOSEngine {
       this.startBreak("halftime");
     } else if (status === "fulltime") {
       this.startBreak("fulltime");
+    } else if (status === "stale") {
+      this.startBreak("stale");
+    } else if (status === "offline" || status === "waiting") {
+      this.matchState = "waiting";
+      this.sequence = null;
     }
 
     const eventKey = snapshot.eventKey || "";
@@ -752,7 +960,14 @@ class SWOSEngine {
       return;
     }
 
-    if (this.matchState === "halftime" || this.matchState === "fulltime" || this.matchState === "prematch" || this.matchState === "waiting") {
+    if (
+      this.matchState === "halftime"
+      || this.matchState === "fulltime"
+      || this.matchState === "prematch"
+      || this.matchState === "waiting"
+      || this.matchState === "stale"
+      || this.matchState === "offline"
+    ) {
       this.updateIdleState(timestamp);
       return;
     }
@@ -1030,24 +1245,22 @@ class SWOSEngine {
   }
 
   updateIdleState(timestamp) {
-    const midpointX = this.width / 2;
-    const midpointY = this.height / 2;
-
     for (const player of this.players) {
-      const teamDirection = player.team === "home" ? -1 : 1;
       if (this.matchState === "prematch") {
         player.tx = player.baseX * this.width;
         player.ty = player.baseY * this.height + Math.sin(timestamp / 500 + player.stride) * 8;
       } else {
-        player.tx = midpointX + teamDirection * 120 + Math.cos(player.stride + player.slot) * 120;
-        player.ty = midpointY - 220 + (player.slot % 6) * 70;
+        const driftX = Math.cos(timestamp / 820 + player.stride + player.slot) * 10;
+        const driftY = Math.sin(timestamp / 760 + player.stride) * 8;
+        player.tx = player.baseX * this.width + driftX;
+        player.ty = player.baseY * this.height + driftY;
       }
       this.movePlayer(player, this.matchState === "prematch" ? 0.65 : 0.55);
     }
 
     this.ball.attachedTo = null;
-    this.ball.x = midpointX;
-    this.ball.y = midpointY;
+    this.ball.x = this.width / 2;
+    this.ball.y = this.height / 2;
     this.ball.vx = 0;
     this.ball.vy = 0;
     this.ball.z = 0;
@@ -1215,48 +1428,41 @@ class SWOSEngine {
         this.ctx.stroke();
       });
     }
+
+    const dormantVeil = {
+      halftime: 0.08,
+      fulltime: 0.12,
+      stale: 0.2,
+      offline: 0.28,
+      waiting: 0.22,
+    }[this.matchState] || 0;
+
+    if (dormantVeil > 0) {
+      this.ctx.fillStyle = `rgba(5, 10, 16, ${dormantVeil})`;
+      this.ctx.fillRect(0, 0, this.width, this.height);
+    }
   }
 
   drawPlayer(player, timestamp) {
     const moving = Math.hypot(player.tx - player.x, player.ty - player.y) > 3;
     const bobble = moving ? Math.abs(Math.sin(timestamp / 120 + player.stride)) * 8 : 0;
-    const angle = Math.atan2(player.ty - player.y, player.tx - player.x);
-    let row = 0;
-
-    if (angle > -Math.PI / 4 && angle <= Math.PI / 4) row = 3;
-    else if (angle > Math.PI / 4 && angle <= (3 * Math.PI) / 4) row = 1;
-    else if (angle < -Math.PI / 4 && angle >= (-3 * Math.PI) / 4) row = 0;
-    else row = 2;
-
-    const frame = moving ? Math.floor(timestamp / 140) % 4 : 0;
-    const fw = 16;
-    const fh = 24;
-    const sx = frame * fw;
-    const sy = (row + (player.team === "home" ? 0 : 5)) * fh;
-    const drawW = fw * this.scale;
-    const drawH = fh * this.scale;
+    const angle = moving
+      ? Math.atan2(player.ty - player.y, player.tx - player.x)
+      : (player.team === "home" ? 0 : Math.PI);
+    const palette = this.getPlayerPalette(player);
+    const facing = this.spriteFacing(angle);
+    const direction = facing === "up" ? "up" : facing === "down" ? "down" : "side";
+    const mirrored = facing === "left";
+    const frame = moving ? Math.floor(timestamp / 150) % 2 : 0;
+    const spriteWidth = 8 * 5;
+    const spriteHeight = 12 * 5;
+    const originX = Math.round(player.x - spriteWidth / 2);
+    const originY = Math.round(player.y - spriteHeight / 2 - bobble);
 
     this.ctx.fillStyle = "rgba(0,0,0,0.24)";
     this.ctx.beginPath();
     this.ctx.ellipse(player.x, player.y + 18, 20, 8, 0, 0, Math.PI * 2);
     this.ctx.fill();
-
-    if (this.assets.spritesheet) {
-      this.ctx.drawImage(
-        this.assets.spritesheet,
-        sx,
-        sy,
-        fw,
-        fh,
-        player.x - drawW / 2,
-        player.y - drawH / 2 - bobble,
-        drawW,
-        drawH,
-      );
-    } else {
-      this.ctx.fillStyle = player.team === "home" ? "#00b0ff" : "#ffd740";
-      this.ctx.fillRect(player.x - 12, player.y - 28 - bobble, 24, 38);
-    }
 
     if (this.ball.attachedTo === player) {
       this.ctx.strokeStyle = player.aura;
@@ -1265,22 +1471,47 @@ class SWOSEngine {
       this.ctx.arc(player.x, player.y + 4, 24, 0, Math.PI * 2);
       this.ctx.stroke();
     }
+    this.paintPixelSprite(originX, originY, palette, direction, frame, mirrored, this.isGoalkeeperRole(player.role));
+
+    if (this.ball.attachedTo === player) {
+      this.ctx.fillStyle = palette.pointer;
+      this.ctx.beginPath();
+      this.ctx.moveTo(player.x, originY - 10);
+      this.ctx.lineTo(player.x - 7, originY + 2);
+      this.ctx.lineTo(player.x + 7, originY + 2);
+      this.ctx.closePath();
+      this.ctx.fill();
+    }
   }
 
   drawBall() {
+    const moving = !this.ball.attachedTo && (Math.abs(this.ball.vx) + Math.abs(this.ball.vy) > 1.8 || this.ball.z > 1);
+
+    if (moving) {
+      this.ctx.strokeStyle = "rgba(255,255,255,0.22)";
+      this.ctx.lineWidth = 4;
+      this.ctx.beginPath();
+      this.ctx.moveTo(this.ball.x - this.ball.vx * 1.6, this.ball.y - this.ball.vy * 1.6);
+      this.ctx.lineTo(this.ball.x, this.ball.y);
+      this.ctx.stroke();
+    }
+
     this.ctx.fillStyle = "rgba(0,0,0,0.32)";
     this.ctx.beginPath();
     this.ctx.arc(this.ball.x, this.ball.y + 12, 6, 0, Math.PI * 2);
     this.ctx.fill();
 
-    if (this.assets.ball) {
-      this.ctx.drawImage(this.assets.ball, this.ball.x - 16, this.ball.y - this.ball.z - 16, 32, 32);
-    } else {
-      this.ctx.fillStyle = "#fff";
-      this.ctx.beginPath();
-      this.ctx.arc(this.ball.x, this.ball.y - this.ball.z, 8, 0, Math.PI * 2);
-      this.ctx.fill();
-    }
+    this.ctx.fillStyle = "#ffffff";
+    this.ctx.beginPath();
+    this.ctx.arc(this.ball.x, this.ball.y - this.ball.z, 9, 0, Math.PI * 2);
+    this.ctx.fill();
+    this.ctx.strokeStyle = "rgba(0,0,0,0.3)";
+    this.ctx.lineWidth = 2;
+    this.ctx.stroke();
+    this.ctx.fillStyle = "rgba(12, 16, 24, 0.22)";
+    this.ctx.beginPath();
+    this.ctx.arc(this.ball.x + 2, this.ball.y - this.ball.z - 1, 3.2, 0, Math.PI * 2);
+    this.ctx.fill();
   }
 
   draw(timestamp) {

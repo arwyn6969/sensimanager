@@ -76,32 +76,6 @@ export default function DashboardPage() {
         />
 
         <div className="broadcast-side-stack">
-          <section className="glass-card broadcast-panel preview-panel">
-            <div className="panel-header">
-              <div>
-                <div className="panel-kicker">Broadcast Preview</div>
-                <h2 className="panel-title-lg">Overlay Window</h2>
-                <p className="panel-copy">
-                  Keep the overlay visible while tuning the stream runner and OBS scene.
-                </p>
-              </div>
-            </div>
-
-            {previewAvailable ? (
-              <iframe
-                className="watch-frame"
-                src={makeStreamUrl(STREAM_URL, "overlay.html")}
-                title="SWOS420 broadcast overlay preview"
-              />
-            ) : (
-              <div className="watch-frame-fallback">
-                <p>Start the local watch loop to preview the overlay and session feed.</p>
-                <code>./.venv/bin/python scripts/serve_overlay.py</code>
-                <code>./.venv/bin/python scripts/stream_league.py --source demo --num-teams 4 --matchdays 2 --seed 420</code>
-              </div>
-            )}
-          </section>
-
           <div className="story-card-grid">
             <article className="glass-card story-card">
               <span className="story-card-label">{pressureNote ? "Pressure State" : "Match Texture"}</span>
@@ -136,6 +110,33 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+
+      <section className="glass-card broadcast-panel preview-panel preview-panel-wide">
+        <div className="panel-header">
+          <div>
+            <div className="panel-kicker">Broadcast Preview</div>
+            <h2 className="panel-title-lg">Overlay Window</h2>
+            <p className="panel-copy">
+              Use this as the watch surface. The full overlay should dominate the frame,
+              not sit crushed into a narrow dashboard column.
+            </p>
+          </div>
+        </div>
+
+        {previewAvailable ? (
+          <iframe
+            className="watch-frame"
+            src={makeStreamUrl(STREAM_URL, "overlay.html")}
+            title="SWOS420 broadcast overlay preview"
+          />
+        ) : (
+          <div className="watch-frame-fallback">
+            <p>Start the local watch loop to preview the overlay and session feed.</p>
+            <code>./.venv/bin/python scripts/serve_overlay.py</code>
+            <code>./.venv/bin/python scripts/stream_league.py --source demo --num-teams 4 --matchdays 2 --seed 420</code>
+          </div>
+        )}
+      </section>
 
       <div className="watch-grid">
         <StreamCommentaryPanel

@@ -20,38 +20,105 @@ body {
   width: 1920px;
   height: 1080px;
   position: absolute;
-  top: 0;
-  left: 0;
+  inset: 0;
   transform-origin: top left;
 }
 
 .glass {
-  background: rgba(8, 12, 20, 0.82);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 18px;
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
+  background: rgba(8, 12, 20, 0.48);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 20px;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   box-shadow:
-    0 24px 60px rgba(0, 0, 0, 0.42),
-    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    0 18px 40px rgba(0, 0, 0, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.panel-shell {
+  overflow: hidden;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.015)),
+    rgba(8, 12, 20, 0.4);
+  border-color: rgba(255, 255, 255, 0.08);
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+}
+
+.panel-shell.dragging {
+  cursor: grabbing;
+  box-shadow:
+    0 30px 72px rgba(0, 0, 0, 0.52),
+    0 0 0 1px rgba(255, 255, 255, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.panel-tools {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  z-index: 3;
+}
+
+.panel-button {
+  appearance: none;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.8);
+  border-radius: 999px;
+  min-height: 28px;
+  min-width: 28px;
+  padding: 0 10px;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.panel-button:hover {
+  background: rgba(255, 255, 255, 0.1);
 }
 
 #pitch {
   position: absolute;
   inset: 0;
-  z-index: -20;
+  z-index: -30;
   background: #3e7d36;
 }
 
 #atmosphere {
   position: absolute;
   inset: 0;
+  z-index: -20;
+  pointer-events: none;
   background:
-    radial-gradient(circle at top left, rgba(0, 176, 255, 0.18), transparent 28%),
-    radial-gradient(circle at bottom right, rgba(255, 215, 64, 0.18), transparent 24%),
-    linear-gradient(180deg, rgba(4, 8, 14, 0.05), rgba(4, 8, 14, 0.22));
+    radial-gradient(circle at top left, rgba(0, 176, 255, 0.14), transparent 28%),
+    radial-gradient(circle at bottom right, rgba(255, 215, 64, 0.12), transparent 24%),
+    linear-gradient(180deg, rgba(4, 8, 14, 0.02), rgba(4, 8, 14, 0.14));
+}
+
+#state-veil {
+  position: absolute;
+  inset: 0;
   z-index: -10;
   pointer-events: none;
+  background: rgba(4, 8, 14, 0);
+  transition: background 220ms ease;
+}
+
+#overlay-container.overlay-break #state-veil {
+  background: rgba(4, 8, 14, 0.12);
+}
+
+#overlay-container.overlay-stale #state-veil {
+  background: rgba(4, 8, 14, 0.24);
+}
+
+#overlay-container.overlay-idle #state-veil {
+  background: rgba(4, 8, 14, 0.38);
 }
 
 #brand {
@@ -60,15 +127,16 @@ body {
   left: 34px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
+  z-index: 20;
 }
 
 #brand .eyebrow {
   font-family: "JetBrains Mono", monospace;
   font-size: 12px;
-  letter-spacing: 3px;
+  letter-spacing: 4px;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.55);
+  color: rgba(255, 255, 255, 0.5);
 }
 
 #brand .logo {
@@ -82,8 +150,9 @@ body {
 
 #live-indicator {
   position: absolute;
-  top: 34px;
+  top: 32px;
   right: 36px;
+  z-index: 20;
   display: inline-flex;
   align-items: center;
   gap: 10px;
@@ -95,20 +164,20 @@ body {
   font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 2px;
-  color: rgba(255, 255, 255, 0.72);
+  color: rgba(255, 255, 255, 0.74);
 }
 
 #live-indicator .dot {
   width: 10px;
   height: 10px;
-  border-radius: 50%;
+  border-radius: 999px;
   background: #ff3b30;
   box-shadow: 0 0 16px rgba(255, 59, 48, 0.45);
   animation: pulse 1.6s ease-in-out infinite;
 }
 
 #live-indicator.dormant .dot {
-  background: rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.28);
   box-shadow: none;
   animation: none;
 }
@@ -120,34 +189,43 @@ body {
 
 @keyframes pulse {
   0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.35; transform: scale(0.7); }
+  50% { opacity: 0.35; transform: scale(0.72); }
 }
 
 #scoreboard-shell {
   position: absolute;
-  top: 24px;
+  top: 18px;
   left: 50%;
   transform: translateX(-50%);
-  width: 820px;
-  padding: 16px;
+  width: 700px;
+  padding: 0;
+  z-index: 20;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  cursor: default;
+  user-select: none;
+  touch-action: auto;
 }
 
 #status-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 14px;
+  margin-bottom: 8px;
 }
 
 #status-chip,
 #round-chip {
   display: inline-flex;
   align-items: center;
-  min-height: 34px;
-  padding: 8px 14px;
+  min-height: 28px;
+  padding: 6px 11px;
   border-radius: 999px;
   font-family: "JetBrains Mono", monospace;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
   letter-spacing: 1px;
   text-transform: uppercase;
@@ -158,11 +236,7 @@ body {
   color: #00e676;
 }
 
-#status-chip.settled {
-  background: rgba(255, 215, 64, 0.12);
-  color: #ffd740;
-}
-
+#status-chip.settled,
 #status-chip.stale {
   background: rgba(255, 215, 64, 0.12);
   color: #ffd740;
@@ -174,57 +248,58 @@ body {
 }
 
 #round-chip {
-  background: rgba(255, 255, 255, 0.05);
-  color: rgba(255, 255, 255, 0.62);
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.66);
 }
 
 #scoreboard {
   display: grid;
-  grid-template-columns: minmax(210px, 1fr) 180px minmax(210px, 1fr);
-  gap: 14px;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 18px;
   align-items: stretch;
 }
 
 .team-block,
 .score-core {
-  min-height: 118px;
-  border-radius: 18px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  min-height: 64px;
+  border-radius: 0;
+  border: 0;
 }
 
 .team-block {
-  padding: 16px 18px;
+  padding: 0;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 8px;
+  gap: 3px;
 }
 
 .team-block.home {
-  background:
-    linear-gradient(135deg, rgba(0, 176, 255, 0.18), rgba(255, 255, 255, 0.02)),
-    rgba(255, 255, 255, 0.03);
+  background: transparent;
+  align-items: flex-end;
+  text-align: right;
 }
 
 .team-block.away {
-  background:
-    linear-gradient(135deg, rgba(255, 215, 64, 0.18), rgba(255, 255, 255, 0.02)),
-    rgba(255, 255, 255, 0.03);
+  background: transparent;
+  align-items: flex-start;
+  text-align: left;
 }
 
 .team-role {
   font-family: "JetBrains Mono", monospace;
-  font-size: 11px;
-  color: rgba(255, 255, 255, 0.5);
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.42);
   text-transform: uppercase;
-  letter-spacing: 1px;
+  letter-spacing: 2px;
 }
 
 .team-name {
-  font-size: 30px;
+  font-size: 25px;
   font-weight: 900;
   line-height: 1;
   letter-spacing: -0.03em;
+  text-shadow: 0 3px 18px rgba(0, 0, 0, 0.38);
 }
 
 .score-core {
@@ -232,23 +307,23 @@ body {
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03)),
-    rgba(255, 255, 255, 0.04);
+  min-width: 132px;
+  background: transparent;
 }
 
 #score-line {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   font-family: "JetBrains Mono", monospace;
-  font-size: 64px;
+  font-size: 50px;
   font-weight: 800;
   letter-spacing: -0.08em;
+  text-shadow: 0 5px 24px rgba(0, 0, 0, 0.45);
 }
 
 #score-line .divider {
-  color: rgba(255, 255, 255, 0.22);
+  color: rgba(255, 255, 255, 0.28);
 }
 
 .score-num.pop {
@@ -258,56 +333,288 @@ body {
 }
 
 #clock {
-  margin-top: 8px;
+  margin-top: 4px;
   font-family: "Press Start 2P", monospace;
-  font-size: 11px;
-  letter-spacing: 2px;
+  font-size: 10px;
+  letter-spacing: 1px;
   color: #00e676;
+  text-shadow: 0 3px 12px rgba(0, 0, 0, 0.35);
 }
 
 #story-ribbon {
   position: absolute;
-  top: 188px;
+  top: 184px;
   left: 50%;
   transform: translateX(-50%);
-  width: 760px;
+  width: 980px;
+  padding: 14px 116px 14px 18px;
   display: grid;
-  grid-template-columns: 150px 1fr;
-  gap: 14px;
+  grid-template-columns: 165px 1fr;
+  gap: 16px;
   align-items: center;
-  padding: 14px 18px;
+  z-index: 18;
 }
 
-#story-label {
-  font-family: "JetBrains Mono", monospace;
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 1.6px;
-  color: rgba(255, 255, 255, 0.45);
-}
-
-#story-text {
-  font-size: 16px;
-  font-weight: 700;
-  line-height: 1.45;
-  color: rgba(255, 255, 255, 0.92);
-}
-
-#table-panel {
-  position: absolute;
-  top: 108px;
-  right: 34px;
-  width: 390px;
-  padding: 18px 18px 16px;
-}
-
+#story-label,
 .panel-title {
   font-family: "JetBrains Mono", monospace;
   font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 2px;
-  color: rgba(255, 255, 255, 0.48);
-  margin-bottom: 14px;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+#story-text {
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.94);
+}
+
+#story-ribbon,
+#event-strap {
+  transition: opacity 180ms ease, transform 180ms ease;
+}
+
+#story-ribbon[data-collapsed="true"] {
+  width: 410px;
+  grid-template-columns: 1fr;
+}
+
+#story-ribbon[data-collapsed="true"] #story-text {
+  display: none;
+}
+
+#overlay-container.overlay-break #story-ribbon,
+#overlay-container.overlay-stale #story-ribbon,
+#overlay-container.overlay-idle #story-ribbon {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-50%) translateY(-16px);
+}
+
+#event-strap {
+  position: absolute;
+  left: 50%;
+  bottom: 28px;
+  transform: translateX(-50%);
+  width: 1160px;
+  min-height: 102px;
+  padding: 16px 76px 16px 18px;
+  display: grid;
+  grid-template-columns: 250px minmax(0, 1fr);
+  gap: 18px;
+  align-items: center;
+  z-index: 18;
+}
+
+#event-strap-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+#event-strap-label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.04);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+#event-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 74px;
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.88);
+}
+
+#event-strap-text {
+  min-width: 0;
+  font-size: 20px;
+  font-weight: 800;
+  line-height: 1.35;
+  letter-spacing: -0.02em;
+  color: rgba(255, 255, 255, 0.95);
+  text-wrap: balance;
+}
+
+#event-strap[data-collapsed="true"] {
+  width: 520px;
+  grid-template-columns: 1fr;
+}
+
+#event-strap[data-collapsed="true"] #event-strap-text {
+  display: none;
+}
+
+#event-pill[data-tone="goal"] {
+  background: rgba(255, 215, 64, 0.16);
+  border-color: rgba(255, 215, 64, 0.28);
+  color: #ffd740;
+}
+
+#event-pill[data-tone="card"] {
+  background: rgba(255, 82, 82, 0.14);
+  border-color: rgba(255, 82, 82, 0.3);
+  color: #ff8888;
+}
+
+#event-pill[data-tone="injury"] {
+  background: rgba(255, 109, 0, 0.14);
+  border-color: rgba(255, 109, 0, 0.3);
+  color: #ffb36a;
+}
+
+#event-pill[data-tone="chance"] {
+  background: rgba(0, 176, 255, 0.14);
+  border-color: rgba(0, 176, 255, 0.28);
+  color: #78d9ff;
+}
+
+#event-pill[data-tone="stale"],
+#event-pill[data-tone="break"] {
+  background: rgba(255, 215, 64, 0.12);
+  border-color: rgba(255, 215, 64, 0.22);
+  color: #ffd740;
+}
+
+#event-pill[data-tone="waiting"] {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.74);
+}
+
+#event-strap[data-mode="goal"] {
+  box-shadow:
+    0 28px 60px rgba(0, 0, 0, 0.42),
+    0 0 0 1px rgba(255, 215, 64, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+#event-strap[data-mode="stale"],
+#event-strap[data-mode="break"],
+#event-strap[data-mode="waiting"] {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.015)),
+    rgba(8, 12, 20, 0.78);
+}
+
+#overlay-container.overlay-break #event-strap,
+#overlay-container.overlay-idle #event-strap {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-50%) translateY(20px);
+}
+
+#break-shell {
+  position: absolute;
+  left: 50%;
+  bottom: 160px;
+  transform: translateX(-50%);
+  width: 1040px;
+  padding: 20px 116px 20px 20px;
+  z-index: 16;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 180ms ease, transform 180ms ease;
+}
+
+#overlay-container.overlay-break #break-shell,
+#overlay-container.overlay-stale #break-shell,
+#overlay-container.overlay-idle #break-shell {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(-50%) translateY(0);
+}
+
+#overlay-container.overlay-live #break-shell {
+  transform: translateX(-50%) translateY(28px);
+}
+
+#break-header {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+#match-heading {
+  font-size: 28px;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  color: rgba(255, 255, 255, 0.96);
+}
+
+#match-meta,
+#match-style-meta {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 13px;
+  line-height: 1.7;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+#break-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
+  gap: 18px;
+}
+
+#break-shell[data-collapsed="true"] {
+  width: 480px;
+}
+
+#break-shell[data-collapsed="true"] #match-meta,
+#break-shell[data-collapsed="true"] #match-style-meta,
+#break-shell[data-collapsed="true"] #break-grid {
+  display: none;
+}
+
+#break-shell[data-collapsed="true"] #break-header {
+  margin-bottom: 0;
+}
+
+#break-summary,
+#table-panel {
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.03);
+  padding: 18px;
+}
+
+#break-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.summary-chip {
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 15px;
+  line-height: 1.5;
 }
 
 #table-panel table {
@@ -334,7 +641,7 @@ body {
 #table-panel td {
   padding: 8px 4px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.03);
-  color: rgba(255, 255, 255, 0.75);
+  color: rgba(255, 255, 255, 0.76);
   text-align: right;
 }
 
@@ -354,180 +661,23 @@ body {
 #table-panel tr.pos-relegate td { background: rgba(255, 82, 82, 0.04); }
 #table-panel tr.pos-relegate td:nth-child(2) { color: #ff7676; }
 
-#summary-panel {
-  position: absolute;
-  top: 570px;
-  right: 34px;
-  width: 390px;
-  padding: 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.summary-chip {
-  padding: 12px 14px;
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  color: rgba(255, 255, 255, 0.8);
-  font-size: 14px;
-  line-height: 1.45;
-}
-
-#commentary {
-  position: absolute;
-  left: 34px;
-  bottom: 110px;
-  width: 760px;
-  min-height: 320px;
-  padding: 18px;
-}
-
-#event-lines {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.event-line {
-  display: grid;
-  grid-template-columns: 72px 1fr;
-  gap: 12px;
-  align-items: start;
-  padding: 12px 14px;
-  border-radius: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  background: rgba(255, 255, 255, 0.03);
-}
-
-.event-line.goal {
-  background: rgba(255, 215, 64, 0.08);
-  border-color: rgba(255, 215, 64, 0.28);
-}
-
-.event-line.card {
-  background: rgba(255, 82, 82, 0.08);
-  border-color: rgba(255, 82, 82, 0.28);
-}
-
-.event-line.injury {
-  background: rgba(255, 109, 0, 0.08);
-  border-color: rgba(255, 109, 0, 0.28);
-}
-
-.event-line.chance {
-  background: rgba(0, 176, 255, 0.08);
-  border-color: rgba(0, 176, 255, 0.28);
-}
-
-.event-minute {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 34px;
-  padding: 6px 10px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
-  font-family: "JetBrains Mono", monospace;
-  font-size: 11px;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  color: rgba(255, 255, 255, 0.88);
-}
-
-.event-text {
-  font-size: 14px;
-  line-height: 1.65;
-  color: rgba(255, 255, 255, 0.82);
-}
-
-#ticker {
-  position: absolute;
-  left: 34px;
-  right: 34px;
-  bottom: 28px;
-  padding: 12px 18px;
-  display: grid;
-  grid-template-columns: 150px 1fr;
-  gap: 14px;
-  align-items: center;
-}
-
-#ticker-label {
-  font-family: "JetBrains Mono", monospace;
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 2px;
-  color: rgba(255, 255, 255, 0.5);
-}
-
-#ticker-track {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.ticker-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 34px;
-  padding: 8px 12px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  font-family: "JetBrains Mono", monospace;
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.82);
-}
-
-.ticker-item strong {
-  color: #fff;
-}
-
-#match-info {
-  position: absolute;
-  right: 34px;
-  bottom: 118px;
-  width: 390px;
-  padding: 16px 18px;
-  font-family: "JetBrains Mono", monospace;
-  font-size: 12px;
-  line-height: 1.7;
-  color: rgba(255, 255, 255, 0.6);
-}
-
-#match-info strong {
-  display: block;
-  font-size: 14px;
-  color: rgba(255, 255, 255, 0.88);
-  margin-bottom: 4px;
-}
-
-#match-style-meta {
-  display: block;
-  margin-top: 8px;
-  color: rgba(255, 255, 255, 0.82);
-}
-
 .waiting {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 160px;
-  color: rgba(255, 255, 255, 0.28);
+  min-height: 120px;
+  color: rgba(255, 255, 255, 0.3);
   font-family: "Press Start 2P", monospace;
-  font-size: 12px;
+  font-size: 11px;
   letter-spacing: 2px;
 }
 </style>
 </head>
 <body>
-<div id="overlay-container">
+<div id="overlay-container" class="overlay-idle">
   <canvas id="pitch" width="1920" height="1080"></canvas>
   <div id="atmosphere"></div>
+  <div id="state-veil"></div>
   <script src="assets/engine.js"></script>
 
   <div id="brand">
@@ -540,7 +690,7 @@ body {
     <span id="live-text">Waiting</span>
   </div>
 
-  <div id="scoreboard-shell" class="glass">
+  <div id="scoreboard-shell" class="glass panel-shell">
     <div id="status-row">
       <div id="status-chip" class="waiting">Awaiting Feed</div>
       <div id="round-chip">Match Centre</div>
@@ -565,38 +715,47 @@ body {
     </div>
   </div>
 
-  <div id="story-ribbon" class="glass">
-    <div id="story-label">Key Story</div>
-    <div id="story-text">The stream is idle. Start the runner to begin the matchday narrative.</div>
-  </div>
-
-  <div id="table-panel" class="glass">
-    <div class="panel-title">Table Pulse</div>
-    <div id="table-body"><div class="waiting">Awaiting Table</div></div>
-  </div>
-
-  <div id="summary-panel" class="glass">
-    <div class="panel-title">Summary</div>
-    <div class="summary-chip" id="summary-xg">xG will appear after the match summary lands.</div>
-    <div class="summary-chip" id="summary-motm">Man of the match will lock in at full time.</div>
-  </div>
-
-  <div id="commentary" class="glass">
-    <div class="panel-title">Commentary Feed</div>
-    <div id="event-lines"><div class="waiting">Awaiting Commentary</div></div>
-  </div>
-
-  <div id="match-info" class="glass">
-    <strong id="match-heading">Watch the autonomous league breathe.</strong>
-    <span id="match-meta">The overlay reacts to scoreboard, table, and event JSON updates.</span>
-    <span id="match-style-meta">Formation and style context appears when a match feed is live.</span>
-  </div>
-
-  <div id="ticker" class="glass">
-    <div id="ticker-label">Standings</div>
-    <div id="ticker-track">
-      <span class="ticker-item">Waiting for streamed fixtures</span>
+  <div id="story-ribbon" class="glass panel-shell panel-collapsible">
+    <div class="panel-tools">
+      <button class="panel-button" data-panel-toggle type="button">−</button>
     </div>
+    <div id="story-label">What To Watch</div>
+    <div id="story-text">Start the runner to turn the pitch into a live match again.</div>
+  </div>
+
+  <div id="break-shell" class="glass panel-shell panel-collapsible">
+    <div class="panel-tools">
+      <button class="panel-button" data-panel-toggle type="button">−</button>
+    </div>
+    <div id="break-header">
+      <strong id="match-heading">Watch the autonomous league breathe.</strong>
+      <span id="match-meta">The overlay reacts to scoreboard, table, and event JSON updates.</span>
+      <span id="match-style-meta">Formation and style context appears when a match feed is live.</span>
+    </div>
+    <div id="break-grid">
+      <section id="break-summary">
+        <div class="panel-title">Break Summary</div>
+        <div class="summary-chip" id="summary-xg">xG will appear after the match summary lands.</div>
+        <div class="summary-chip" id="summary-motm">Man of the match will lock in at full time.</div>
+        <div class="summary-chip" id="break-story">Pressure, story, and stale-feed context will surface here between live phases.</div>
+      </section>
+
+      <section id="table-panel">
+        <div class="panel-title">Table Pulse</div>
+        <div id="table-body"><div class="waiting">Awaiting Table</div></div>
+      </section>
+    </div>
+  </div>
+
+  <div id="event-strap" class="glass panel-shell panel-collapsible">
+    <div class="panel-tools">
+      <button class="panel-button" data-panel-toggle type="button">−</button>
+    </div>
+    <div id="event-strap-head">
+      <div id="event-strap-label">Live Feed</div>
+      <div id="event-pill" data-tone="waiting">WAIT</div>
+    </div>
+    <div id="event-strap-text">Start the runner to populate the broadcast lower third.</div>
   </div>
 </div>
 
@@ -611,16 +770,153 @@ resizeOverlay();
 
 const POLL_MS = 1000;
 const STALE_AFTER_MS = 8000;
-const MAX_LINES = 8;
 const BASE_URL = window.location.origin;
 const RUNTIME_DIR = "runtime";
+const PANEL_STATE_KEY = "swos420.overlay.panels.v1";
+const PANEL_IDS = ["story-ribbon", "event-strap", "break-shell"];
 
 let prevHomeGoals = -1;
 let prevAwayGoals = -1;
-let lastEventCount = 0;
 let scoreboardState = null;
 let commentaryState = null;
 let tableState = null;
+let panelZCounter = 40;
+let panelSettings = {};
+
+function loadPanelSettings() {
+  try {
+    panelSettings = JSON.parse(window.localStorage.getItem(PANEL_STATE_KEY) || "{}");
+  } catch {
+    panelSettings = {};
+  }
+}
+
+function savePanelSettings() {
+  try {
+    window.localStorage.setItem(PANEL_STATE_KEY, JSON.stringify(panelSettings));
+  } catch {}
+}
+
+function panelState(id) {
+  if (!panelSettings[id]) {
+    panelSettings[id] = {};
+  }
+  return panelSettings[id];
+}
+
+function updatePanelToggle(panel) {
+  const toggle = panel.querySelector("[data-panel-toggle]");
+  if (!toggle) return;
+  toggle.textContent = panel.dataset.collapsed === "true" ? "+" : "−";
+}
+
+function bringPanelToFront(panel) {
+  panel.style.zIndex = String(++panelZCounter);
+}
+
+function primePanelPosition(panel) {
+  if (panel.dataset.positioned === "true") return;
+  const containerRect = document.getElementById("overlay-container").getBoundingClientRect();
+  const rect = panel.getBoundingClientRect();
+  const state = panelState(panel.id);
+
+  panel.style.left = `${typeof state.left === "number" ? state.left : rect.left - containerRect.left}px`;
+  panel.style.top = `${typeof state.top === "number" ? state.top : rect.top - containerRect.top}px`;
+  panel.style.right = "auto";
+  panel.style.bottom = "auto";
+  panel.style.transform = "none";
+  if (state.collapsed) {
+    panel.dataset.collapsed = "true";
+  }
+  updatePanelToggle(panel);
+  panel.dataset.positioned = "true";
+}
+
+function persistPanel(panel) {
+  const state = panelState(panel.id);
+  state.left = Number.parseFloat(panel.style.left) || 0;
+  state.top = Number.parseFloat(panel.style.top) || 0;
+  state.collapsed = panel.dataset.collapsed === "true";
+  savePanelSettings();
+}
+
+function clampPanelPosition(panel, left, top) {
+  const maxLeft = Math.max(0, 1920 - panel.offsetWidth);
+  const maxTop = Math.max(0, 1080 - panel.offsetHeight);
+  return {
+    left: Math.min(maxLeft, Math.max(0, left)),
+    top: Math.min(maxTop, Math.max(0, top)),
+  };
+}
+
+function startPanelDrag(event, panel) {
+  event.preventDefault();
+  const containerRect = document.getElementById("overlay-container").getBoundingClientRect();
+  const scale = containerRect.width / 1920;
+  const startLeft = Number.parseFloat(panel.style.left) || 0;
+  const startTop = Number.parseFloat(panel.style.top) || 0;
+  const startX = event.clientX;
+  const startY = event.clientY;
+
+  panel.classList.add("dragging");
+  bringPanelToFront(panel);
+
+  const onMove = (moveEvent) => {
+    const next = clampPanelPosition(
+      panel,
+      startLeft + (moveEvent.clientX - startX) / scale,
+      startTop + (moveEvent.clientY - startY) / scale,
+    );
+    panel.style.left = `${next.left}px`;
+    panel.style.top = `${next.top}px`;
+  };
+
+  const onUp = () => {
+    panel.classList.remove("dragging");
+    persistPanel(panel);
+    window.removeEventListener("pointermove", onMove);
+    window.removeEventListener("pointerup", onUp);
+    window.removeEventListener("pointercancel", onUp);
+  };
+
+  window.addEventListener("pointermove", onMove);
+  window.addEventListener("pointerup", onUp);
+  window.addEventListener("pointercancel", onUp);
+}
+
+function registerOverlayPanels() {
+  loadPanelSettings();
+  PANEL_IDS.forEach((id) => {
+    const panel = document.getElementById(id);
+    if (!panel) return;
+    primePanelPosition(panel);
+
+    panel.addEventListener("pointerdown", (event) => {
+      if (event.button !== 0) return;
+      const dragTarget = event.target instanceof Element ? event.target : null;
+      if (dragTarget?.closest("[data-panel-toggle], button, a, input, textarea, select, option, [data-nodrag]")) {
+        return;
+      }
+      startPanelDrag(event, panel);
+    });
+
+    const toggle = panel.querySelector("[data-panel-toggle]");
+    if (toggle) {
+      toggle.addEventListener("click", () => {
+        panel.dataset.collapsed = panel.dataset.collapsed === "true" ? "false" : "true";
+        updatePanelToggle(panel);
+        const clamped = clampPanelPosition(
+          panel,
+          Number.parseFloat(panel.style.left) || 0,
+          Number.parseFloat(panel.style.top) || 0,
+        );
+        panel.style.left = `${clamped.left}px`;
+        panel.style.top = `${clamped.top}px`;
+        persistPanel(panel);
+      });
+    }
+  });
+}
 
 function classifyLine(line) {
   const lower = line.toLowerCase();
@@ -696,44 +992,6 @@ function formatFeedFreshness(freshness) {
   return ageSeconds <= 1 ? "updated just now" : `${ageSeconds}s behind`;
 }
 
-function refreshFeedChrome() {
-  const freshness = getFeedFreshness();
-  const effectiveStatus = freshness.connection === "live"
-    ? (scoreboardState?.status || "")
-    : freshness.connection;
-
-  setStatus(effectiveStatus.toLowerCase());
-
-  const matchMeta = document.getElementById("match-meta");
-  if (!scoreboardState) {
-    matchMeta.textContent = "The overlay reacts to scoreboard, table, and event JSON updates.";
-    return freshness;
-  }
-
-  const parts = [
-    `${scoreboardState.home_team || "Home"} ${scoreboardState.home_goals ?? 0} - ${scoreboardState.away_goals ?? 0} ${scoreboardState.away_team || "Away"}`,
-    `${scoreboardState.weather || "dry"} conditions`,
-    formatFeedFreshness(freshness),
-  ];
-  const sessionId = currentSessionId();
-  if (sessionId) {
-    parts.push(sessionId);
-  }
-  matchMeta.textContent = parts.join(" · ");
-  return freshness;
-}
-
-async function fetchJSON(path) {
-  try {
-    const cleanPath = path.replace(/^\/+/, "");
-    const response = await fetch(`${BASE_URL}/${RUNTIME_DIR}/${cleanPath}?_=${Date.now()}`);
-    if (!response.ok) return null;
-    return await response.json();
-  } catch {
-    return null;
-  }
-}
-
 function currentLatestEvent(data = commentaryState) {
   if (!data) return null;
   if (data.latest) return data.latest;
@@ -773,6 +1031,76 @@ function buildIdentityLine(data) {
   return `${data.home_team || "Home"} ${homeFormation} · ${homeStyle} | ${data.away_team || "Away"} ${awayFormation} · ${awayStyle}`;
 }
 
+function effectiveStatus(freshness = getFeedFreshness()) {
+  return freshness.connection === "live"
+    ? String(scoreboardState?.status || "").toLowerCase()
+    : freshness.connection;
+}
+
+function stripMinuteSuffix(text) {
+  return String(text || "")
+    .replace(/^[^\p{L}\p{N}]+/u, "")
+    .replace(/\s*\(\d{1,3}'\)\s*$/, "")
+    .replace(/\s+\d{1,3}'\s*$/, "")
+    .trim();
+}
+
+function feedTone(eventType) {
+  if (eventType === "goal" || eventType === "card" || eventType === "injury" || eventType === "chance") {
+    return eventType;
+  }
+  return "live";
+}
+
+function feedLabel(eventType) {
+  if (eventType === "goal") return "Goal";
+  if (eventType === "card") return "Card";
+  if (eventType === "injury") return "Injury";
+  if (eventType === "chance") return "Big Chance";
+  return "Live Feed";
+}
+
+function overlayModeForStatus(status) {
+  if (status === "live" || status === "prematch") return "overlay-live";
+  if (status === "halftime" || status === "ht" || status === "fulltime" || status === "ft") return "overlay-break";
+  if (status === "stale") return "overlay-stale";
+  return "overlay-idle";
+}
+
+function renderStoryState() {
+  const label = document.getElementById("story-label");
+  const story = document.getElementById("story-text");
+  const breakStory = document.getElementById("break-story");
+  const freshness = getFeedFreshness();
+  const rawStatus = effectiveStatus(freshness);
+
+  let ribbonLabel = "What To Watch";
+  let ribbonText = "Start the runner to turn the pitch into a live match again.";
+
+  if (scoreboardState) {
+    if (rawStatus === "live" || rawStatus === "prematch") {
+      ribbonLabel = "What To Watch";
+      ribbonText = scoreboardState.match_narrative || buildIdentityLine(scoreboardState);
+    } else if (rawStatus === "halftime" || rawStatus === "ht") {
+      ribbonLabel = "Half-Time";
+      ribbonText = scoreboardState.pressure_note || scoreboardState.story || scoreboardState.match_narrative || buildIdentityLine(scoreboardState);
+    } else if (rawStatus === "fulltime" || rawStatus === "ft") {
+      ribbonLabel = "Full-Time";
+      ribbonText = scoreboardState.pressure_note || scoreboardState.story || "The match has settled. Use the table and summary to read the result.";
+    } else if (rawStatus === "stale") {
+      ribbonLabel = "Feed State";
+      ribbonText = `The feed is stale. Last session: ${scoreboardState.home_team || "Home"} ${scoreboardState.home_goals ?? 0} - ${scoreboardState.away_goals ?? 0} ${scoreboardState.away_team || "Away"}. Restart the runner for live play.`;
+    } else {
+      ribbonLabel = "Match State";
+      ribbonText = scoreboardState.story || scoreboardState.match_narrative || buildIdentityLine(scoreboardState);
+    }
+  }
+
+  label.textContent = ribbonLabel;
+  story.textContent = ribbonText;
+  breakStory.textContent = scoreboardState?.pressure_note || scoreboardState?.story || ribbonText;
+}
+
 function syncEngine(extra = {}) {
   if (!window.swosEngine || !scoreboardState) return;
 
@@ -802,10 +1130,14 @@ function syncEngine(extra = {}) {
 }
 
 function setStatus(status) {
+  const container = document.getElementById("overlay-container");
   const statusChip = document.getElementById("status-chip");
   const liveIndicator = document.getElementById("live-indicator");
   const liveText = document.getElementById("live-text");
   const clock = document.getElementById("clock");
+
+  container.classList.remove("overlay-live", "overlay-break", "overlay-stale", "overlay-idle");
+  container.classList.add(overlayModeForStatus(status));
 
   statusChip.className = "";
   statusChip.id = "status-chip";
@@ -813,7 +1145,6 @@ function setStatus(status) {
 
   if (status === "live") {
     statusChip.textContent = "Live Match";
-    liveIndicator.classList.remove("dormant");
     liveText.textContent = "Live";
     clock.style.color = "#00e676";
   } else if (status === "stale") {
@@ -849,6 +1180,44 @@ function setStatus(status) {
   }
 }
 
+function refreshFeedChrome() {
+  const freshness = getFeedFreshness();
+  const currentStatus = effectiveStatus(freshness);
+
+  setStatus(currentStatus);
+
+  const matchMeta = document.getElementById("match-meta");
+  if (!scoreboardState) {
+    matchMeta.textContent = "The overlay reacts to scoreboard, table, and event JSON updates.";
+    renderStoryState();
+    renderFeedState(freshness);
+    return freshness;
+  }
+
+  const parts = [
+    `${scoreboardState.home_team || "Home"} ${scoreboardState.home_goals ?? 0} - ${scoreboardState.away_goals ?? 0} ${scoreboardState.away_team || "Away"}`,
+    `${scoreboardState.weather || "dry"} conditions`,
+    formatFeedFreshness(freshness),
+  ];
+  const sessionId = currentSessionId();
+  if (sessionId) parts.push(sessionId);
+  matchMeta.textContent = parts.join(" · ");
+  renderStoryState();
+  renderFeedState(freshness);
+  return freshness;
+}
+
+async function fetchJSON(path) {
+  try {
+    const cleanPath = path.replace(/^\/+/, "");
+    const response = await fetch(`${BASE_URL}/${RUNTIME_DIR}/${cleanPath}?_=${Date.now()}`);
+    if (!response.ok) return null;
+    return await response.json();
+  } catch {
+    return null;
+  }
+}
+
 async function updateScoreboard() {
   const data = await fetchJSON("scoreboard.json");
   if (!data) return;
@@ -877,7 +1246,7 @@ async function updateScoreboard() {
   prevHomeGoals = data.home_goals;
   prevAwayGoals = data.away_goals;
 
-  const status = (data.status || "").toLowerCase();
+  const status = String(data.status || "").toLowerCase();
   const clock = document.getElementById("clock");
   if (status === "prematch") clock.textContent = "PRE";
   else if (status === "fulltime" || status === "ft") clock.textContent = "FT";
@@ -885,10 +1254,10 @@ async function updateScoreboard() {
   else clock.textContent = `${data.minute || 0}'`;
 
   document.getElementById("round-chip").textContent = data.matchday
-    ? `MD ${data.matchday} · ${data.minute || 0}'`
+    ? `MD ${data.matchday} · ${status === "fulltime" || status === "ft" ? "FT" : `${data.minute || 0}'`}`
     : `Minute ${data.minute || 0}`;
   document.getElementById("match-style-meta").textContent = buildIdentityLine(data);
-  document.getElementById("story-text").textContent = data.pressure_note || data.story || "The stream is idle. Start the runner to begin the matchday narrative.";
+
   refreshFeedChrome();
   syncEngine();
 }
@@ -898,8 +1267,8 @@ async function updateTable() {
   if (data) {
     tableState = data;
   }
-  const rows = Array.isArray(data) ? data : data?.rows;
-  if (!rows || !Array.isArray(rows) || rows.length === 0) return;
+  const rows = currentTableRows();
+  if (!Array.isArray(rows) || rows.length === 0) return;
 
   let html = "<table><tr><th>#</th><th>Team</th><th>P</th><th>W</th><th>D</th><th>L</th><th>GD</th><th>Pts</th></tr>";
 
@@ -923,70 +1292,98 @@ async function updateTable() {
 
   html += "</table>";
   document.getElementById("table-body").innerHTML = html;
+}
 
-  const ticker = document.getElementById("ticker-track");
-  ticker.innerHTML = "";
-  rows.slice(0, 4).forEach((team, index) => {
-    const item = document.createElement("span");
-    item.className = "ticker-item";
-    item.innerHTML = `<strong>${index + 1}</strong> ${team.team} <span>${team.points} pts</span>`;
-    ticker.appendChild(item);
-  });
+function renderFeedState(freshness = getFeedFreshness()) {
+  const strap = document.getElementById("event-strap");
+  const label = document.getElementById("event-strap-label");
+  const pill = document.getElementById("event-pill");
+  const text = document.getElementById("event-strap-text");
+  const status = effectiveStatus(freshness);
+  const latestEvent = currentLatestEvent();
+  const eventType = classifyLine(latestEvent?.text || "") || latestEvent?.event_type || "line";
+  const eventMinute = typeof latestEvent?.minute === "number"
+    ? `${latestEvent.minute}'`
+    : extractMinute(latestEvent?.text || "");
+  const scoreline = scoreboardState
+    ? `${scoreboardState.home_team || "Home"} ${scoreboardState.home_goals ?? 0} - ${scoreboardState.away_goals ?? 0} ${scoreboardState.away_team || "Away"}`
+    : "";
+
+  let mode = "waiting";
+  let tone = "waiting";
+  let heading = "Watch Feed";
+  let minute = "WAIT";
+  let message = "Start the runner to populate the broadcast lower third.";
+
+  if (status === "live") {
+    mode = feedTone(eventType);
+    tone = mode;
+    heading = feedLabel(eventType);
+    minute = eventMinute || `${scoreboardState?.minute ?? 0}'`;
+    message = stripMinuteSuffix(
+      latestEvent?.text ||
+      scoreboardState?.story ||
+      scoreboardState?.match_narrative ||
+      buildIdentityLine(scoreboardState),
+    ) || "The live commentary feed is waiting for the next beat.";
+  } else if (status === "prematch") {
+    heading = "What To Watch";
+    minute = "PRE";
+    message = scoreboardState?.match_narrative || buildIdentityLine(scoreboardState) || "Kickoff is about to begin.";
+  } else if (status === "halftime" || status === "ht") {
+    mode = "break";
+    tone = "break";
+    heading = "Half-Time";
+    minute = "HT";
+    message = scoreboardState?.pressure_note || scoreboardState?.story || "The break summary is on deck.";
+  } else if (status === "fulltime" || status === "ft") {
+    mode = "break";
+    tone = "break";
+    heading = "Full-Time";
+    minute = "FT";
+    message = scoreboardState?.pressure_note || scoreboardState?.story || scoreline || "The result is settled.";
+  } else if (status === "stale") {
+    mode = "stale";
+    tone = "stale";
+    heading = "Feed State";
+    minute = "STALE";
+    message = scoreline
+      ? `${scoreline}. ${formatFeedFreshness(freshness)}. Restart the runner to resume live play.`
+      : `The last session is stale, ${formatFeedFreshness(freshness)}. Restart the runner to resume live play.`;
+  } else if (scoreboardState) {
+    heading = "Match State";
+    minute = scoreboardState.minute ? `${scoreboardState.minute}'` : "WAIT";
+    message = scoreboardState.story || scoreboardState.match_narrative || buildIdentityLine(scoreboardState);
+  }
+
+  const nextEventKey = latestEvent
+    ? buildEventKey(latestEvent)
+    : `${status}:${scoreline}:${message}`;
+
+  strap.dataset.mode = mode;
+  strap.dataset.eventKey = nextEventKey;
+  label.textContent = heading;
+  pill.textContent = minute;
+  pill.dataset.tone = tone;
+  text.textContent = message;
 }
 
 async function updateCommentary() {
   const data = await fetchJSON("events.json");
   if (!data) return;
   commentaryState = data;
-  if (!Array.isArray(data.lines) || data.lines.length === 0) {
-    refreshFeedChrome();
-    syncEngine();
-    return;
-  }
 
-  if (data.count === lastEventCount) {
-    refreshFeedChrome();
-    syncEngine();
-    return;
-  }
-  lastEventCount = data.count;
-
-  const lines = data.lines.filter((line) => line.trim());
-  const story = scoreboardState?.pressure_note || scoreboardState?.story || data.latest?.text || latestStory(lines);
-  document.getElementById("story-text").textContent = story || "The commentary feed is warming up.";
-
+  const lines = Array.isArray(data.lines) ? data.lines.filter((line) => line.trim()) : [];
   const xgLine = data.summary?.xg || [...lines].reverse().find((line) => line.startsWith("xG:"));
   const motmLine = data.summary?.motm || [...lines].reverse().find((line) => line.startsWith("⭐"));
   document.getElementById("summary-xg").textContent = xgLine || "xG will appear after the match summary lands.";
   document.getElementById("summary-motm").textContent = motmLine || "Man of the match will lock in at full time.";
 
-  const container = document.getElementById("event-lines");
-  container.innerHTML = "";
-
-  const renderedEvents = Array.isArray(data.events) && data.events.length > 0
-    ? data.events.slice(-MAX_LINES).reverse()
-    : lines.slice(-MAX_LINES).reverse().map((line) => ({ text: line, event_type: classifyLine(line), minute: extractMinute(line) }));
-
-  renderedEvents.forEach((entry, index) => {
-    const article = document.createElement("article");
-    article.className = `event-line ${classifyLine(entry.text || "") || entry.event_type || ""}`.trim();
-
-    const badge = document.createElement("span");
-    badge.className = "event-minute";
-    const eventMinute = typeof entry.minute === "number" ? `${entry.minute}'` : extractMinute(entry.text || "");
-    badge.textContent = eventMinute || (index === 0 ? "Now" : "Note");
-
-    const text = document.createElement("span");
-    text.className = "event-text";
-    text.textContent = entry.text;
-
-    article.appendChild(badge);
-    article.appendChild(text);
-    container.appendChild(article);
-  });
-
   refreshFeedChrome();
-  syncEngine();
+  syncEngine({
+    latestEvent: currentLatestEvent(data),
+    eventKey: buildEventKey(currentLatestEvent(data)),
+  });
 }
 
 async function poll() {
@@ -1000,6 +1397,7 @@ async function poll() {
 }
 
 poll();
+registerOverlayPanels();
 setInterval(poll, POLL_MS);
 </script>
 </body>
