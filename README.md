@@ -109,6 +109,10 @@ Deterministic review runs and manual acceptance criteria live in [`docs/WATCH_TE
 - [`docs/NEXT_STEPS_MASTER_PLAN.md`](/Users/arwynhughes/Documents/Sensible%20Manager/docs/NEXT_STEPS_MASTER_PLAN.md): current watch-first roadmap and decision gates
 - [`docs/WATCH_OPERATOR_GUIDE.md`](/Users/arwynhughes/Documents/Sensible%20Manager/docs/WATCH_OPERATOR_GUIDE.md): how to run local watch sessions cleanly
 - [`docs/WATCH_TEST_PROTOCOL.md`](/Users/arwynhughes/Documents/Sensible%20Manager/docs/WATCH_TEST_PROTOCOL.md): deterministic test matrix, review checklist, and triage format
+- [`docs/review/PROJECT_REVIEW_MEMO.md`](/Users/arwynhughes/Documents/Sensible%20Manager/docs/review/PROJECT_REVIEW_MEMO.md): 2026-03-08 review baseline, working state, and verdict
+- [`docs/review/UX_FINDINGS_MATRIX.md`](/Users/arwynhughes/Documents/Sensible%20Manager/docs/review/UX_FINDINGS_MATRIX.md): spectator question matrix and surface scorecard
+- [`docs/review/CONSOLIDATION_LEDGER.md`](/Users/arwynhughes/Documents/Sensible%20Manager/docs/review/CONSOLIDATION_LEDGER.md): branch/repo dispositions and outlier inventory
+- [`docs/review/PRIORITY_BACKLOG.md`](/Users/arwynhughes/Documents/Sensible%20Manager/docs/review/PRIORITY_BACKLOG.md): `P0`/`P1`/`P2` action list with evidence and acceptance criteria
 
 Older ownership/dashboard/web3 docs remain in the repo for reference, but they are not the source of truth for the current MVP.
 
