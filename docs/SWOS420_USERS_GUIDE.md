@@ -1,5 +1,7 @@
 # SWOS420 — Player Ownership & Trading User's Guide v1.0
 
+> Archival note: this guide reflects the earlier ownership-first product line, not the active `codex/watch-experience` remit. It is retained for historical context only. For the current product truth, use [`WATCH_MATCH_INTELLIGENCE_AUDIT.md`](/Users/arwynhughes/Documents/Sensible%20Manager/docs/WATCH_MATCH_INTELLIGENCE_AUDIT.md), [`PROJECT_STATE_AND_CONSOLIDATION_AUDIT.md`](/Users/arwynhughes/Documents/Sensible%20Manager/docs/PROJECT_STATE_AND_CONSOLIDATION_AUDIT.md), and [`NEXT_STEPS_MASTER_PLAN.md`](/Users/arwynhughes/Documents/Sensible%20Manager/docs/NEXT_STEPS_MASTER_PLAN.md).
+
 **Date:** 2026-02-18 | **Version:** 25/25 features + Arwyn Hughes + Stadium Hoardings  
 **Chain:** Base L2 (Sepolia testnet → mainnet)
 

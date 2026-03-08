@@ -1116,20 +1116,161 @@ function buildFixtureSummary(fixture) {
 
 function buildResultSummary(result) {
   if (!result) return "The latest result will appear here.";
-  return result.table_note || result.xg || result.summary || `${result.home_team || "Home"} ${result.home_goals ?? 0} - ${result.away_goals ?? 0} ${result.away_team || "Away"}`;
+  return result.summary || `${result.home_team || "Home"} ${result.home_goals ?? 0} - ${result.away_goals ?? 0} ${result.away_team || "Away"}`;
+}
+
+function pointGapLabel(value) {
+  return `${value} ${value === 1 ? "point" : "points"}`;
+}
+
+function ordinalSuffix(value) {
+  const modulo100 = value % 100;
+  if (modulo100 >= 11 && modulo100 <= 13) return "th";
+  if (value % 10 === 1) return "st";
+  if (value % 10 === 2) return "nd";
+  if (value % 10 === 3) return "rd";
+  return "th";
+}
+
+function formatOrdinal(value) {
+  if (!value || value < 1) return "unplaced";
+  return `${value}${ordinalSuffix(value)}`;
+}
+
+function findTeamIndex(rows, teamName) {
+  if (!teamName) return -1;
+  return rows.findIndex((row) => row.team === teamName);
+}
+
+function findTeamRow(rows, teamName) {
+  const index = findTeamIndex(rows, teamName);
+  return index >= 0 ? rows[index] : null;
+}
+
+function describeLeaderGap(rows = currentTableRows()) {
+  const leader = rows[0];
+  const chaser = rows[1];
+  if (!leader) return "Standings context will sharpen once the first result lands.";
+  if (!chaser) return `${leader.team} set the pace on ${leader.points} pts.`;
+
+  const gap = leader.points - chaser.points;
+  if (gap === 0) {
+    return `${leader.team} and ${chaser.team} are level on ${leader.points} pts, split on goal difference.`;
+  }
+
+  return `${leader.team} lead ${chaser.team} by ${pointGapLabel(gap)}.`;
+}
+
+function describeDangerZone(rows = currentTableRows()) {
+  const bottom = rows[rows.length - 1];
+  const above = rows[rows.length - 2];
+  if (!bottom) return "The danger line will read clearly once the table fills out.";
+  if (!above || above.team === bottom.team) {
+    return `${bottom.team} sit at the foot of the table on ${bottom.points} pts.`;
+  }
+
+  const gap = above.points - bottom.points;
+  if (gap === 0) {
+    return `${bottom.team} are level on points with ${above.team} near the bottom.`;
+  }
+
+  return `${bottom.team} trail ${above.team} by ${pointGapLabel(gap)} near the bottom.`;
+}
+
+function describeSeasonOutcome(rows = currentTableRows()) {
+  const champion = rows[0];
+  const runnerUp = rows[1];
+  if (!champion) return "The season outcome will lock in once the table is populated.";
+
+  let leaderLine = `${champion.team} close the season top on ${champion.points} pts.`;
+  if (runnerUp) {
+    const gap = champion.points - runnerUp.points;
+    leaderLine = gap === 0
+      ? `${champion.team} finish top on goal difference after ending level with ${runnerUp.team} on ${champion.points} pts.`
+      : `${champion.team} close the season top on ${champion.points} pts, ${pointGapLabel(gap)} clear of ${runnerUp.team}.`;
+  }
+
+  return `${leaderLine} ${describeDangerZone(rows)}`.trim();
+}
+
+function buildStandingsImpact(result, lifecycle = "") {
+  const rows = currentTableRows();
+  const normalizedLifecycle = normalizeLifecycleState(lifecycle);
+
+  if (normalizedLifecycle === "season_complete") {
+    return describeSeasonOutcome(rows);
+  }
+
+  if (normalizedLifecycle === "matchday_complete") {
+    return `${describeLeaderGap(rows)} ${describeDangerZone(rows)}`.trim();
+  }
+
+  if (!result) {
+    return describeLeaderGap(rows);
+  }
+
+  const leader = rows[0];
+  const homeIndex = findTeamIndex(rows, result.home_team);
+  const awayIndex = findTeamIndex(rows, result.away_team);
+  const homeRow = findTeamRow(rows, result.home_team);
+  const awayRow = findTeamRow(rows, result.away_team);
+  const homePosition = homeIndex >= 0 ? homeIndex + 1 : null;
+  const awayPosition = awayIndex >= 0 ? awayIndex + 1 : null;
+
+  if (result.winner === "home" || result.winner === "away") {
+    const winnerName = result.winner === "home" ? result.home_team : result.away_team;
+    const loserName = result.winner === "home" ? result.away_team : result.home_team;
+    const winnerPosition = result.winner === "home" ? homePosition : awayPosition;
+    const loserPosition = result.winner === "home" ? awayPosition : homePosition;
+    const winnerRow = result.winner === "home" ? homeRow : awayRow;
+
+    if (winnerPosition && winnerRow) {
+      if (leader && leader.team === winnerName) {
+        const runnerUp = rows[1];
+        if (runnerUp) {
+          const gap = winnerRow.points - runnerUp.points;
+          const winnerLine = gap === 0
+            ? `${winnerName} sit ${formatOrdinal(winnerPosition)} and level with ${runnerUp.team} on ${winnerRow.points} pts.`
+            : `${winnerName} sit ${formatOrdinal(winnerPosition)} on ${winnerRow.points} pts, ${pointGapLabel(gap)} clear of ${runnerUp.team}.`;
+          return loserPosition ? `${winnerLine} ${loserName} are ${formatOrdinal(loserPosition)}.` : winnerLine;
+        }
+
+        return `${winnerName} sit ${formatOrdinal(winnerPosition)} on ${winnerRow.points} pts.`;
+      }
+
+      if (leader) {
+        const gap = leader.points - winnerRow.points;
+        const winnerLine = gap === 0
+          ? `${winnerName} are ${formatOrdinal(winnerPosition)} and level with ${leader.team} on ${winnerRow.points} pts.`
+          : `${winnerName} are ${formatOrdinal(winnerPosition)} on ${winnerRow.points} pts, ${pointGapLabel(gap)} off ${leader.team}.`;
+        return loserPosition ? `${winnerLine} ${loserName} are ${formatOrdinal(loserPosition)}.` : winnerLine;
+      }
+
+      return `${winnerName} are ${formatOrdinal(winnerPosition)} on ${winnerRow.points} pts.`;
+    }
+  }
+
+  if (homePosition && awayPosition && homeRow && awayRow) {
+    if (homeRow.points === awayRow.points) {
+      return `${result.home_team} are ${formatOrdinal(homePosition)} and ${result.away_team} are ${formatOrdinal(awayPosition)}, both on ${homeRow.points} pts.`;
+    }
+    return `${result.home_team} are ${formatOrdinal(homePosition)} on ${homeRow.points} pts; ${result.away_team} are ${formatOrdinal(awayPosition)} on ${awayRow.points} pts.`;
+  }
+
+  return result.table_note || result.xg || buildResultSummary(result);
 }
 
 function effectiveStatus(freshness = getFeedFreshness()) {
+  const sessionStatus = normalizeLifecycleState(sessionState?.session_state);
+  if (sessionStatus === "matchday_complete" || sessionStatus === "season_complete") {
+    return sessionStatus;
+  }
+
   if (freshness.connection !== "live") {
     return freshness.connection;
   }
 
-  const sessionStatus = normalizeLifecycleState(sessionState?.session_state);
-  if (
-    sessionStatus === "between_matches"
-    || sessionStatus === "matchday_complete"
-    || sessionStatus === "season_complete"
-  ) {
+  if (sessionStatus === "between_matches") {
     return sessionStatus;
   }
 
@@ -1198,16 +1339,16 @@ function renderStoryState() {
       ribbonText = buildFixtureSummary(sessionState?.next_fixture);
     } else if (rawStatus === "matchday_complete") {
       ribbonLabel = "Matchday Complete";
-      ribbonText = buildResultSummary(sessionState?.last_result);
+      ribbonText = buildStandingsImpact(sessionState?.last_result, rawStatus);
     } else if (rawStatus === "season_complete") {
       ribbonLabel = "Season Complete";
-      ribbonText = buildResultSummary(sessionState?.last_result);
+      ribbonText = buildStandingsImpact(sessionState?.last_result, rawStatus);
     } else if (rawStatus === "halftime" || rawStatus === "ht") {
       ribbonLabel = "Half-Time";
       ribbonText = scoreboardState.pressure_note || scoreboardState.story || scoreboardState.match_narrative || buildIdentityLine(scoreboardState);
     } else if (rawStatus === "fulltime" || rawStatus === "ft") {
       ribbonLabel = "Full-Time";
-      ribbonText = scoreboardState.pressure_note || scoreboardState.story || "The match has settled. Use the table and summary to read the result.";
+      ribbonText = buildStandingsImpact(sessionState?.last_result) || scoreboardState.pressure_note || scoreboardState.story || "The match has settled. Use the table and summary to read the result.";
     } else if (rawStatus === "stale") {
       ribbonLabel = "Feed State";
       ribbonText = `The feed is stale. Last session: ${scoreboardState.home_team || "Home"} ${scoreboardState.home_goals ?? 0} - ${scoreboardState.away_goals ?? 0} ${scoreboardState.away_team || "Away"}. Restart the runner for live play.`;
@@ -1219,7 +1360,10 @@ function renderStoryState() {
 
   label.textContent = ribbonLabel;
   story.textContent = ribbonText;
-  breakStory.textContent = scoreboardState?.pressure_note || scoreboardState?.story || ribbonText;
+  breakStory.textContent =
+    rawStatus === "matchday_complete" || rawStatus === "season_complete"
+      ? buildStandingsImpact(sessionState?.last_result, rawStatus)
+      : scoreboardState?.pressure_note || scoreboardState?.story || ribbonText;
 }
 
 function syncEngine(extra = {}) {
@@ -1341,9 +1485,15 @@ function renderSessionStrip(freshness = getFeedFreshness()) {
   progressCopy.textContent = sessionState?.matchday
     ? `MD ${sessionState.matchday}${sessionState.fixture_index && sessionState.fixtures_in_matchday ? ` · ${sessionState.fixture_index}/${sessionState.fixtures_in_matchday}` : ""}`
     : "Match Centre";
-  lastCopy.textContent = buildResultSummary(sessionState?.last_result);
+  lastCopy.textContent = sessionState?.last_result
+    ? (lifecycle === "matchday_complete" || lifecycle === "season_complete"
+      ? `${buildResultSummary(sessionState.last_result)} · ${buildStandingsImpact(sessionState.last_result, lifecycle)}`
+      : buildResultSummary(sessionState.last_result))
+    : buildResultSummary(sessionState?.last_result);
   nextCopy.textContent = buildFixtureTitle(sessionState?.next_fixture) === "Waiting"
-    ? "Start the runner to queue the next fixture."
+    ? (lifecycle === "season_complete"
+      ? buildStandingsImpact(sessionState?.last_result, lifecycle)
+      : "Start the runner to queue the next fixture.")
     : `${buildFixtureTitle(sessionState?.next_fixture)} · ${buildFixtureSummary(sessionState?.next_fixture)}`;
 }
 
@@ -1517,13 +1667,13 @@ function renderFeedState(freshness = getFeedFreshness()) {
     tone = "break";
     heading = "Matchday Complete";
     minute = "DONE";
-    message = buildResultSummary(sessionState?.last_result);
+    message = buildStandingsImpact(sessionState?.last_result, status);
   } else if (status === "season_complete") {
     mode = "break";
     tone = "break";
     heading = "Season Complete";
     minute = "DONE";
-    message = buildResultSummary(sessionState?.last_result);
+    message = buildStandingsImpact(sessionState?.last_result, status);
   } else if (status === "halftime" || status === "ht") {
     mode = "break";
     tone = "break";

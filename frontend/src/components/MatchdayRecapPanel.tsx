@@ -1,9 +1,11 @@
 "use client";
 
 import {
+  describeResultImpact,
   deriveLifecycleState,
   formatLifecycleLabel,
   formatResultSummary,
+  type StreamTableRow,
   type StreamConnection,
   type StreamScoreboard,
   type StreamSession,
@@ -13,6 +15,7 @@ interface MatchdayRecapPanelProps {
   session: StreamSession | null;
   connection: StreamConnection;
   scoreboard: StreamScoreboard | null;
+  table: StreamTableRow[];
 }
 
 function slateCopy(entry: NonNullable<StreamSession["matchday_slate"]>[number]): string {
@@ -29,6 +32,7 @@ export function MatchdayRecapPanel({
   session,
   connection,
   scoreboard,
+  table,
 }: MatchdayRecapPanelProps) {
   const lifecycle = deriveLifecycleState(session, connection, scoreboard);
   const slate = session?.matchday_slate ?? [];
@@ -82,7 +86,7 @@ export function MatchdayRecapPanel({
                 <li key={`${result.matchday}-${result.fixture_index}-${result.home_team}`}>
                   <div className="session-list-copy">
                     <strong>{formatResultSummary(result)}</strong>
-                    <span>{result.table_note || result.xg || "Result context pending."}</span>
+                    <span>{describeResultImpact(table, result) || result.xg || "Result context pending."}</span>
                   </div>
                   <span className="session-status-pill completed">Done</span>
                 </li>

@@ -1,4 +1,7 @@
 # SWOS420 — PLAN OF DELIVERY v4.1
+
+> Archival note: this delivery plan captures the earlier DOSBox-first and ownership-adjacent product framing, not the active watch-first branch remit. Treat it as historical context only. The current branch truth lives in [`WATCH_MATCH_INTELLIGENCE_AUDIT.md`](/Users/arwynhughes/Documents/Sensible%20Manager/docs/WATCH_MATCH_INTELLIGENCE_AUDIT.md), [`PROJECT_STATE_AND_CONSOLIDATION_AUDIT.md`](/Users/arwynhughes/Documents/Sensible%20Manager/docs/PROJECT_STATE_AND_CONSOLIDATION_AUDIT.md), and [`NEXT_STEPS_MASTER_PLAN.md`](/Users/arwynhughes/Documents/Sensible%20Manager/docs/NEXT_STEPS_MASTER_PLAN.md).
+
 **Date:** 2026-02-18 | **Status:** SWOS loads in DOSBox, keypresses confirmed — AI match play not yet wired
 
 ## Core Promise to Arwyn

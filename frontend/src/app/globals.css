@@ -177,21 +177,6 @@ a:hover { text-decoration: underline; }
   text-transform: uppercase;
 }
 
-.sidebar-wallet {
-  padding-top: 20px;
-  border-top: 1px solid var(--glass-border);
-}
-
-.sidebar-wallet-label {
-  margin-bottom: 12px;
-  color: var(--text-muted);
-  font-family: var(--font-mono);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 1.4px;
-  text-transform: uppercase;
-}
-
 .sidebar-note {
   margin-top: auto;
   padding-top: 20px;
@@ -199,6 +184,10 @@ a:hover { text-decoration: underline; }
   color: var(--text-secondary);
   font-size: 12px;
   line-height: 1.6;
+}
+
+.sidebar-note-parked {
+  color: var(--accent-gold);
 }
 
 .main-content {

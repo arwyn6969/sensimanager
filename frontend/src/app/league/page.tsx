@@ -7,6 +7,10 @@ import { SeasonLeadersPanel } from "@/components/SeasonLeadersPanel";
 import { useStreamState } from "@/hooks/useStreamState";
 import {
   classifyEventLine,
+  deriveLifecycleState,
+  describeDangerZone,
+  describeLeaderGap,
+  describeResultImpact,
   findSummaryLine,
   formatConnectionLabel,
   normalizeEventLines,
@@ -17,8 +21,12 @@ export default function LeaguePage() {
   const lines = normalizeEventLines(events?.lines ?? []);
   const xgLine = events?.summary?.xg ?? findSummaryLine(lines, "xG:");
   const goals = lines.filter((line) => classifyEventLine(line) === "goal").length;
+  const lifecycle = deriveLifecycleState(session, connection, scoreboard);
   const leader = table[0];
   const cellar = table[table.length - 1];
+  const leaderGap = describeLeaderGap(table);
+  const dangerSummary = describeDangerZone(table);
+  const resultImpact = describeResultImpact(table, session?.last_result, lifecycle);
   const connectionClass =
     connection === "live" ? "active" : connection === "stale" ? "stale" : "registration";
 
@@ -43,23 +51,23 @@ export default function LeaguePage() {
         <article className="glass-card story-card">
           <span className="story-card-label">Leader</span>
           <strong>{leader ? `${leader.team} · ${leader.points} pts` : "Waiting"}</strong>
-          <p>The top of the table needs to feel alive every time the page opens.</p>
+          <p>{leaderGap}</p>
         </article>
 
         <article className="glass-card story-card">
           <span className="story-card-label">Current Matchday</span>
           <strong>{goals} key scoring moments</strong>
-          <p>Every goal should feed narrative pressure back into the standings.</p>
+          <p>{resultImpact}</p>
         </article>
 
         <article className="glass-card story-card">
           <span className="story-card-label">Danger Zone</span>
           <strong>{cellar ? cellar.team : "Waiting"}</strong>
-          <p>The bottom of the table should look consequential, not decorative.</p>
+          <p>{dangerSummary}</p>
         </article>
       </div>
 
-      <MatchdayRecapPanel session={session} connection={connection} scoreboard={scoreboard} />
+      <MatchdayRecapPanel session={session} connection={connection} scoreboard={scoreboard} table={table} />
 
       <div className="watch-grid">
         <StreamLeagueTable

@@ -124,9 +124,9 @@ export default function MarketPage() {
   return (
     <>
       <div className="page-header">
-        <div className="page-title">💰 Experimental Market</div>
+        <div className="page-title">💰 Parked Market</div>
         <div className="page-subtitle">
-          Parked ownership surface while the watch-first MVP is being tuned. {listings.length} active listings · {loans.length} active loans
+          Archived ownership surface while the watch-first MVP is being hardened. {listings.length} active listings · {loans.length} active loans
         </div>
       </div>
 

@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ConnectButton } from "@rainbow-me/rainbowkit";
 
 const WATCH_ITEMS = [
   { href: "/", icon: "📺", label: "Live Match" },
@@ -52,20 +51,11 @@ export function Sidebar() {
         ))}
       </nav>
 
-      {isExperimentalRoute ? (
-        <div className="sidebar-wallet">
-          <div className="sidebar-wallet-label">Experimental Wallet</div>
-          <ConnectButton
-            accountStatus="avatar"
-            chainStatus="icon"
-            showBalance={false}
-          />
-        </div>
-      ) : (
-        <div className="sidebar-note">
-          Watch-first mainline active. Ownership screens stay parked until the spectator MVP is good.
-        </div>
-      )}
+      <div className={`sidebar-note ${isExperimentalRoute ? "sidebar-note-parked" : ""}`}>
+        {isExperimentalRoute
+          ? "Parked route. Ownership and wallet flows stay archived until the watch-first MVP earns their return."
+          : "Watch-first mainline active. Ownership screens stay parked until the spectator MVP is good."}
+      </div>
     </aside>
   );
 }

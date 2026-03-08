@@ -4,12 +4,15 @@ import Link from "next/link";
 
 import { STREAM_URL } from "@/lib/contracts";
 import {
+  deriveLifecycleState,
   formatClock,
   formatFeedFreshness,
+  formatLifecycleLabel,
   formatStatusLabel,
   makeStreamUrl,
   type StreamConnection,
   type StreamScoreboard,
+  type StreamSession,
 } from "@/lib/stream";
 
 interface MatchCentreProps {
@@ -20,6 +23,7 @@ interface MatchCentreProps {
   connection: StreamConnection;
   lastUpdated: number | null;
   sessionId: string | null;
+  session: StreamSession | null;
 }
 
 const FORMATION_MARKERS: Record<string, Array<[number, number]>> = {
@@ -77,7 +81,12 @@ function buildMarkers(
 function formatStatusTitle(
   scoreboard: StreamScoreboard | null,
   connection: StreamConnection,
+  session: StreamSession | null,
 ): string {
+  const lifecycle = deriveLifecycleState(session, connection, scoreboard);
+  if (lifecycle === "matchday_complete" || lifecycle === "season_complete") {
+    return formatLifecycleLabel(lifecycle);
+  }
   if (connection === "stale") return "Feed Stale";
   if (connection === "offline") return "Awaiting Feed";
   return formatStatusLabel(scoreboard?.status);
@@ -91,6 +100,7 @@ export function MatchCentre({
   connection,
   lastUpdated,
   sessionId,
+  session,
 }: MatchCentreProps) {
   const homeTeam = scoreboard?.home_team ?? "Home";
   const awayTeam = scoreboard?.away_team ?? "Away";
@@ -118,7 +128,7 @@ export function MatchCentre({
       <div className="match-centre-head">
         <div>
           <div className="panel-kicker">Now Showing</div>
-          <h2 className="panel-title-xl">{formatStatusTitle(scoreboard, connection)}</h2>
+          <h2 className="panel-title-xl">{formatStatusTitle(scoreboard, connection, session)}</h2>
         </div>
         <div className="match-centre-status">
           <span className={`live-signal-dot ${connection}`} />

@@ -343,16 +343,19 @@ export function deriveLifecycleState(
   connection: StreamConnection,
   scoreboard?: StreamScoreboard | null,
 ): StreamLifecycleState {
+  const sessionState = normalizeLifecycleState(session?.session_state);
+  if (
+    sessionState === "matchday_complete"
+    || sessionState === "season_complete"
+  ) {
+    return sessionState;
+  }
+
   if (connection === "stale" || connection === "offline") {
     return connection;
   }
 
-  const sessionState = normalizeLifecycleState(session?.session_state);
-  if (
-    sessionState === "between_matches"
-    || sessionState === "matchday_complete"
-    || sessionState === "season_complete"
-  ) {
+  if (sessionState === "between_matches") {
     return sessionState;
   }
 
@@ -394,6 +397,183 @@ export function formatLifecycleLabel(state: StreamLifecycleState): string {
     default:
       return "Feed Offline";
   }
+}
+
+function pointGapLabel(value: number): string {
+  return `${value} ${value === 1 ? "point" : "points"}`;
+}
+
+function ordinalSuffix(value: number): string {
+  const modulo100 = value % 100;
+  if (modulo100 >= 11 && modulo100 <= 13) {
+    return "th";
+  }
+
+  switch (value % 10) {
+    case 1:
+      return "st";
+    case 2:
+      return "nd";
+    case 3:
+      return "rd";
+    default:
+      return "th";
+  }
+}
+
+export function formatOrdinal(value: number | null | undefined): string {
+  if (!value || value < 1) {
+    return "unplaced";
+  }
+  return `${value}${ordinalSuffix(value)}`;
+}
+
+export function findTeamPosition(rows: StreamTableRow[], teamName?: string | null): number | null {
+  if (!teamName) {
+    return null;
+  }
+
+  const index = rows.findIndex((row) => row.team === teamName);
+  return index >= 0 ? index + 1 : null;
+}
+
+export function findTeamRow(rows: StreamTableRow[], teamName?: string | null): StreamTableRow | null {
+  if (!teamName) {
+    return null;
+  }
+  return rows.find((row) => row.team === teamName) ?? null;
+}
+
+export function describeLeaderGap(rows: StreamTableRow[]): string {
+  const leader = rows[0];
+  const chaser = rows[1];
+
+  if (!leader) {
+    return "Standings context will sharpen once the first result lands.";
+  }
+
+  if (!chaser) {
+    return `${leader.team} set the pace on ${leader.points} pts.`;
+  }
+
+  const gap = leader.points - chaser.points;
+  if (gap === 0) {
+    return `${leader.team} and ${chaser.team} are level on ${leader.points} pts, split on goal difference.`;
+  }
+
+  return `${leader.team} lead ${chaser.team} by ${pointGapLabel(gap)}.`;
+}
+
+export function describeDangerZone(rows: StreamTableRow[]): string {
+  const bottom = rows[rows.length - 1];
+  const above = rows[rows.length - 2];
+
+  if (!bottom) {
+    return "The danger line will read clearly once the table fills out.";
+  }
+
+  if (!above || above.team === bottom.team) {
+    return `${bottom.team} sit at the foot of the table on ${bottom.points} pts.`;
+  }
+
+  const gap = above.points - bottom.points;
+  if (gap === 0) {
+    return `${bottom.team} are level on points with ${above.team} near the bottom.`;
+  }
+
+  return `${bottom.team} trail ${above.team} by ${pointGapLabel(gap)} near the bottom.`;
+}
+
+export function describeSeasonOutcome(rows: StreamTableRow[]): string {
+  const champion = rows[0];
+  const runnerUp = rows[1];
+
+  if (!champion) {
+    return "The season outcome will lock in once the table is populated.";
+  }
+
+  let leaderLine = `${champion.team} close the season top on ${champion.points} pts.`;
+  if (runnerUp) {
+    const gap = champion.points - runnerUp.points;
+    leaderLine = gap === 0
+      ? `${champion.team} finish top on goal difference after ending level with ${runnerUp.team} on ${champion.points} pts.`
+      : `${champion.team} close the season top on ${champion.points} pts, ${pointGapLabel(gap)} clear of ${runnerUp.team}.`;
+  }
+
+  return `${leaderLine} ${describeDangerZone(rows)}`.trim();
+}
+
+export function describeResultImpact(
+  rows: StreamTableRow[],
+  result?: StreamSessionResult | null,
+  lifecycle?: StreamLifecycleState | string | null,
+): string {
+  const normalizedLifecycle = normalizeLifecycleState(lifecycle);
+
+  if (normalizedLifecycle === "season_complete") {
+    return describeSeasonOutcome(rows);
+  }
+
+  if (normalizedLifecycle === "matchday_complete") {
+    return `${describeLeaderGap(rows)} ${describeDangerZone(rows)}`.trim();
+  }
+
+  if (!result) {
+    return describeLeaderGap(rows);
+  }
+
+  const homePosition = findTeamPosition(rows, result.home_team);
+  const awayPosition = findTeamPosition(rows, result.away_team);
+  const homeRow = findTeamRow(rows, result.home_team);
+  const awayRow = findTeamRow(rows, result.away_team);
+  const leader = rows[0];
+
+  if (result.winner === "home" || result.winner === "away") {
+    const winnerName = result.winner === "home" ? result.home_team : result.away_team;
+    const loserName = result.winner === "home" ? result.away_team : result.home_team;
+    const winnerPosition = result.winner === "home" ? homePosition : awayPosition;
+    const loserPosition = result.winner === "home" ? awayPosition : homePosition;
+    const winnerRow = result.winner === "home" ? homeRow : awayRow;
+
+    if (winnerPosition && winnerRow) {
+      if (leader && leader.team === winnerName) {
+        const runnerUp = rows[1];
+        if (runnerUp) {
+          const gap = winnerRow.points - runnerUp.points;
+          const winnerLine = gap === 0
+            ? `${winnerName} sit ${formatOrdinal(winnerPosition)} and level with ${runnerUp.team} on ${winnerRow.points} pts.`
+            : `${winnerName} sit ${formatOrdinal(winnerPosition)} on ${winnerRow.points} pts, ${pointGapLabel(gap)} clear of ${runnerUp.team}.`;
+          return loserPosition
+            ? `${winnerLine} ${loserName} are ${formatOrdinal(loserPosition)}.`
+            : winnerLine;
+        }
+
+        return `${winnerName} sit ${formatOrdinal(winnerPosition)} on ${winnerRow.points} pts.`;
+      }
+
+      if (leader) {
+        const gap = leader.points - winnerRow.points;
+        const winnerLine = gap === 0
+          ? `${winnerName} are ${formatOrdinal(winnerPosition)} and level with ${leader.team} on ${winnerRow.points} pts.`
+          : `${winnerName} are ${formatOrdinal(winnerPosition)} on ${winnerRow.points} pts, ${pointGapLabel(gap)} off ${leader.team}.`;
+        return loserPosition
+          ? `${winnerLine} ${loserName} are ${formatOrdinal(loserPosition)}.`
+          : winnerLine;
+      }
+
+      return `${winnerName} are ${formatOrdinal(winnerPosition)} on ${winnerRow.points} pts.`;
+    }
+  }
+
+  if (homePosition && awayPosition && homeRow && awayRow) {
+    if (homeRow.points === awayRow.points) {
+      return `${result.home_team} are ${formatOrdinal(homePosition)} and ${result.away_team} are ${formatOrdinal(awayPosition)}, both on ${homeRow.points} pts.`;
+    }
+
+    return `${result.home_team} are ${formatOrdinal(homePosition)} on ${homeRow.points} pts; ${result.away_team} are ${formatOrdinal(awayPosition)} on ${awayRow.points} pts.`;
+  }
+
+  return result.table_note || result.summary || `${result.home_team} ${result.home_goals} - ${result.away_goals} ${result.away_team}`;
 }
 
 export function formatFixtureSummary(fixture?: StreamSessionFixture | null): string {

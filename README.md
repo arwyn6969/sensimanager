@@ -114,7 +114,7 @@ Deterministic review runs and manual acceptance criteria live in [`docs/WATCH_TE
 - [`docs/review/CONSOLIDATION_LEDGER.md`](/Users/arwynhughes/Documents/Sensible%20Manager/docs/review/CONSOLIDATION_LEDGER.md): branch/repo dispositions and outlier inventory
 - [`docs/review/PRIORITY_BACKLOG.md`](/Users/arwynhughes/Documents/Sensible%20Manager/docs/review/PRIORITY_BACKLOG.md): `P0`/`P1`/`P2` action list with evidence and acceptance criteria
 
-Older ownership/dashboard/web3 docs remain in the repo for reference, but they are not the source of truth for the current MVP.
+The active planning set is the review memo, the priority backlog, and the watch-first master plan. Older ownership/dashboard/web3 docs remain in the repo for reference only and now carry archival notes where they are still useful historical context.
 
 ## Parked For Now
 

@@ -11,7 +11,12 @@ import { useStreamState } from "@/hooks/useStreamState";
 import { STREAM_URL } from "@/lib/contracts";
 import {
   classifyEventLine,
+  deriveLifecycleState,
+  describeDangerZone,
+  describeLeaderGap,
+  describeResultImpact,
   formatConnectionLabel,
+  formatLifecycleLabel,
   findSummaryLine,
   latestNarrativeLine,
   makeStreamUrl,
@@ -19,7 +24,7 @@ import {
 } from "@/lib/stream";
 
 export default function DashboardPage() {
-  const { scoreboard, events, table, session, connection, lastUpdated, sessionId } = useStreamState();
+  const { scoreboard, events, table, leaders, session, connection, lastUpdated, sessionId } = useStreamState();
   const lines = normalizeEventLines(events?.lines ?? []);
   const pressureNote = scoreboard?.pressure_note ?? null;
   const latestEvent = pressureNote ?? scoreboard?.story ?? events?.latest?.text ?? latestNarrativeLine(lines);
@@ -27,8 +32,8 @@ export default function DashboardPage() {
   const motmLine = events?.summary?.motm ?? findSummaryLine(lines, "⭐");
   const matchPlayerStats = events?.match_player_stats ?? null;
 
+  const lifecycle = deriveLifecycleState(session, connection, scoreboard);
   const leader = table[0];
-  const titleRace = table.slice(0, 4);
   const goals = lines.filter((line) => classifyEventLine(line) === "goal").length;
   const chances = lines.filter((line) => classifyEventLine(line) === "chance").length;
   const cards = lines.filter((line) => classifyEventLine(line) === "card").length;
@@ -39,8 +44,9 @@ export default function DashboardPage() {
     ? `${scoreboard.home_team} ${scoreboard.home_formation ?? "4-4-2"} vs ${scoreboard.away_team} ${scoreboard.away_formation ?? "4-4-2"}`
     : "Waiting for the next tactical frame";
   const pressureSummary = pressureNote ?? "Table pressure will appear when the live feed has standings context.";
-  const tableHeat =
-    titleRace.map((team) => team.team).join(" · ") || "Waiting";
+  const tableHeat = describeLeaderGap(table);
+  const dangerSummary = describeDangerZone(table);
+  const resultImpact = describeResultImpact(table, session?.last_result, lifecycle);
   const connectionClass =
     connection === "live" ? "active" : connection === "stale" ? "stale" : "registration";
   const previewAvailable = connection !== "offline";
@@ -67,7 +73,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <SessionProgressRail session={session} connection={connection} scoreboard={scoreboard} />
+      <SessionProgressRail session={session} connection={connection} scoreboard={scoreboard} table={table} />
 
       <div className="broadcast-home-grid">
         <MatchCentre
@@ -78,19 +84,30 @@ export default function DashboardPage() {
           connection={connection}
           lastUpdated={lastUpdated}
           sessionId={sessionId}
+          session={session}
         />
 
         <div className="broadcast-side-stack">
           <div className="story-card-grid">
             <article className="glass-card story-card">
-              <span className="story-card-label">{pressureNote ? "Pressure State" : "Match Texture"}</span>
+              <span className="story-card-label">
+                {lifecycle === "season_complete" || lifecycle === "matchday_complete"
+                  ? "Show State"
+                  : pressureNote
+                    ? "Pressure State"
+                    : "Match Texture"}
+              </span>
               <strong>
-                {pressureNote
+                {lifecycle === "season_complete" || lifecycle === "matchday_complete"
+                  ? formatLifecycleLabel(lifecycle)
+                  : pressureNote
                   ? `${(scoreboard?.pressure_tone ?? "live").replace(/^\w/, (char) => char.toUpperCase())} pressure`
                   : `${goals} goals`}
               </strong>
               <p>
-                {pressureNote
+                {lifecycle === "season_complete" || lifecycle === "matchday_complete"
+                  ? resultImpact
+                  : pressureNote
                   ? pressureSummary
                   : `${chances} key chances, ${cards} cards, and ${injuries} injuries have shaped the current feed.`}
               </p>
@@ -105,11 +122,11 @@ export default function DashboardPage() {
             </article>
 
             <article className="glass-card story-card">
-              <span className="story-card-label">Table Heat</span>
-              <strong>{tableHeat}</strong>
+              <span className="story-card-label">Table Consequence</span>
+              <strong>{leader ? `Leader ${leader.team}` : "Standings waiting"}</strong>
               <p>
-                <Link href="/league">Open the full league table</Link> to follow the pressure building
-                above and below the line.
+                {tableHeat} {dangerSummary} <Link href="/league">Open the full league table</Link> to follow the pressure
+                building above and below the line.
               </p>
             </article>
           </div>
@@ -153,6 +170,7 @@ export default function DashboardPage() {
             stats={matchPlayerStats}
             homeTeam={scoreboard?.home_team}
             awayTeam={scoreboard?.away_team}
+            leaders={leaders}
           />
           <StreamLeagueTable rows={table} />
         </div>

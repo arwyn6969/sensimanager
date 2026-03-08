@@ -1,11 +1,17 @@
 "use client";
 
-import type { StreamMatchPlayerStats, StreamPlayerMatchStat } from "@/lib/stream";
+import type {
+  StreamLeaderEntry,
+  StreamLeaders,
+  StreamMatchPlayerStats,
+  StreamPlayerMatchStat,
+} from "@/lib/stream";
 
 interface MatchPlayerStatsPanelProps {
   stats: StreamMatchPlayerStats | null;
   homeTeam?: string;
   awayTeam?: string;
+  leaders?: StreamLeaders | null;
 }
 
 function sortPlayers(players: StreamPlayerMatchStat[]): StreamPlayerMatchStat[] {
@@ -25,14 +31,31 @@ function statusLabel(player: StreamPlayerMatchStat): string {
   return "OK";
 }
 
+function leaderboardSignal(
+  entries: StreamLeaderEntry[],
+  playerName: string,
+  label: string,
+): string | null {
+  const index = entries.findIndex((entry) => entry.display_name === playerName);
+  return index >= 0 ? `#${index + 1} ${label}` : null;
+}
+
 export function MatchPlayerStatsPanel({
   stats,
   homeTeam = "Home",
   awayTeam = "Away",
+  leaders,
 }: MatchPlayerStatsPanelProps) {
   const homePlayers = sortPlayers(stats?.home ?? []).slice(0, 5);
   const awayPlayers = sortPlayers(stats?.away ?? []).slice(0, 5);
   const spotlight = sortPlayers([...(stats?.home ?? []), ...(stats?.away ?? [])])[0] ?? null;
+  const seasonSignals = spotlight
+    ? [
+      leaderboardSignal(leaders?.top_scorers ?? [], spotlight.display_name, "scorer"),
+      leaderboardSignal(leaders?.top_assists ?? [], spotlight.display_name, "assist chart"),
+      leaderboardSignal(leaders?.form_leaders ?? [], spotlight.display_name, "form line"),
+    ].filter((value): value is string => Boolean(value))
+    : [];
 
   return (
     <section className="glass-card broadcast-panel">
@@ -55,6 +78,7 @@ export function MatchPlayerStatsPanel({
             </strong>
             <p>
               {spotlight.goals} goals · {spotlight.assists} assists · {statusLabel(spotlight)}
+              {seasonSignals.length > 0 ? ` · ${seasonSignals.join(" · ")}` : ""}
             </p>
           </article>
 

@@ -1,5 +1,7 @@
 # SWOS420 Base Mainnet Launch Checklist 🚀
 
+> Archival note: this checklist belongs to the earlier chain-launch plan and is not part of the active watch-first MVP tranche on `codex/watch-experience`. Keep it as legacy context only. For current implementation truth, use [`WATCH_MATCH_INTELLIGENCE_AUDIT.md`](/Users/arwynhughes/Documents/Sensible%20Manager/docs/WATCH_MATCH_INTELLIGENCE_AUDIT.md) and [`NEXT_STEPS_MASTER_PLAN.md`](/Users/arwynhughes/Documents/Sensible%20Manager/docs/NEXT_STEPS_MASTER_PLAN.md).
+
 ## Pre-Deploy
 
 - [ ] **Audit**: All 4 contracts reviewed (SWOSPlayerNFT, SENSIToken, TransferMarket, LeagueManager)
