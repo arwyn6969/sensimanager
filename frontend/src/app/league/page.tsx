@@ -1,5 +1,6 @@
 "use client";
 
+import { MatchdayRecapPanel } from "@/components/MatchdayRecapPanel";
 import { StreamCommentaryPanel } from "@/components/StreamCommentaryPanel";
 import { StreamLeagueTable } from "@/components/StreamLeagueTable";
 import { SeasonLeadersPanel } from "@/components/SeasonLeadersPanel";
@@ -12,7 +13,7 @@ import {
 } from "@/lib/stream";
 
 export default function LeaguePage() {
-  const { table, events, leaders, connection, sessionId } = useStreamState();
+  const { scoreboard, table, events, leaders, session, connection, sessionId } = useStreamState();
   const lines = normalizeEventLines(events?.lines ?? []);
   const xgLine = events?.summary?.xg ?? findSummaryLine(lines, "xG:");
   const goals = lines.filter((line) => classifyEventLine(line) === "goal").length;
@@ -57,6 +58,8 @@ export default function LeaguePage() {
           <p>The bottom of the table should look consequential, not decorative.</p>
         </article>
       </div>
+
+      <MatchdayRecapPanel session={session} connection={connection} scoreboard={scoreboard} />
 
       <div className="watch-grid">
         <StreamLeagueTable

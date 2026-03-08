@@ -252,6 +252,48 @@ body {
   color: rgba(255, 255, 255, 0.66);
 }
 
+#session-strip {
+  position: absolute;
+  top: 116px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 1080px;
+  padding: 12px 18px;
+  display: grid;
+  grid-template-columns: 180px 180px minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+  z-index: 18;
+}
+
+.session-cell {
+  min-width: 0;
+  padding: 10px 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.session-cell-label {
+  display: block;
+  margin-bottom: 8px;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.42);
+}
+
+.session-cell-copy {
+  display: block;
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.94);
+  text-wrap: balance;
+}
+
 #scoreboard {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
@@ -715,6 +757,25 @@ body {
     </div>
   </div>
 
+  <div id="session-strip" class="glass">
+    <div class="session-cell">
+      <span class="session-cell-label">State</span>
+      <span class="session-cell-copy" id="session-state-copy">Awaiting Feed</span>
+    </div>
+    <div class="session-cell">
+      <span class="session-cell-label">Progress</span>
+      <span class="session-cell-copy" id="session-progress-copy">Match Centre</span>
+    </div>
+    <div class="session-cell">
+      <span class="session-cell-label">Just Happened</span>
+      <span class="session-cell-copy" id="session-last-copy">The latest result will appear here.</span>
+    </div>
+    <div class="session-cell">
+      <span class="session-cell-label">Up Next</span>
+      <span class="session-cell-copy" id="session-next-copy">Start the runner to queue the next fixture.</span>
+    </div>
+  </div>
+
   <div id="story-ribbon" class="glass panel-shell panel-collapsible">
     <div class="panel-tools">
       <button class="panel-button" data-panel-toggle type="button">−</button>
@@ -780,6 +841,7 @@ let prevAwayGoals = -1;
 let scoreboardState = null;
 let commentaryState = null;
 let tableState = null;
+let sessionState = null;
 let panelZCounter = 40;
 let panelSettings = {};
 
@@ -952,6 +1014,13 @@ function parseTimestamp(value) {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function normalizeLifecycleState(value) {
+  const normalized = String(value || "").toLowerCase();
+  if (normalized === "ht") return "halftime";
+  if (normalized === "ft") return "fulltime";
+  return normalized;
+}
+
 function currentTableRows(data = tableState) {
   if (!data) return [];
   return Array.isArray(data) ? data : data.rows || [];
@@ -963,11 +1032,12 @@ function currentTableMeta(data = tableState) {
 }
 
 function currentSessionId() {
-  return scoreboardState?.session_id || commentaryState?.session_id || currentTableMeta()?.session_id || "";
+  return sessionState?.session_id || scoreboardState?.session_id || commentaryState?.session_id || currentTableMeta()?.session_id || "";
 }
 
 function getFeedFreshness(now = Date.now()) {
   const updatedAt = [
+    parseTimestamp(sessionState?.updated_at),
     parseTimestamp(scoreboardState?.updated_at),
     parseTimestamp(commentaryState?.updated_at),
     parseTimestamp(currentTableMeta()?.updated_at),
@@ -1024,6 +1094,9 @@ function buildEventKey(event) {
 }
 
 function buildIdentityLine(data) {
+  if (!data) {
+    return "Formation and style context appears when the live match feed is active.";
+  }
   const homeFormation = data.home_formation || "4-4-2";
   const awayFormation = data.away_formation || "4-4-2";
   const homeStyle = data.home_style || "balanced shape";
@@ -1031,10 +1104,41 @@ function buildIdentityLine(data) {
   return `${data.home_team || "Home"} ${homeFormation} · ${homeStyle} | ${data.away_team || "Away"} ${awayFormation} · ${awayStyle}`;
 }
 
+function buildFixtureTitle(fixture) {
+  if (!fixture) return "Waiting";
+  return `${fixture.home_team || "Home"} vs ${fixture.away_team || "Away"}`;
+}
+
+function buildFixtureSummary(fixture) {
+  if (!fixture) return "Waiting for the next fixture.";
+  return fixture.pressure_note || fixture.narrative || `${fixture.home_team || "Home"} ${fixture.home_formation || "4-4-2"} · ${fixture.home_style || "balanced shape"} vs ${fixture.away_team || "Away"} ${fixture.away_formation || "4-4-2"} · ${fixture.away_style || "balanced shape"}`;
+}
+
+function buildResultSummary(result) {
+  if (!result) return "The latest result will appear here.";
+  return result.table_note || result.xg || result.summary || `${result.home_team || "Home"} ${result.home_goals ?? 0} - ${result.away_goals ?? 0} ${result.away_team || "Away"}`;
+}
+
 function effectiveStatus(freshness = getFeedFreshness()) {
-  return freshness.connection === "live"
-    ? String(scoreboardState?.status || "").toLowerCase()
-    : freshness.connection;
+  if (freshness.connection !== "live") {
+    return freshness.connection;
+  }
+
+  const sessionStatus = normalizeLifecycleState(sessionState?.session_state);
+  if (
+    sessionStatus === "between_matches"
+    || sessionStatus === "matchday_complete"
+    || sessionStatus === "season_complete"
+  ) {
+    return sessionStatus;
+  }
+
+  const scoreboardStatus = normalizeLifecycleState(scoreboardState?.status);
+  if (scoreboardStatus) {
+    return scoreboardStatus;
+  }
+
+  return sessionStatus || freshness.connection;
 }
 
 function stripMinuteSuffix(text) {
@@ -1062,7 +1166,15 @@ function feedLabel(eventType) {
 
 function overlayModeForStatus(status) {
   if (status === "live" || status === "prematch") return "overlay-live";
-  if (status === "halftime" || status === "ht" || status === "fulltime" || status === "ft") return "overlay-break";
+  if (
+    status === "halftime"
+    || status === "ht"
+    || status === "fulltime"
+    || status === "ft"
+    || status === "between_matches"
+    || status === "matchday_complete"
+    || status === "season_complete"
+  ) return "overlay-break";
   if (status === "stale") return "overlay-stale";
   return "overlay-idle";
 }
@@ -1081,6 +1193,15 @@ function renderStoryState() {
     if (rawStatus === "live" || rawStatus === "prematch") {
       ribbonLabel = "What To Watch";
       ribbonText = scoreboardState.match_narrative || buildIdentityLine(scoreboardState);
+    } else if (rawStatus === "between_matches") {
+      ribbonLabel = "Up Next";
+      ribbonText = buildFixtureSummary(sessionState?.next_fixture);
+    } else if (rawStatus === "matchday_complete") {
+      ribbonLabel = "Matchday Complete";
+      ribbonText = buildResultSummary(sessionState?.last_result);
+    } else if (rawStatus === "season_complete") {
+      ribbonLabel = "Season Complete";
+      ribbonText = buildResultSummary(sessionState?.last_result);
     } else if (rawStatus === "halftime" || rawStatus === "ht") {
       ribbonLabel = "Half-Time";
       ribbonText = scoreboardState.pressure_note || scoreboardState.story || scoreboardState.match_narrative || buildIdentityLine(scoreboardState);
@@ -1147,6 +1268,24 @@ function setStatus(status) {
     statusChip.textContent = "Live Match";
     liveText.textContent = "Live";
     clock.style.color = "#00e676";
+  } else if (status === "between_matches") {
+    statusChip.textContent = "Between Matches";
+    statusChip.classList.add("settled");
+    liveIndicator.classList.add("dormant");
+    liveText.textContent = "Next Up";
+    clock.style.color = "#ffd740";
+  } else if (status === "matchday_complete") {
+    statusChip.textContent = "Matchday Complete";
+    statusChip.classList.add("settled");
+    liveIndicator.classList.add("dormant");
+    liveText.textContent = "Slate Settled";
+    clock.style.color = "#ffd740";
+  } else if (status === "season_complete") {
+    statusChip.textContent = "Season Complete";
+    statusChip.classList.add("settled");
+    liveIndicator.classList.add("dormant");
+    liveText.textContent = "Season Closed";
+    clock.style.color = "#ffd740";
   } else if (status === "stale") {
     statusChip.textContent = "Feed Stale";
     statusChip.classList.add("stale");
@@ -1180,14 +1319,47 @@ function setStatus(status) {
   }
 }
 
+function renderSessionStrip(freshness = getFeedFreshness()) {
+  const stateCopy = document.getElementById("session-state-copy");
+  const progressCopy = document.getElementById("session-progress-copy");
+  const lastCopy = document.getElementById("session-last-copy");
+  const nextCopy = document.getElementById("session-next-copy");
+  const lifecycle = effectiveStatus(freshness);
+
+  stateCopy.textContent = (() => {
+    if (lifecycle === "prematch") return "Kickoff Soon";
+    if (lifecycle === "live") return "Live Match";
+    if (lifecycle === "halftime" || lifecycle === "ht") return "Half Time";
+    if (lifecycle === "fulltime" || lifecycle === "ft") return "Full Time";
+    if (lifecycle === "between_matches") return "Between Matches";
+    if (lifecycle === "matchday_complete") return "Matchday Complete";
+    if (lifecycle === "season_complete") return "Season Complete";
+    if (lifecycle === "stale") return "Feed Stale";
+    return "Feed Offline";
+  })();
+
+  progressCopy.textContent = sessionState?.matchday
+    ? `MD ${sessionState.matchday}${sessionState.fixture_index && sessionState.fixtures_in_matchday ? ` · ${sessionState.fixture_index}/${sessionState.fixtures_in_matchday}` : ""}`
+    : "Match Centre";
+  lastCopy.textContent = buildResultSummary(sessionState?.last_result);
+  nextCopy.textContent = buildFixtureTitle(sessionState?.next_fixture) === "Waiting"
+    ? "Start the runner to queue the next fixture."
+    : `${buildFixtureTitle(sessionState?.next_fixture)} · ${buildFixtureSummary(sessionState?.next_fixture)}`;
+}
+
 function refreshFeedChrome() {
   const freshness = getFeedFreshness();
   const currentStatus = effectiveStatus(freshness);
+  const roundChip = document.getElementById("round-chip");
 
   setStatus(currentStatus);
+  renderSessionStrip(freshness);
+  roundChip.textContent = sessionState?.matchday
+    ? `MD ${sessionState.matchday}${sessionState.fixture_index && sessionState.fixtures_in_matchday ? ` · ${sessionState.fixture_index}/${sessionState.fixtures_in_matchday}` : ""}`
+    : "Match Centre";
 
   const matchMeta = document.getElementById("match-meta");
-  if (!scoreboardState) {
+  if (!scoreboardState && !sessionState) {
     matchMeta.textContent = "The overlay reacts to scoreboard, table, and event JSON updates.";
     renderStoryState();
     renderFeedState(freshness);
@@ -1195,8 +1367,10 @@ function refreshFeedChrome() {
   }
 
   const parts = [
-    `${scoreboardState.home_team || "Home"} ${scoreboardState.home_goals ?? 0} - ${scoreboardState.away_goals ?? 0} ${scoreboardState.away_team || "Away"}`,
-    `${scoreboardState.weather || "dry"} conditions`,
+    scoreboardState
+      ? `${scoreboardState.home_team || "Home"} ${scoreboardState.home_goals ?? 0} - ${scoreboardState.away_goals ?? 0} ${scoreboardState.away_team || "Away"}`
+      : buildFixtureTitle(sessionState?.current_fixture || sessionState?.next_fixture),
+    `${scoreboardState?.weather || "dry"} conditions`,
     formatFeedFreshness(freshness),
   ];
   const sessionId = currentSessionId();
@@ -1252,14 +1426,16 @@ async function updateScoreboard() {
   else if (status === "fulltime" || status === "ft") clock.textContent = "FT";
   else if (status === "halftime" || status === "ht") clock.textContent = "HT";
   else clock.textContent = `${data.minute || 0}'`;
-
-  document.getElementById("round-chip").textContent = data.matchday
-    ? `MD ${data.matchday} · ${status === "fulltime" || status === "ft" ? "FT" : `${data.minute || 0}'`}`
-    : `Minute ${data.minute || 0}`;
   document.getElementById("match-style-meta").textContent = buildIdentityLine(data);
 
   refreshFeedChrome();
   syncEngine();
+}
+
+async function updateSession() {
+  const data = await fetchJSON("session.json");
+  if (!data) return;
+  sessionState = data;
 }
 
 async function updateTable() {
@@ -1329,7 +1505,25 @@ function renderFeedState(freshness = getFeedFreshness()) {
   } else if (status === "prematch") {
     heading = "What To Watch";
     minute = "PRE";
-    message = scoreboardState?.match_narrative || buildIdentityLine(scoreboardState) || "Kickoff is about to begin.";
+    message = scoreboardState?.match_narrative || buildFixtureSummary(sessionState?.current_fixture) || buildIdentityLine(scoreboardState) || "Kickoff is about to begin.";
+  } else if (status === "between_matches") {
+    mode = "break";
+    tone = "break";
+    heading = "Up Next";
+    minute = "NEXT";
+    message = buildFixtureSummary(sessionState?.next_fixture);
+  } else if (status === "matchday_complete") {
+    mode = "break";
+    tone = "break";
+    heading = "Matchday Complete";
+    minute = "DONE";
+    message = buildResultSummary(sessionState?.last_result);
+  } else if (status === "season_complete") {
+    mode = "break";
+    tone = "break";
+    heading = "Season Complete";
+    minute = "DONE";
+    message = buildResultSummary(sessionState?.last_result);
   } else if (status === "halftime" || status === "ht") {
     mode = "break";
     tone = "break";
@@ -1388,6 +1582,7 @@ async function updateCommentary() {
 
 async function poll() {
   await Promise.all([
+    updateSession(),
     updateScoreboard(),
     updateTable(),
     updateCommentary(),

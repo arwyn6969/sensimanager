@@ -4,6 +4,7 @@ import Link from "next/link";
 
 import { MatchCentre } from "@/components/MatchCentre";
 import { MatchPlayerStatsPanel } from "@/components/MatchPlayerStatsPanel";
+import { SessionProgressRail } from "@/components/SessionProgressRail";
 import { StreamCommentaryPanel } from "@/components/StreamCommentaryPanel";
 import { StreamLeagueTable } from "@/components/StreamLeagueTable";
 import { useStreamState } from "@/hooks/useStreamState";
@@ -18,7 +19,7 @@ import {
 } from "@/lib/stream";
 
 export default function DashboardPage() {
-  const { scoreboard, events, table, connection, lastUpdated, sessionId } = useStreamState();
+  const { scoreboard, events, table, session, connection, lastUpdated, sessionId } = useStreamState();
   const lines = normalizeEventLines(events?.lines ?? []);
   const pressureNote = scoreboard?.pressure_note ?? null;
   const latestEvent = pressureNote ?? scoreboard?.story ?? events?.latest?.text ?? latestNarrativeLine(lines);
@@ -65,6 +66,8 @@ export default function DashboardPage() {
           </span>
         </div>
       </div>
+
+      <SessionProgressRail session={session} connection={connection} scoreboard={scoreboard} />
 
       <div className="broadcast-home-grid">
         <MatchCentre

@@ -90,6 +90,8 @@ Primary files:
 - `scoreboard.json`
 - `events.json`
 - `table.json`
+- `leaders.json`
+- `session.json`
 
 These are runtime artifacts. They should never be treated as source files.
 

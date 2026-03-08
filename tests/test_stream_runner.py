@@ -132,6 +132,18 @@ def _make_stream_result(
     )
 
 
+def _patch_runtime_paths(base_path: Path):
+    return patch.multiple(
+        stream_league,
+        STREAMING_DIR=base_path,
+        SCOREBOARD_PATH=base_path / "scoreboard.json",
+        EVENTS_PATH=base_path / "events.json",
+        TABLE_PATH=base_path / "table.json",
+        LEADERS_PATH=base_path / "leaders.json",
+        SESSION_PATH=base_path / "session.json",
+    )
+
+
 # ═══════════════════════════════════════════════════════════════════════
 # JSON Output Tests
 # ═══════════════════════════════════════════════════════════════════════
@@ -275,6 +287,32 @@ class TestLeadersJSON:
         data = json.loads(leaders_path.read_text())
         assert data["session_id"] == "seed-420"
         assert data["top_scorers"][0]["display_name"] == "MAN09"
+
+
+class TestSessionJSON:
+    def test_write_session_creates_file(self, tmp_path):
+        session_path = tmp_path / "session.json"
+        payload = {
+            "session_id": "seed-420",
+            "updated_at": "2026-03-07T00:00:00Z",
+            "season_id": "25/26",
+            "matchday": 1,
+            "fixture_index": 1,
+            "fixtures_in_matchday": 2,
+            "session_state": "between_matches",
+            "current_fixture": None,
+            "last_result": {"summary": "Chelsea 1 - 1 Liverpool"},
+            "next_fixture": {"home_team": "Man City", "away_team": "Arsenal"},
+            "recent_results": [],
+            "matchday_slate": [],
+        }
+
+        with patch.object(stream_league, "SESSION_PATH", session_path):
+            stream_league.write_session(payload)
+
+        data = json.loads(session_path.read_text())
+        assert data["session_state"] == "between_matches"
+        assert data["last_result"]["summary"] == "Chelsea 1 - 1 Liverpool"
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -475,11 +513,7 @@ class TestPressureHooks:
 class TestRunStream:
     def test_dry_run_completes(self, tmp_path):
         """A dry-run with 4 teams and 1 season should complete and return results."""
-        with patch.object(stream_league, "STREAMING_DIR", tmp_path), \
-             patch.object(stream_league, "SCOREBOARD_PATH", tmp_path / "scoreboard.json"), \
-             patch.object(stream_league, "EVENTS_PATH", tmp_path / "events.json"), \
-             patch.object(stream_league, "TABLE_PATH", tmp_path / "table.json"), \
-             patch.object(stream_league, "LEADERS_PATH", tmp_path / "leaders.json"):
+        with _patch_runtime_paths(tmp_path):
             results = stream_league.run_stream(
                 seasons=1,
                 num_teams=4,
@@ -497,26 +531,20 @@ class TestRunStream:
         events_path = tmp_path / "events.json"
         table_path = tmp_path / "table.json"
         leaders_path = tmp_path / "leaders.json"
+        session_path = tmp_path / "session.json"
 
-        with patch.object(stream_league, "STREAMING_DIR", tmp_path), \
-             patch.object(stream_league, "SCOREBOARD_PATH", scoreboard_path), \
-             patch.object(stream_league, "EVENTS_PATH", events_path), \
-             patch.object(stream_league, "TABLE_PATH", table_path), \
-             patch.object(stream_league, "LEADERS_PATH", leaders_path):
+        with _patch_runtime_paths(tmp_path):
             stream_league.run_stream(seasons=1, num_teams=4, pace=0, dry_run=True)
 
         assert scoreboard_path.exists()
         assert events_path.exists()
         assert table_path.exists()
         assert leaders_path.exists()
+        assert session_path.exists()
 
     def test_results_have_valid_scores(self, tmp_path):
         """All matches should have non-negative scores."""
-        with patch.object(stream_league, "STREAMING_DIR", tmp_path), \
-             patch.object(stream_league, "SCOREBOARD_PATH", tmp_path / "scoreboard.json"), \
-             patch.object(stream_league, "EVENTS_PATH", tmp_path / "events.json"), \
-             patch.object(stream_league, "TABLE_PATH", tmp_path / "table.json"), \
-             patch.object(stream_league, "LEADERS_PATH", tmp_path / "leaders.json"):
+        with _patch_runtime_paths(tmp_path):
             results = stream_league.run_stream(seasons=1, num_teams=4, pace=0, dry_run=True)
 
         for r in results:
@@ -524,11 +552,7 @@ class TestRunStream:
             assert r.away_goals >= 0
 
     def test_auto_source_falls_back_to_demo_when_db_missing(self, tmp_path):
-        with patch.object(stream_league, "STREAMING_DIR", tmp_path), \
-             patch.object(stream_league, "SCOREBOARD_PATH", tmp_path / "scoreboard.json"), \
-             patch.object(stream_league, "EVENTS_PATH", tmp_path / "events.json"), \
-             patch.object(stream_league, "TABLE_PATH", tmp_path / "table.json"), \
-             patch.object(stream_league, "LEADERS_PATH", tmp_path / "leaders.json"):
+        with _patch_runtime_paths(tmp_path):
             results = stream_league.run_stream(
                 seasons=1,
                 num_teams=4,
@@ -541,11 +565,7 @@ class TestRunStream:
         assert len(results) == 12
 
     def test_matchdays_limit_truncates_fixture_list(self, tmp_path):
-        with patch.object(stream_league, "STREAMING_DIR", tmp_path), \
-             patch.object(stream_league, "SCOREBOARD_PATH", tmp_path / "scoreboard.json"), \
-             patch.object(stream_league, "EVENTS_PATH", tmp_path / "events.json"), \
-             patch.object(stream_league, "TABLE_PATH", tmp_path / "table.json"), \
-             patch.object(stream_league, "LEADERS_PATH", tmp_path / "leaders.json"):
+        with _patch_runtime_paths(tmp_path):
             results = stream_league.run_stream(
                 seasons=1,
                 num_teams=4,
@@ -559,18 +579,14 @@ class TestRunStream:
         assert len(results) == 4
 
     def test_seeded_dry_run_is_deterministic(self, tmp_path):
-        def run_once(run_dir: Path) -> tuple[list[tuple], dict, dict, dict]:
+        def run_once(run_dir: Path) -> tuple[list[tuple], dict, dict, dict, dict]:
             run_dir.mkdir()
             scoreboard_path = run_dir / "scoreboard.json"
             events_path = run_dir / "events.json"
             table_path = run_dir / "table.json"
-            leaders_path = run_dir / "leaders.json"
+            session_path = run_dir / "session.json"
 
-            with patch.object(stream_league, "STREAMING_DIR", run_dir), \
-                 patch.object(stream_league, "SCOREBOARD_PATH", scoreboard_path), \
-                 patch.object(stream_league, "EVENTS_PATH", events_path), \
-                 patch.object(stream_league, "TABLE_PATH", table_path), \
-                 patch.object(stream_league, "LEADERS_PATH", leaders_path):
+            with _patch_runtime_paths(run_dir):
                 results = stream_league.run_stream(
                     seasons=1,
                     num_teams=4,
@@ -586,25 +602,23 @@ class TestRunStream:
                 json.loads(scoreboard_path.read_text()),
                 json.loads(events_path.read_text()),
                 json.loads(table_path.read_text()),
+                json.loads(session_path.read_text()),
             )
 
-        first_results, first_scoreboard, first_events, first_table = run_once(tmp_path / "run-one")
-        second_results, second_scoreboard, second_events, second_table = run_once(tmp_path / "run-two")
+        first_results, first_scoreboard, first_events, first_table, first_session = run_once(tmp_path / "run-one")
+        second_results, second_scoreboard, second_events, second_table, second_session = run_once(tmp_path / "run-two")
 
         assert first_results == second_results
         assert first_scoreboard["session_id"] == second_scoreboard["session_id"]
         assert first_events["session_id"] == second_events["session_id"]
         assert first_table["meta"]["session_id"] == second_table["meta"]["session_id"]
+        assert first_session["session_id"] == second_session["session_id"]
         assert first_scoreboard["home_formation"] == second_scoreboard["home_formation"]
         assert first_scoreboard["away_style"] == second_scoreboard["away_style"]
         assert first_scoreboard["updated_at"] != second_scoreboard["updated_at"]
 
     def test_dry_run_produces_varied_identity_combinations(self, tmp_path):
-        with patch.object(stream_league, "STREAMING_DIR", tmp_path), \
-             patch.object(stream_league, "SCOREBOARD_PATH", tmp_path / "scoreboard.json"), \
-             patch.object(stream_league, "EVENTS_PATH", tmp_path / "events.json"), \
-             patch.object(stream_league, "TABLE_PATH", tmp_path / "table.json"), \
-             patch.object(stream_league, "LEADERS_PATH", tmp_path / "leaders.json"):
+        with _patch_runtime_paths(tmp_path):
             results = stream_league.run_stream(
                 seasons=1,
                 num_teams=4,
@@ -624,11 +638,7 @@ class TestRunStream:
         assert len(identity_combos) >= 3
 
     def test_seeded_six_team_review_matrix_includes_balanced_and_avoids_runaway_scores(self, tmp_path):
-        with patch.object(stream_league, "STREAMING_DIR", tmp_path), \
-             patch.object(stream_league, "SCOREBOARD_PATH", tmp_path / "scoreboard.json"), \
-             patch.object(stream_league, "EVENTS_PATH", tmp_path / "events.json"), \
-             patch.object(stream_league, "TABLE_PATH", tmp_path / "table.json"), \
-             patch.object(stream_league, "LEADERS_PATH", tmp_path / "leaders.json"):
+        with _patch_runtime_paths(tmp_path):
             results = stream_league.run_stream(
                 seasons=1,
                 num_teams=6,
@@ -644,3 +654,50 @@ class TestRunStream:
 
         assert "balanced shape" in styles
         assert max_team_goals <= 4
+
+    def test_dry_run_writes_session_summary_with_recent_results_and_next_fixture(self, tmp_path):
+        with _patch_runtime_paths(tmp_path):
+            stream_league.run_stream(
+                seasons=1,
+                num_teams=4,
+                matchdays=2,
+                pace=0,
+                dry_run=True,
+                source="demo",
+                seed=420,
+            )
+
+        session = json.loads((tmp_path / "session.json").read_text())
+
+        assert session["session_state"] == "season_complete"
+        assert session["last_result"]["summary"].startswith("Liverpool 1 - 0 Man City")
+        assert session["next_fixture"] is None
+        assert len(session["recent_results"]) == 2
+        assert len(session["matchday_slate"]) == 2
+        assert all(entry["status"] == "completed" for entry in session["matchday_slate"])
+
+    def test_session_lifecycle_includes_between_matches_and_season_complete(self, tmp_path):
+        captured_states: list[str] = []
+        original_write_session = stream_league.write_session
+
+        def capture_session(payload: dict) -> None:
+            captured_states.append(payload["session_state"])
+            original_write_session(payload)
+
+        with _patch_runtime_paths(tmp_path), \
+             patch.object(stream_league, "write_session", side_effect=capture_session):
+            stream_league.run_stream(
+                seasons=1,
+                num_teams=4,
+                matchdays=1,
+                pace=0,
+                dry_run=True,
+                source="demo",
+                seed=420,
+            )
+
+        assert "prematch" in captured_states
+        assert "live" in captured_states
+        assert "fulltime" in captured_states
+        assert "between_matches" in captured_states
+        assert captured_states[-1] == "season_complete"

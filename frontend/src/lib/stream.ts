@@ -114,9 +114,68 @@ export interface StreamLeaders {
   form_leaders: StreamLeaderEntry[];
 }
 
+export interface StreamSessionFixture {
+  matchday: number;
+  fixture_index: number;
+  home_team: string;
+  away_team: string;
+  home_formation?: string;
+  away_formation?: string;
+  home_style?: string;
+  away_style?: string;
+  narrative?: string;
+  pressure_note?: string;
+}
+
+export interface StreamSessionResult {
+  matchday: number;
+  fixture_index: number;
+  home_team: string;
+  away_team: string;
+  home_goals: number;
+  away_goals: number;
+  winner?: string;
+  summary: string;
+  table_note?: string;
+  xg?: string;
+  motm?: string;
+}
+
+export interface StreamMatchdayFixture extends StreamSessionFixture {
+  status: "completed" | "current" | "upcoming";
+  home_goals?: number;
+  away_goals?: number;
+  summary?: string;
+  table_note?: string;
+}
+
+export interface StreamSession {
+  session_id?: string;
+  updated_at?: string;
+  season_id?: string;
+  matchday?: number;
+  fixture_index?: number | null;
+  fixtures_in_matchday?: number;
+  session_state?: string;
+  current_fixture?: StreamSessionFixture | null;
+  last_result?: StreamSessionResult | null;
+  next_fixture?: StreamSessionFixture | null;
+  recent_results: StreamSessionResult[];
+  matchday_slate?: StreamMatchdayFixture[];
+}
+
 export const STREAM_RUNTIME_DIR = "runtime";
 export const STREAM_STALE_AFTER_MS = 8_000;
 export type StreamConnection = "live" | "stale" | "offline";
+export type StreamLifecycleState =
+  | StreamConnection
+  | "prematch"
+  | "live"
+  | "halftime"
+  | "fulltime"
+  | "between_matches"
+  | "matchday_complete"
+  | "season_complete";
 
 export function makeStreamUrl(baseUrl: string, path: string): string {
   const cleanBase = baseUrl.replace(/\/$/, "");
@@ -270,6 +329,87 @@ export function formatStatusLabel(status?: string): string {
     default:
       return "Awaiting Feed";
   }
+}
+
+export function normalizeLifecycleState(value?: string | null): string {
+  const normalized = String(value ?? "").toLowerCase();
+  if (normalized === "ht") return "halftime";
+  if (normalized === "ft") return "fulltime";
+  return normalized;
+}
+
+export function deriveLifecycleState(
+  session: StreamSession | null,
+  connection: StreamConnection,
+  scoreboard?: StreamScoreboard | null,
+): StreamLifecycleState {
+  if (connection === "stale" || connection === "offline") {
+    return connection;
+  }
+
+  const sessionState = normalizeLifecycleState(session?.session_state);
+  if (
+    sessionState === "between_matches"
+    || sessionState === "matchday_complete"
+    || sessionState === "season_complete"
+  ) {
+    return sessionState;
+  }
+
+  const scoreboardState = normalizeLifecycleState(scoreboard?.status);
+  if (
+    scoreboardState === "live"
+    || scoreboardState === "prematch"
+    || scoreboardState === "halftime"
+    || scoreboardState === "fulltime"
+  ) {
+    return scoreboardState;
+  }
+
+  if (sessionState === "live" || sessionState === "prematch" || sessionState === "fulltime") {
+    return sessionState;
+  }
+
+  return "offline";
+}
+
+export function formatLifecycleLabel(state: StreamLifecycleState): string {
+  switch (state) {
+    case "prematch":
+      return "Kickoff Soon";
+    case "live":
+      return "Live Match";
+    case "halftime":
+      return "Half Time";
+    case "fulltime":
+      return "Full Time";
+    case "between_matches":
+      return "Between Matches";
+    case "matchday_complete":
+      return "Matchday Complete";
+    case "season_complete":
+      return "Season Complete";
+    case "stale":
+      return "Feed Stale";
+    default:
+      return "Feed Offline";
+  }
+}
+
+export function formatFixtureSummary(fixture?: StreamSessionFixture | null): string {
+  if (!fixture) {
+    return "Waiting for the next fixture.";
+  }
+
+  return `${fixture.home_team} ${fixture.home_formation ?? "4-4-2"} · ${fixture.home_style ?? "balanced shape"} vs ${fixture.away_team} ${fixture.away_formation ?? "4-4-2"} · ${fixture.away_style ?? "balanced shape"}`;
+}
+
+export function formatResultSummary(result?: StreamSessionResult | null): string {
+  if (!result) {
+    return "No result has landed yet.";
+  }
+
+  return result.summary || `${result.home_team} ${result.home_goals} - ${result.away_goals} ${result.away_team}`;
 }
 
 export function formatClock(scoreboard?: StreamScoreboard | null): string {

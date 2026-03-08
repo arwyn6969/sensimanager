@@ -50,6 +50,7 @@ SCOREBOARD_PATH = RUNTIME_DIR / "scoreboard.json"
 EVENTS_PATH = RUNTIME_DIR / "events.json"
 TABLE_PATH = RUNTIME_DIR / "table.json"
 LEADERS_PATH = RUNTIME_DIR / "leaders.json"
+SESSION_PATH = RUNTIME_DIR / "session.json"
 
 ATTACKING_POSITIONS = {"ST", "CF", "SS", "LW", "RW"}
 MIDFIELD_POSITIONS = {"CM", "CAM", "AM", "RM", "LM", "CDM"}
@@ -75,6 +76,18 @@ DEMO_ARCHETYPES = [
     {"key": "wide", "formation": "3-4-3"},
     {"key": "balanced", "formation": "4-2-3-1"},
 ]
+STYLE_DISPLAY_NAMES = {
+    "balanced": "balanced shape",
+    "balanced shape": "balanced shape",
+    "compact": "compact defending",
+    "compact defending": "compact defending",
+    "direct": "direct transition",
+    "direct transition": "direct transition",
+    "patient possession": "patient possession",
+    "possession": "patient possession",
+    "wide": "wing-heavy attacks",
+    "wing-heavy attacks": "wing-heavy attacks",
+}
 
 
 def _utc_timestamp() -> str:
@@ -596,6 +609,11 @@ def write_leaders(payload: dict[str, Any]) -> None:
     _write_runtime_json(LEADERS_PATH, payload)
 
 
+def write_session(payload: dict[str, Any]) -> None:
+    """Write session flow state to JSON for frontend/overlay consumption."""
+    _write_runtime_json(SESSION_PATH, payload)
+
+
 def stream_commentary(
     lines: list[str],
     pace: float,
@@ -703,6 +721,214 @@ def _leaders_payload(
             selector=lambda player: player.form,
             minimum=-50,
         ),
+    }
+
+
+def _style_display_name(style: str) -> str:
+    normalized = str(style or "balanced").strip().lower().replace("_", " ")
+    return STYLE_DISPLAY_NAMES.get(normalized, normalized)
+
+
+def _scheduled_fixture_payload(
+    *,
+    home_name: str,
+    away_name: str,
+    matchday_idx: int,
+    fixture_index: int,
+    team_formations: dict[str, str],
+    team_styles: dict[str, str],
+    narrative: str | None = None,
+    pressure_note: str | None = None,
+) -> dict[str, Any]:
+    home_formation = team_formations.get(home_name, "4-4-2")
+    away_formation = team_formations.get(away_name, "4-4-2")
+    home_style = _style_display_name(team_styles.get(home_name, "balanced"))
+    away_style = _style_display_name(team_styles.get(away_name, "balanced"))
+    return {
+        "matchday": matchday_idx,
+        "fixture_index": fixture_index,
+        "home_team": home_name,
+        "away_team": away_name,
+        "home_formation": home_formation,
+        "away_formation": away_formation,
+        "home_style": home_style,
+        "away_style": away_style,
+        "narrative": narrative or f"{home_name} bring {home_style}; {away_name} answer with {away_style}.",
+        "pressure_note": pressure_note or "",
+    }
+
+
+def _live_fixture_payload(
+    *,
+    result: MatchResult,
+    matchday_idx: int,
+    fixture_index: int,
+    pressure_note: str | None = None,
+) -> dict[str, Any]:
+    return {
+        "matchday": matchday_idx,
+        "fixture_index": fixture_index,
+        "home_team": result.home_team,
+        "away_team": result.away_team,
+        "home_formation": result.home_formation,
+        "away_formation": result.away_formation,
+        "home_style": _style_display_name(result.home_style),
+        "away_style": _style_display_name(result.away_style),
+        "narrative": result.match_narrative or (
+            f"{result.home_team} bring {_style_display_name(result.home_style)}; "
+            f"{result.away_team} answer with {_style_display_name(result.away_style)}."
+        ),
+        "pressure_note": pressure_note or "",
+    }
+
+
+def _result_payload(
+    *,
+    result: MatchResult,
+    matchday_idx: int,
+    fixture_index: int,
+    table_note: str | None = None,
+    summary: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    summary = summary or {}
+    return {
+        "matchday": matchday_idx,
+        "fixture_index": fixture_index,
+        "home_team": result.home_team,
+        "away_team": result.away_team,
+        "home_goals": result.home_goals,
+        "away_goals": result.away_goals,
+        "winner": result.winner,
+        "summary": result.scoreline(),
+        "table_note": table_note or "",
+        "xg": summary.get("xg") or f"xG: {result.home_team} {result.home_xg:.2f} - {result.away_xg:.2f} {result.away_team}",
+        "motm": summary.get("motm", ""),
+    }
+
+
+def _recent_results_payload(
+    completed_results: list[tuple[int, MatchResult, str | None]],
+    *,
+    matchday_idx: int,
+) -> list[dict[str, Any]]:
+    payload: list[dict[str, Any]] = []
+    for fixture_index, result, table_note in reversed(completed_results):
+        payload.append(
+            _result_payload(
+                result=result,
+                matchday_idx=matchday_idx,
+                fixture_index=fixture_index,
+                table_note=table_note,
+            )
+        )
+    return payload
+
+
+def _next_fixture_payload(
+    fixtures: list[list[tuple[str, str]]],
+    *,
+    matchday_idx: int,
+    fixture_index: int,
+    team_formations: dict[str, str],
+    team_styles: dict[str, str],
+) -> dict[str, Any] | None:
+    current_matchday = fixtures[matchday_idx - 1] if 0 < matchday_idx <= len(fixtures) else []
+    if fixture_index < len(current_matchday):
+        home_name, away_name = current_matchday[fixture_index]
+        return _scheduled_fixture_payload(
+            home_name=home_name,
+            away_name=away_name,
+            matchday_idx=matchday_idx,
+            fixture_index=fixture_index + 1,
+            team_formations=team_formations,
+            team_styles=team_styles,
+        )
+
+    if matchday_idx < len(fixtures):
+        home_name, away_name = fixtures[matchday_idx][0]
+        return _scheduled_fixture_payload(
+            home_name=home_name,
+            away_name=away_name,
+            matchday_idx=matchday_idx + 1,
+            fixture_index=1,
+            team_formations=team_formations,
+            team_styles=team_styles,
+        )
+
+    return None
+
+
+def _matchday_slate_payload(
+    matchday: list[tuple[str, str]],
+    *,
+    matchday_idx: int,
+    team_formations: dict[str, str],
+    team_styles: dict[str, str],
+    completed_results: list[tuple[int, MatchResult, str | None]],
+    current_fixture_index: int | None = None,
+    current_result: MatchResult | None = None,
+) -> list[dict[str, Any]]:
+    completed_by_pair = {
+        (result.home_team, result.away_team): (fixture_index, result, table_note)
+        for fixture_index, result, table_note in completed_results
+    }
+    slate: list[dict[str, Any]] = []
+    for fixture_position, (home_name, away_name) in enumerate(matchday, 1):
+        entry = _scheduled_fixture_payload(
+            home_name=home_name,
+            away_name=away_name,
+            matchday_idx=matchday_idx,
+            fixture_index=fixture_position,
+            team_formations=team_formations,
+            team_styles=team_styles,
+        )
+        completed = completed_by_pair.get((home_name, away_name))
+        if completed:
+            _, result, table_note = completed
+            entry.update(
+                {
+                    "status": "completed",
+                    "home_goals": result.home_goals,
+                    "away_goals": result.away_goals,
+                    "summary": result.scoreline(),
+                    "table_note": table_note or "",
+                }
+            )
+        elif fixture_position == current_fixture_index:
+            entry["status"] = "current"
+        else:
+            entry["status"] = "upcoming"
+        slate.append(entry)
+    return slate
+
+
+def _session_payload(
+    *,
+    session_id: str,
+    season_id: str,
+    matchday_idx: int,
+    fixture_index: int | None,
+    fixtures_in_matchday: int,
+    session_state: str,
+    current_fixture: dict[str, Any] | None,
+    last_result: dict[str, Any] | None,
+    next_fixture: dict[str, Any] | None,
+    recent_results: list[dict[str, Any]],
+    matchday_slate: list[dict[str, Any]] | None,
+) -> dict[str, Any]:
+    return {
+        "session_id": session_id,
+        "updated_at": _utc_timestamp(),
+        "season_id": season_id,
+        "matchday": matchday_idx,
+        "fixture_index": fixture_index,
+        "fixtures_in_matchday": fixtures_in_matchday,
+        "session_state": session_state,
+        "current_fixture": current_fixture,
+        "last_result": last_result,
+        "next_fixture": next_fixture,
+        "recent_results": recent_results,
+        "matchday_slate": matchday_slate or [],
     }
 
 
@@ -831,9 +1057,16 @@ def _play_stream_match(
     session_id: str,
     season_id: str,
     matchday_idx: int,
+    fixture_index: int,
+    fixtures_in_matchday: int,
     standings: dict[str, dict],
     fulltime_standings: dict[str, dict],
     source_used: str,
+    next_fixture: dict[str, Any] | None,
+    previous_results: list[tuple[int, MatchResult, str | None]],
+    matchday_schedule: list[tuple[str, str]],
+    team_formations: dict[str, str],
+    team_styles: dict[str, str],
     pace: float,
     match_seconds: float,
     dry_run: bool,
@@ -841,7 +1074,7 @@ def _play_stream_match(
     prematch_pressure_tone: str | None = None,
     fulltime_pressure: str | None = None,
     fulltime_pressure_tone: str | None = None,
-) -> None:
+) -> dict[str, Any]:
     """Play out a streamed match using a structured live timeline."""
     timeline = _inject_pressure_beats(
         commentary_gen.generate_timeline(result),
@@ -849,8 +1082,55 @@ def _play_stream_match(
         prematch_pressure=prematch_pressure,
         fulltime_pressure=fulltime_pressure,
     )
+    summary_payload = _summary_from_beats(result, timeline)
     displayed_beats: list[CommentaryBeat] = []
     minute_sleep = 0.0 if dry_run or match_seconds <= 0 else match_seconds / 90.0
+    prematch_fixture = _live_fixture_payload(
+        result=result,
+        matchday_idx=matchday_idx,
+        fixture_index=fixture_index,
+        pressure_note=prematch_pressure,
+    )
+    fulltime_fixture = _live_fixture_payload(
+        result=result,
+        matchday_idx=matchday_idx,
+        fixture_index=fixture_index,
+        pressure_note=fulltime_pressure,
+    )
+    previous_results_payload = _recent_results_payload(previous_results, matchday_idx=matchday_idx)
+    previous_last_result = previous_results_payload[0] if previous_results_payload else None
+    live_matchday_slate = _matchday_slate_payload(
+        matchday_schedule,
+        matchday_idx=matchday_idx,
+        team_formations=team_formations,
+        team_styles=team_styles,
+        completed_results=previous_results,
+        current_fixture_index=fixture_index,
+        current_result=result,
+    )
+    fulltime_results = previous_results + [(fixture_index, result, fulltime_pressure)]
+    fulltime_recent_results = _recent_results_payload(fulltime_results, matchday_idx=matchday_idx)
+    fulltime_last_result = _result_payload(
+        result=result,
+        matchday_idx=matchday_idx,
+        fixture_index=fixture_index,
+        table_note=fulltime_pressure,
+        summary=summary_payload,
+    )
+    if fulltime_recent_results:
+        fulltime_recent_results[0].update(
+            {
+                "xg": fulltime_last_result["xg"],
+                "motm": fulltime_last_result["motm"],
+            }
+        )
+    fulltime_matchday_slate = _matchday_slate_payload(
+        matchday_schedule,
+        matchday_idx=matchday_idx,
+        team_formations=team_formations,
+        team_styles=team_styles,
+        completed_results=fulltime_results,
+    )
 
     pre_match_beats = [beat for beat in timeline if beat.minute == 0]
     if pre_match_beats:
@@ -871,10 +1151,26 @@ def _play_stream_match(
         pressure_note=prematch_pressure,
         pressure_tone=prematch_pressure_tone,
     )
+    write_session(
+        _session_payload(
+            session_id=session_id,
+            season_id=season_id,
+            matchday_idx=matchday_idx,
+            fixture_index=fixture_index,
+            fixtures_in_matchday=fixtures_in_matchday,
+            session_state="prematch",
+            current_fixture=prematch_fixture,
+            last_result=previous_last_result,
+            next_fixture=next_fixture,
+            recent_results=previous_results_payload,
+            matchday_slate=live_matchday_slate,
+        )
+    )
 
     if not dry_run and pace > 0:
         time.sleep(min(2.0, pace))
 
+    last_session_state = "prematch"
     for minute in range(1, 91):
         minute_beats = [beat for beat in timeline if beat.minute == minute]
         for beat in minute_beats:
@@ -902,6 +1198,25 @@ def _play_stream_match(
             pressure_tone=fulltime_pressure_tone if status == "fulltime" else None,
         )
 
+        session_state = "fulltime" if status == "fulltime" else "live"
+        if session_state != last_session_state:
+            write_session(
+                _session_payload(
+                    session_id=session_id,
+                    season_id=season_id,
+                    matchday_idx=matchday_idx,
+                    fixture_index=fixture_index,
+                    fixtures_in_matchday=fixtures_in_matchday,
+                    session_state=session_state,
+                    current_fixture=fulltime_fixture if session_state == "fulltime" else prematch_fixture,
+                    last_result=fulltime_last_result if session_state == "fulltime" else previous_last_result,
+                    next_fixture=next_fixture,
+                    recent_results=fulltime_recent_results if session_state == "fulltime" else previous_results_payload,
+                    matchday_slate=fulltime_matchday_slate if session_state == "fulltime" else live_matchday_slate,
+                )
+            )
+            last_session_state = session_state
+
         if not dry_run and minute_sleep > 0:
             sleep_time = minute_sleep * (2.0 if status == "halftime" else 1.0)
             time.sleep(sleep_time)
@@ -919,6 +1234,7 @@ def _play_stream_match(
         pressure_note=fulltime_pressure,
         pressure_tone=fulltime_pressure_tone,
     )
+    return fulltime_last_result
 
 
 def run_stream(
@@ -991,11 +1307,66 @@ def run_stream(
                 matchday_idx=0,
             )
         )
+        if fixtures:
+            first_home, first_away = fixtures[0][0]
+            write_session(
+                _session_payload(
+                    session_id=session_id,
+                    season_id=season_id,
+                    matchday_idx=1,
+                    fixture_index=1,
+                    fixtures_in_matchday=len(fixtures[0]),
+                    session_state="prematch",
+                    current_fixture=_scheduled_fixture_payload(
+                        home_name=first_home,
+                        away_name=first_away,
+                        matchday_idx=1,
+                        fixture_index=1,
+                        team_formations=team_formations,
+                        team_styles=team_styles,
+                    ),
+                    last_result=None,
+                    next_fixture=_next_fixture_payload(
+                        fixtures,
+                        matchday_idx=1,
+                        fixture_index=1,
+                        team_formations=team_formations,
+                        team_styles=team_styles,
+                    ),
+                    recent_results=[],
+                    matchday_slate=_matchday_slate_payload(
+                        fixtures[0],
+                        matchday_idx=1,
+                        team_formations=team_formations,
+                        team_styles=team_styles,
+                        completed_results=[],
+                        current_fixture_index=1,
+                    ),
+                )
+            )
+        else:
+            write_session(
+                _session_payload(
+                    session_id=session_id,
+                    season_id=season_id,
+                    matchday_idx=0,
+                    fixture_index=None,
+                    fixtures_in_matchday=0,
+                    session_state="season_complete",
+                    current_fixture=None,
+                    last_result=None,
+                    next_fixture=None,
+                    recent_results=[],
+                    matchday_slate=[],
+                )
+            )
 
         for matchday_idx, matchday in enumerate(fixtures, 1):
             print(f"\n--- Matchday {matchday_idx} ---\n")
+            fixtures_in_matchday = len(matchday)
+            matchday_results: list[tuple[int, MatchResult, str | None]] = []
 
-            for home_name, away_name in matchday:
+            for fixture_index, (home_name, away_name) in enumerate(matchday, 1):
                 result = sim.simulate_match(
                     home_squad=teams[home_name],
                     away_squad=teams[away_name],
@@ -1022,15 +1393,29 @@ def run_stream(
                     result=result,
                 )
 
-                _play_stream_match(
+                next_fixture = _next_fixture_payload(
+                    fixtures,
+                    matchday_idx=matchday_idx,
+                    fixture_index=fixture_index,
+                    team_formations=team_formations,
+                    team_styles=team_styles,
+                )
+                last_result_payload = _play_stream_match(
                     result=result,
                     commentary_gen=commentary_gen,
                     session_id=session_id,
                     season_id=season_id,
                     matchday_idx=matchday_idx,
+                    fixture_index=fixture_index,
+                    fixtures_in_matchday=fixtures_in_matchday,
                     standings=standings,
                     fulltime_standings=projected_standings,
                     source_used=source_used,
+                    next_fixture=next_fixture,
+                    previous_results=matchday_results,
+                    matchday_schedule=matchday,
+                    team_formations=team_formations,
+                    team_styles=team_styles,
                     pace=pace,
                     match_seconds=match_seconds,
                     dry_run=dry_run,
@@ -1041,6 +1426,7 @@ def run_stream(
                 )
 
                 _update_standings(standings, result)
+                matchday_results.append((fixture_index, result, fulltime_pressure))
                 write_table(
                     standings,
                     meta={
@@ -1058,6 +1444,58 @@ def run_stream(
                         matchday_idx=matchday_idx,
                     )
                 )
+                if fixture_index < fixtures_in_matchday:
+                    write_session(
+                        _session_payload(
+                            session_id=session_id,
+                            season_id=season_id,
+                            matchday_idx=matchday_idx,
+                            fixture_index=fixture_index + 1,
+                            fixtures_in_matchday=fixtures_in_matchday,
+                            session_state="between_matches",
+                            current_fixture=None,
+                            last_result=last_result_payload,
+                            next_fixture=next_fixture,
+                            recent_results=_recent_results_payload(matchday_results, matchday_idx=matchday_idx),
+                            matchday_slate=_matchday_slate_payload(
+                                matchday,
+                                matchday_idx=matchday_idx,
+                                team_formations=team_formations,
+                                team_styles=team_styles,
+                                completed_results=matchday_results,
+                            ),
+                        )
+                    )
+                else:
+                    post_matchday_next_fixture = _next_fixture_payload(
+                        fixtures,
+                        matchday_idx=matchday_idx,
+                        fixture_index=fixture_index,
+                        team_formations=team_formations,
+                        team_styles=team_styles,
+                    )
+                    session_state = "season_complete" if post_matchday_next_fixture is None else "matchday_complete"
+                    write_session(
+                        _session_payload(
+                            session_id=session_id,
+                            season_id=season_id,
+                            matchday_idx=matchday_idx,
+                            fixture_index=fixture_index,
+                            fixtures_in_matchday=fixtures_in_matchday,
+                            session_state=session_state,
+                            current_fixture=None,
+                            last_result=last_result_payload,
+                            next_fixture=post_matchday_next_fixture,
+                            recent_results=_recent_results_payload(matchday_results, matchday_idx=matchday_idx),
+                            matchday_slate=_matchday_slate_payload(
+                                matchday,
+                                matchday_idx=matchday_idx,
+                                team_formations=team_formations,
+                                team_styles=team_styles,
+                                completed_results=matchday_results,
+                            ),
+                        )
+                    )
 
                 if not dry_run and pace > 0:
                     time.sleep(max(2.0, pace * 4))

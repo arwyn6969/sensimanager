@@ -1151,6 +1151,126 @@ a:hover { text-decoration: underline; }
   margin-bottom: 24px;
 }
 
+.session-panel {
+  padding: 22px 24px 24px;
+  margin-bottom: 24px;
+}
+
+.session-card-grid,
+.session-detail-grid {
+  display: grid;
+  gap: 16px;
+}
+
+.session-card-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.session-card {
+  padding: 18px 18px 20px;
+  min-height: 162px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.session-card strong {
+  display: block;
+  font-size: 22px;
+  line-height: 1.15;
+  margin-bottom: 10px;
+}
+
+.session-card p {
+  color: var(--text-secondary);
+  line-height: 1.65;
+  font-size: 14px;
+}
+
+.session-detail-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.session-detail-card {
+  padding: 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.session-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.session-list li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.session-list li:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.session-list-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.session-list-copy strong {
+  font-size: 14px;
+  line-height: 1.25;
+}
+
+.session-list-copy span {
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.session-status-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
+
+.session-status-pill.current {
+  color: var(--accent-blue);
+  background: rgba(0, 176, 255, 0.12);
+  border-color: rgba(0, 176, 255, 0.24);
+}
+
+.session-status-pill.completed {
+  color: var(--accent-green);
+  background: rgba(0, 230, 118, 0.12);
+  border-color: rgba(0, 230, 118, 0.24);
+}
+
+.session-status-pill.upcoming {
+  color: var(--accent-gold);
+  background: rgba(255, 215, 64, 0.12);
+  border-color: rgba(255, 215, 64, 0.24);
+}
+
 .story-card {
   padding: 18px 18px 20px;
   min-height: 148px;
@@ -1447,6 +1567,8 @@ a:hover { text-decoration: underline; }
   .score-shell,
   .match-context-grid,
   .story-card-grid,
+  .session-card-grid,
+  .session-detail-grid,
   .player-table-grid,
   .leader-grid {
     grid-template-columns: 1fr;

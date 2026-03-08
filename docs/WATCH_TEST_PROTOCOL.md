@@ -28,6 +28,7 @@ cd frontend && npm run build
 Expected:
 
 - runtime payloads validate
+- `session.json` explains what just happened and what fixture is next
 - at least 3 distinct formation/style combinations appear
 - session metadata and timestamps are present
 
@@ -86,6 +87,7 @@ Grade these as pass/fail while watching the frontend and overlay:
 Also confirm:
 
 - dangerous commentary beats line up with dangerous pitch states
+- between-match and season-complete states are obvious from the live product
 - halftime and fulltime narrative explains the match rather than repeating filler
 - stale feeds are marked as stale, not live
 - runtime contract changes do not break the frontend or overlay

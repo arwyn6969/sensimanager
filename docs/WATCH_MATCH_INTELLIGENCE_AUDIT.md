@@ -47,11 +47,12 @@ Current runtime contract:
 - `events.json`: commentary timeline, summary, and `match_player_stats`
 - `table.json`: current standings
 - `leaders.json`: top scorers, assists, clean sheets, and form leaders
+- `session.json`: current phase, fixture progress, last result, next fixture, and matchday slate
 
 UI intent:
 
-- `Live Match` explains the current fixture through the score, shape clash, commentary, and current-match ratings
-- `Season Desk` explains the season through the table plus player leaderboards
+- `Live Match` explains the current fixture through the score, shape clash, commentary, current-match ratings, and session progression
+- `Season Desk` explains the season through the table, leaderboards, current matchday slate, and completed-results recap
 
 ## Manager AI Status
 

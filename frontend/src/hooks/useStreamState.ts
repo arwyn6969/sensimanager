@@ -12,6 +12,7 @@ import {
   STREAM_STALE_AFTER_MS,
   type StreamConnection,
   type StreamEvents,
+  type StreamSession,
   type StreamScoreboard,
   type StreamTablePayload,
   type StreamTableRow,
@@ -22,6 +23,7 @@ interface StreamState {
   events: StreamEvents | null;
   table: StreamTableRow[];
   leaders: StreamLeaders | null;
+  session: StreamSession | null;
   connection: StreamConnection;
   lastUpdated: number | null;
   sessionId: string | null;
@@ -32,6 +34,7 @@ const INITIAL_STATE: StreamState = {
   events: null,
   table: [],
   leaders: null,
+  session: null,
   connection: "offline",
   lastUpdated: null,
   sessionId: null,
@@ -70,11 +73,12 @@ export function useStreamState(intervalMs = 2000): StreamState {
     let cancelled = false;
 
     const poll = async () => {
-      const [scoreboard, events, table, leaders] = await Promise.all([
+      const [scoreboard, events, table, leaders, session] = await Promise.all([
         readJson<StreamScoreboard>(makeStreamRuntimePath("scoreboard.json")),
         readJson<StreamEvents>(makeStreamRuntimePath("events.json")),
         readJson<StreamTableRow[] | StreamTablePayload>(makeStreamRuntimePath("table.json")),
         readJson<StreamLeaders>(makeStreamRuntimePath("leaders.json")),
+        readJson<StreamSession>(makeStreamRuntimePath("session.json")),
       ]);
 
       if (cancelled) {
@@ -89,8 +93,9 @@ export function useStreamState(intervalMs = 2000): StreamState {
         const nextEvents = events ?? current.events;
         const nextTable = normalizedTable.length > 0 ? normalizedTable : current.table;
         const nextLeaders = leaders ?? current.leaders;
+        const nextSession = session ?? current.session;
         const hasPayload = Boolean(
-          nextScoreboard || nextEvents || nextTable.length > 0 || nextLeaders
+          nextScoreboard || nextEvents || nextTable.length > 0 || nextLeaders || nextSession
         );
         const lastUpdated =
           newestStreamTimestamp(
@@ -98,8 +103,10 @@ export function useStreamState(intervalMs = 2000): StreamState {
             events?.updated_at,
             tableMeta?.updated_at,
             leaders?.updated_at,
+            session?.updated_at,
             current.scoreboard?.updated_at,
             current.events?.updated_at,
+            current.session?.updated_at,
           ) ?? current.lastUpdated;
         const connection = hasPayload
           ? resolveStreamConnection(lastUpdated, now, STREAM_STALE_AFTER_MS)
@@ -110,9 +117,11 @@ export function useStreamState(intervalMs = 2000): StreamState {
           events: nextEvents,
           table: nextTable,
           leaders: nextLeaders,
+          session: nextSession,
           connection,
           lastUpdated: hasPayload ? lastUpdated : null,
           sessionId:
+            session?.session_id ??
             scoreboard?.session_id ??
             events?.session_id ??
             tableMeta?.session_id ??

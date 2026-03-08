@@ -66,7 +66,7 @@ Open:
 - Frontend preview: [http://localhost:3000](http://localhost:3000)
 - Overlay preview: [http://localhost:8000/overlay.html](http://localhost:8000/overlay.html)
 
-Runtime payloads are written under `streaming/runtime/`. They are generated state, not source files, and should not be committed.
+Runtime payloads are written under `streaming/runtime/`. They are generated state, not source files, and should not be committed. The watch contract now includes `session.json` so the UI and overlay can explain what just happened and what fixture is next, not only the current scoreline.
 
 ## What Matters In The Repo Right Now
 
@@ -105,6 +105,7 @@ Deterministic review runs and manual acceptance criteria live in [`docs/WATCH_TE
 ## Docs
 
 - [`docs/WATCH_MATCH_INTELLIGENCE_AUDIT.md`](/Users/arwynhughes/Documents/Sensible%20Manager/docs/WATCH_MATCH_INTELLIGENCE_AUDIT.md): current-state vs ideal-state explainer for the watch-first product
+- [`docs/PROJECT_STATE_AND_CONSOLIDATION_AUDIT.md`](/Users/arwynhughes/Documents/Sensible%20Manager/docs/PROJECT_STATE_AND_CONSOLIDATION_AUDIT.md): branch/repo status, outliers, and consolidation truth
 - [`docs/NEXT_STEPS_MASTER_PLAN.md`](/Users/arwynhughes/Documents/Sensible%20Manager/docs/NEXT_STEPS_MASTER_PLAN.md): current watch-first roadmap and decision gates
 - [`docs/WATCH_OPERATOR_GUIDE.md`](/Users/arwynhughes/Documents/Sensible%20Manager/docs/WATCH_OPERATOR_GUIDE.md): how to run local watch sessions cleanly
 - [`docs/WATCH_TEST_PROTOCOL.md`](/Users/arwynhughes/Documents/Sensible%20Manager/docs/WATCH_TEST_PROTOCOL.md): deterministic test matrix, review checklist, and triage format

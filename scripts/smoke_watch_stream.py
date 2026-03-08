@@ -60,6 +60,7 @@ def main() -> int:
     events = _load_json(stream_league.EVENTS_PATH)
     table = _load_json(stream_league.TABLE_PATH)
     leaders = _load_json(stream_league.LEADERS_PATH)
+    session = _load_json(stream_league.SESSION_PATH)
     failures: list[str] = []
 
     _expect("home_formation" in scoreboard and "away_formation" in scoreboard, "scoreboard missing formation metadata", failures)
@@ -86,6 +87,12 @@ def main() -> int:
     _expect(bool(leaders.get("updated_at")), "leaders payload missing updated_at", failures)
     _expect("top_scorers" in leaders, "leaders payload missing top_scorers", failures)
     _expect("form_leaders" in leaders, "leaders payload missing form_leaders", failures)
+
+    _expect(bool(session.get("session_id")), "session payload missing session_id", failures)
+    _expect(bool(session.get("updated_at")), "session payload missing updated_at", failures)
+    _expect("session_state" in session, "session payload missing session_state", failures)
+    _expect("recent_results" in session, "session payload missing recent_results", failures)
+    _expect("next_fixture" in session, "session payload missing next_fixture", failures)
 
     identity_combos = {
         (result.home_formation, result.home_style)
